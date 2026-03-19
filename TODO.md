@@ -14,11 +14,11 @@
 - [x] Бинарник собирается и выводит "Hello Aura" в терминал
 
 ## STEP 02: Memory Allocator (arena + slab)
-- [ ] `src/core/memory.asm` — arena allocator (alloc, free, reset)
-- [ ] `src/core/memory.asm` — slab allocator (init_slab, slab_alloc, slab_free) для фиксированных размеров
-- [ ] `src/hal/linux_x86_64/mmap.asm` — обёртка mmap/munmap для получения страниц от ОС
-- [ ] `tests/unit/test_memory.asm` — тесты: выделение, освобождение, переполнение arena, slab stress-test
-- [ ] Все тесты проходят, нет утечек (munmap при завершении)
+- [x] `src/core/memory.asm` — arena allocator (alloc, free, reset)
+- [x] `src/core/memory.asm` — slab allocator (init_slab, slab_alloc, slab_free) для фиксированных размеров
+- [x] `src/hal/linux_x86_64/syscall.asm` — используются обёртки `hal_mmap`/`hal_munmap` для получения страниц от ОС
+- [x] `tests/unit/test_memory.asm` — тесты: выделение, освобождение, переполнение arena, slab stress-test
+- [x] Все тесты проходят, нет утечек (munmap при завершении)
 
 ## STEP 03: Thread Pool
 - [ ] `src/core/threads.asm` — создание потоков (clone syscall), завершение, join
@@ -72,4 +72,4 @@
 
 ---
 
-**Прогресс: 6/37 задач выполнено (16%)**
+**Прогресс: 11/37 задач выполнено (30%)**

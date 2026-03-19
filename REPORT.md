@@ -51,3 +51,31 @@
 
 ### Статус
 ✅ Завершён
+
+## STEP 02: Memory Allocator (arena + slab) — 2026-03-19
+
+### Что сделано
+- Создан `src/core/memory.asm` с двумя аллокаторами: Arena (`arena_init`, `arena_alloc`, `arena_reset`, `arena_destroy`) и Slab (`slab_init`, `slab_alloc`, `slab_free`, `slab_destroy`).
+- Реализовано выравнивание: 8 байт для размеров объектов/аллокаций и 4096 байт для размеров `mmap`.
+- Реализован free-list для Slab (следующий свободный слот в первых 8 байтах блока).
+- Создан `tests/unit/test_memory.asm` с тестами arena/slab, включая stress-test на 10000 итераций.
+- Обновлён `Makefile`: добавлены сборка `src/core/memory.asm`, цель `test_memory`, и включение `test_memory` в общую цель `test`.
+- Обновлён `TODO.md` по STEP 02.
+
+### Результаты тестов
+- `test_syscall`: PASSED (`Hello Aura`, `ALL TESTS PASSED`).
+- `test_memory`: PASSED (`ALL TESTS PASSED`).
+- Общий прогон: `make clean && make test` — PASSED.
+
+### Проблемы и решения
+- Проблема: в ранней версии теста использовались caller-saved регистры как счётчики между вызовами, что давало нестабильное поведение.
+- Решение: счётчики и индексы в циклах переведены на устойчивые регистры/схему, не зависящую от clobber при вызовах.
+- Проблема: размер arena после `hal_mmap` хранился в регистре, который может быть изменён syscall-path.
+- Решение: критичные значения перенесены в безопасные регистры с корректным сохранением.
+
+### Метрики
+- Размер бинарника `test_memory`: 15496 байт.
+- Строки кода (STEP 02): 705 (`src/core/memory.asm` + `tests/unit/test_memory.asm`).
+
+### Статус
+✅ Завершён
