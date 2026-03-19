@@ -1,0 +1,46 @@
+# OS / Explorer
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+logs/
+
+# Temp / cache
+tmp/
+temp/
+.cache/
+*.tmp
+
+# Build / distribution
+build/
+dist/
+out/
+
+# NASM / linker artifacts
+*.o
+*.obj
+*.a
+*.lib
+*.so
+*.dll
+*.dylib
+*.exp
+*.pdb
+*.idb
+*.ilk
+*.lst
+*.map
+*.sym
+*.bin
+*.com
+*.elf
+*.exe
