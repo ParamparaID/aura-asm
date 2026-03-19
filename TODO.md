@@ -6,12 +6,12 @@
 ---
 
 ## STEP 01: HAL — Linux x86_64 syscall абстракция
-- [ ] `src/hal/linux_x86_64/syscall.asm` — макросы syscall (read, write, open, close, mmap, munmap, exit, clock_gettime)
-- [ ] `src/hal/linux_x86_64/errno.asm` — коды ошибок и обработка
-- [ ] `src/hal/linux_x86_64/defs.inc` — константы (номера syscall, флаги O_RDONLY, PROT_READ и т.д.)
-- [ ] `tests/unit/test_syscall.asm` — тест: write "Hello Aura" в stdout, проверка возврата
-- [ ] `Makefile` — базовая сборка (nasm + ld)
-- [ ] Бинарник собирается и выводит "Hello Aura" в терминал
+- [x] `src/hal/linux_x86_64/syscall.asm` — макросы syscall (read, write, open, close, mmap, munmap, exit, clock_gettime)
+- [x] `src/hal/linux_x86_64/errno.asm` — коды ошибок и обработка
+- [x] `src/hal/linux_x86_64/defs.inc` — константы (номера syscall, флаги O_RDONLY, PROT_READ и т.д.)
+- [x] `tests/unit/test_syscall.asm` — тест: write "Hello Aura" в stdout, проверка возврата
+- [x] `Makefile` — базовая сборка (nasm + ld)
+- [x] Бинарник собирается и выводит "Hello Aura" в терминал
 
 ## STEP 02: Memory Allocator (arena + slab)
 - [ ] `src/core/memory.asm` — arena allocator (alloc, free, reset)
@@ -72,4 +72,4 @@
 
 ---
 
-**Прогресс: 0/37 задач выполнено (0%)**
+**Прогресс: 6/37 задач выполнено (16%)**
