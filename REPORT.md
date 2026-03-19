@@ -79,3 +79,39 @@
 
 ### Статус
 ✅ Завершён
+
+## STEP 00: GitHub Community Files — 2026-03-19
+
+### Что сделано
+- Полностью обновлён `README.md` в публичный GitHub-формат (badges, архитектура, roadmap, quick start, community).
+- Создан `CONTRIBUTING.md` с правилами входа, setup, style guide для NASM, Conventional Commits и PR-процессом.
+- Создан `CODE_OF_CONDUCT.md` на базе Contributor Covenant v2.1 с контактным адресом для обращений.
+- Добавлен `LICENSE` с заголовком Aura Shell и полным текстом GNU AGPL-3.0.
+- Создан `SECURITY.md` (канал репортинга, SLA ответа, scope уязвимостей).
+- Добавлены GitHub шаблоны:
+  - `.github/ISSUE_TEMPLATE/bug_report.md`
+  - `.github/ISSUE_TEMPLATE/feature_request.md`
+  - `.github/PULL_REQUEST_TEMPLATE.md`
+  - `.github/FUNDING.yml`
+- Обновлён `.gitignore` под артефакты asm-сборки и тестовые бинарники.
+- Создана публичная документация:
+  - `docs/ui-philosophy.md` (touch-first design document)
+  - `docs/architecture.md` (архитектура и модель отказоустойчивости)
+
+### Результаты тестов
+- Runtime-тесты (`make test`) не запускались в рамках STEP 00, так как изменения затрагивают документацию,
+  шаблоны репозитория и meta-файлы.
+- Проверена целостность относительных ссылок между `README.md`, `CONTRIBUTING.md`, `LICENSE`,
+  `docs/ui-philosophy.md`, `docs/architecture.md`, `CODE_OF_CONDUCT.md`.
+
+### Проблемы и решения
+- Проблема: исходный `README.md` был внутренним документом по пошаговым промптам, не подходил для публичного
+  open-source onboarding.
+- Решение: README переписан как внешний entry-point для сообщества с акцентом на ценность проекта и вклад.
+
+### Метрики
+- Создано новых файлов: 10
+- Обновлено существующих файлов: 3 (`README.md`, `.gitignore`, `REPORT.md`)
+
+### Статус
+✅ Завершён

@@ -1,46 +1,26 @@
-# OS / Explorer
-.DS_Store
-Thumbs.db
-Desktop.ini
+# Build artifacts
+*.o
+*.bin
+*.elf
+*.lst
+*.map
+aura-shell
 
-# IDE / Editor
-.vscode/
-.idea/
+# Test binaries
+tests/unit/test_*
+!tests/unit/test_*.asm
+
+# Editor files
 *.swp
 *.swo
 *~
+.vscode/
+.idea/
 
-# Logs
-*.log
-logs/
+# OS files
+.DS_Store
+Thumbs.db
 
-# Temp / cache
-tmp/
-temp/
-.cache/
-*.tmp
-
-# Build / distribution
-build/
-dist/
-out/
-
-# NASM / linker artifacts
-*.o
-*.obj
-*.a
-*.lib
-*.so
-*.dll
-*.dylib
-*.exp
-*.pdb
-*.idb
-*.ilk
-*.lst
-*.map
-*.sym
-*.bin
-*.com
-*.elf
-*.exe
+# Debug
+core
+*.dSYM/
