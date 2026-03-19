@@ -40,28 +40,28 @@ For the full design document, see [`docs/ui-philosophy.md`](docs/ui-philosophy.m
 ## Architecture Overview
 
 ```text
-┌───────────────────────────────────────────────────────┐
-│                   Aura Shell Binary                   │
-├──────────┬───────────┬──────────┬────────────────────┤
-│  Shell   │   GUI     │  File    │   Plugin           │
-│  Engine  │ Compositor│ Manager  │   Host             │
-├──────────┴───────────┴──────────┴────────────────────┤
-│                Core Services Layer                   │
+┌─────────────────────────────────────────────────────┐
+│                   Aura Shell Binary                 │
+├──────────┬───────────┬──────────┬───────────────────┤
+│  Shell   │   GUI     │  File    │   Plugin          │
+│  Engine  │ Compositor│ Manager  │   Host            │
+├──────────┴───────────┴──────────┴───────────────────┤
+│                Core Services Layer                  │
 │  ┌────────┐ ┌────────┐ ┌────────┐ ┌──────────┐      │
 │  │ Memory │ │ Thread │ │  IPC   │ │  Event   │      │
-│  │ Alloc  │ │ Pool   │ │ Bus    │ │  Loop    │      │
+│  │ Alloc  │ │ Pool   │ │  Bus   │ │  Loop    │      │
 │  └────────┘ └────────┘ └────────┘ └──────────┘      │
-│  ┌────────────┐ ┌──────────────┐                     │
-│  │ Gesture    │ │ Input        │                     │
-│  │ Recognizer │ │ Abstraction  │                     │
-│  └────────────┘ └──────────────┘                     │
-├───────────────────────────────────────────────────────┤
-│           HAL (Hardware Abstraction Layer)            │
-│  ┌─────────────┐         ┌─────────────┐             │
-│  │ Linux HAL   │         │ Windows HAL │             │
-│  │ (syscall)   │         │ (Win32 API) │             │
-│  └─────────────┘         └─────────────┘             │
-└───────────────────────────────────────────────────────┘
+│  ┌────────────┐ ┌──────────────┐                    │
+│  │ Gesture    │ │ Input        │                    │
+│  │ Recognizer │ │ Abstraction  │                    │
+│  └────────────┘ └──────────────┘                    │
+├─────────────────────────────────────────────────────┤
+│           HAL (Hardware Abstraction Layer)          │
+│  ┌─────────────┐         ┌─────────────┐            │
+│  │ Linux HAL   │         │ Windows HAL │            │
+│  │ (syscall)   │         │ (Win32 API) │            │
+│  └─────────────┘         └─────────────┘            │
+└─────────────────────────────────────────────────────┘
 ```
 
 - `Shell Engine` - Command parsing, execution, job control, and scripting integration.
