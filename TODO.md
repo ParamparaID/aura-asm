@@ -37,13 +37,13 @@
 - [x] Event loop стабильно работает, таймеры точны ±5ms
 
 ## STEP 05: AuraCanvas — базовый растеризатор
-- [ ] `src/canvas/rasterizer.asm` — framebuffer: init, clear, put_pixel, fill_rect
-- [ ] `src/canvas/rasterizer.asm` — горизонтальные/вертикальные линии
-- [ ] `src/canvas/text.asm` — bitmap font 8x16 (встроенная таблица глифов, ASCII)
-- [ ] `src/canvas/text.asm` — draw_char, draw_string, курсор (мигающий через таймер)
-- [ ] `src/canvas/simd.asm` — SSE2: fill_rect_simd (заливка 16 байт за раз)
-- [ ] `tests/unit/test_canvas.asm` — тест: рендеринг в буфер → сравнение с эталоном (массив байт)
-- [ ] Framebuffer рендерит текст и прямоугольники корректно
+- [x] `src/canvas/rasterizer.asm` — framebuffer: init, clear, put_pixel, fill_rect
+- [x] `src/canvas/rasterizer.asm` — горизонтальные/вертикальные линии
+- [x] `src/canvas/text.asm` — bitmap font 8x16 (встроенная таблица глифов, ASCII)
+- [x] `src/canvas/text.asm` — draw_char, draw_string, курсор (мигающий через таймер)
+- [x] `src/canvas/simd.asm` — SSE2: fill_rect_simd (заливка 16 байт за раз)
+- [x] `tests/unit/test_canvas.asm` — тест: рендеринг в буфер → сравнение с эталоном (массив байт)
+- [x] Framebuffer рендерит текст и прямоугольники корректно
 
 ## STEP 06: Wayland Client
 - [ ] `src/hal/linux_x86_64/wayland.asm` — подключение к Wayland (wl_display через unix socket)
@@ -72,4 +72,4 @@
 
 ---
 
-**Прогресс: 23/37 задач выполнено (62%)**
+**Прогресс: 30/37 задач выполнено (81%)**

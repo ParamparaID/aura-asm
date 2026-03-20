@@ -52,6 +52,37 @@
 ### Статус
 ✅ Завершён
 
+## STEP 05: AuraCanvas — базовый растеризатор — 2026-03-20
+
+### Что сделано
+- Создан `src/canvas/rasterizer.asm` с `canvas_init`, `canvas_destroy`, `canvas_clear`, `canvas_put_pixel`, `canvas_get_pixel`, `canvas_fill_rect`, `canvas_draw_rect`, `canvas_hline`, `canvas_vline`.
+- Реализован clipping во всех базовых примитивах без падений при выходе координат за границы canvas.
+- Создан `src/canvas/text.asm` с bitmap-font 8x16 и API `canvas_draw_char`, `canvas_draw_string`, `canvas_draw_cursor`, `canvas_text_width`.
+- Создан `src/canvas/simd.asm` с проверкой SSE2 (`canvas_has_sse2`) и ускоренными заливками `canvas_fill_rect_simd`, `canvas_clear_simd`.
+- Добавлен `tests/unit/test_canvas.asm` с проверками clear/fill/clipping/text/SIMD.
+- Обновлён `Makefile`: добавлены сборка `rasterizer.asm`, `text.asm`, `simd.asm` и цель `test_canvas` в общий `test`.
+- Обновлён `TODO.md` по STEP 05.
+
+### Результаты тестов
+- `test_syscall`: PASSED.
+- `test_memory`: PASSED.
+- `test_threads`: PASSED.
+- `test_event`: PASSED.
+- `test_ipc`: PASSED.
+- `test_canvas`: PASSED.
+- Общий прогон: `make clean && make test` — PASSED.
+
+### Проблемы и решения
+- Проблема: на ранней итерации были ошибки адресации/поток управления в циклах отрисовки и строки.
+- Решение: переработаны hot-path участки `rasterizer/text`, добавлены стабильные проверки границ и корректный цикл рендера строки.
+
+### Метрики
+- Размер бинарника `test_canvas`: 18112 байт.
+- Строки кода (STEP 05): 1180 (`src/canvas/rasterizer.asm` + `src/canvas/text.asm` + `src/canvas/simd.asm` + `tests/unit/test_canvas.asm`).
+
+### Статус
+✅ Завершён
+
 ## STEP 04: Event Loop и IPC — 2026-03-20
 
 ### Что сделано
