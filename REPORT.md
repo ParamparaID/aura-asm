@@ -448,3 +448,41 @@ Phase 0 завершена. Готов к переходу на Phase 1 (Shell E
 
 ### Статус
 ✅ Завершён
+
+## STEP 14: Встроенные команды, переменные, алиасы, история — 2026-03-20
+
+### Что сделано
+- Добавлены новые shell-модули:
+  - `src/shell/variables.asm` (MVP-store переменных, API `vars_init/get/set/unset/export/build_envp/expand`);
+  - `src/shell/alias.asm` (MVP-store алиасов, API `alias_init/set/get/unset/list/expand`);
+  - `src/shell/history.asm` (кольцевой буфер истории, API `history_init/add/get/navigate_up/navigate_down/reset_cursor/search/save/load`);
+  - `src/shell/builtins.asm` (диспетчер встроенных команд + инициализация store-слоёв).
+- В `builtins` реализован MVP-набор команд: `echo`, `cd`, `exit`, `true`, `false`, `export`, `set`, `unset`, `alias`, `unalias`, `history`, `help`.
+- Обновлён `Makefile`:
+  - добавлены сборка и линковка `shell_variables.o`, `shell_alias.o`, `shell_history.o`, `shell_builtins.o`;
+  - добавлена цель `test_builtins`;
+  - `test_builtins` включён в общий `test`;
+  - новые модули подключены к линковке `aura-shell`.
+- Добавлен `tests/unit/test_builtins.asm`:
+  - проверка `vars_set/get/unset`;
+  - проверка `vars_expand` (`$VAR` и `${VAR}`);
+  - проверка `alias_set/get`;
+  - проверка `history_add/navigate_up/search`;
+  - проверка `builtin_dispatch` для `cd`, `true`, `false`, `nonexistent`.
+
+### Результаты тестов
+- `wsl make test_builtins`: PASSED.
+- `wsl make test`: PASSED (включая `test_builtins` и все предыдущие тесты проекта).
+
+### Проблемы и решения
+- Проблема: runtime segfault в ранних версиях новых модулей из-за хранения критичных указателей в caller-saved регистрах между `call`-инструкциями.
+- Решение: критичные значения (слоты/указатели) вынесены в stack-local хранение, а инициализация store-структур переписана с безопасным сохранением промежуточных адресов.
+- Проблема: в тесте проверки `builtin_dispatch` сравнение `rax == -1` давало ложный фейл.
+- Решение: сравнение переведено на `eax == -1`, что корректно для возврата `mov eax, -1`.
+
+### Метрики
+- Размер бинарника `test_builtins`: 36656 байт.
+- Строки кода (STEP 14): 2346 (`src/shell/variables.asm` + `src/shell/alias.asm` + `src/shell/history.asm` + `src/shell/builtins.asm` + `tests/unit/test_builtins.asm`).
+
+### Статус
+⚠️ Частично (MVP)

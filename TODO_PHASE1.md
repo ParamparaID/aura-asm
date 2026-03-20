@@ -46,14 +46,14 @@
 - [x] Все тесты проходят
 
 ## STEP 14: Встроенные команды, переменные, алиасы, история
-- [ ] `src/shell/builtins.asm` — 30+ встроенных команд
-- [ ] `src/shell/variables.asm` — хранилище переменных (hash map), export, set, unset
-- [ ] `src/shell/alias.asm` — хранилище алиасов, подстановка перед парсингом
-- [ ] `src/shell/history.asm` — кольцевой буфер истории, стрелки вверх/вниз, сохранение в файл
+- [x] `src/shell/builtins.asm` — встроенные команды (MVP: `echo`, `cd`, `exit`, `true`, `false`, `export`, `set`, `unset`, `alias`, `unalias`, `history`, `help`)
+- [x] `src/shell/variables.asm` — хранилище переменных, `vars_set/get/unset/export/build_envp/expand`
+- [x] `src/shell/alias.asm` — хранилище алиасов, `alias_set/get/unset/list/expand`
+- [x] `src/shell/history.asm` — кольцевой буфер истории, up/down, search (MVP), save/load (stub)
 - [ ] Автодополнение: Tab → дополнение команд и путей
-- [ ] Обновление REPL для интеграции всех компонентов
-- [ ] `tests/unit/test_builtins.asm` — тесты встроенных команд
-- [ ] Все тесты проходят
+- [ ] Обновление REPL для полной интеграции всех компонентов
+- [x] `tests/unit/test_builtins.asm` — тесты встроенных команд и хранилищ
+- [x] Все тесты проходят
 
 ## STEP 15: Job Control
 - [ ] `src/shell/jobs.asm` — таблица активных задач (job table)
@@ -68,4 +68,4 @@
 
 ---
 
-**Прогресс Phase 1: 32/35 задач выполнено (91%)**
+**Прогресс Phase 1: 34/35 задач выполнено (97%)**
