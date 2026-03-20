@@ -11,11 +11,17 @@
 %define sys_write            1
 %define sys_open             2
 %define sys_close            3
+%define sys_access           21
+%define sys_dup2             33
 %define sys_mmap             9
 %define sys_munmap           11
 %define sys_clone            56
+%define sys_execve           59
 %define sys_exit             60
+%define sys_wait4            61
 %define sys_ftruncate        77
+%define sys_getcwd           79
+%define sys_chdir            80
 %define sys_futex            202
 %define sys_clock_gettime    228
 %define sys_epoll_wait       232
@@ -35,11 +41,17 @@
 %define SYS_WRITE            sys_write
 %define SYS_OPEN             sys_open
 %define SYS_CLOSE            sys_close
+%define SYS_ACCESS           sys_access
+%define SYS_DUP2             sys_dup2
 %define SYS_MMAP             sys_mmap
 %define SYS_MUNMAP           sys_munmap
 %define SYS_CLONE            sys_clone
+%define SYS_EXECVE           sys_execve
 %define SYS_EXIT             sys_exit
+%define SYS_WAIT4            sys_wait4
 %define SYS_FTRUNCATE        sys_ftruncate
+%define SYS_GETCWD           sys_getcwd
+%define SYS_CHDIR            sys_chdir
 %define SYS_FUTEX            sys_futex
 %define SYS_CLOCK_GETTIME    sys_clock_gettime
 %define SYS_EPOLL_WAIT       sys_epoll_wait
@@ -96,6 +108,14 @@
 ; --- futex operations ---
 %define FUTEX_WAIT           0
 %define FUTEX_WAKE           1
+
+; --- signal/wait flags ---
+%define SIGCHLD              17
+%define WNOHANG              1
+
+; --- access(2) modes ---
+%define F_OK                 0
+%define X_OK                 1
 
 ; --- standard file descriptors ---
 %define STDIN                0

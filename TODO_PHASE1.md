@@ -25,14 +25,14 @@
 - [x] Все тесты проходят
 
 ## STEP 12: Выполнение команд (fork/exec)
-- [ ] `src/hal/linux_x86_64/process.asm` — обёртки fork, execve, waitpid, dup2, _exit
-- [ ] `src/shell/executor.asm` — обход AST и выполнение
-- [ ] Поиск команды в PATH (разбор $PATH, проверка access)
-- [ ] Выполнение внешних программ: fork → execve
-- [ ] Ожидание завершения: waitpid, получение exit code
-- [ ] Передача переменных окружения в execve
-- [ ] `tests/unit/test_executor.asm` — тесты: /bin/echo, /bin/ls, несуществующая команда
-- [ ] Все тесты проходят
+- [x] `src/hal/linux_x86_64/process.asm` — обёртки fork, execve, waitpid, dup2, pipe, access, getcwd, chdir, getenv_raw
+- [x] `src/shell/executor.asm` — обход AST и выполнение
+- [x] Поиск команды в PATH (разбор `$PATH`, проверка `access(X_OK)`)
+- [x] Выполнение внешних программ: fork → execve
+- [x] Ожидание завершения: waitpid, получение exit code
+- [x] Передача переменных окружения в execve
+- [x] `tests/unit/test_executor.asm` — тесты: /bin/echo, /bin/ls, несуществующая команда, PATH, cd, exit code
+- [x] Все тесты проходят
 
 ## STEP 13: Пайпы и редиректы
 - [ ] `src/shell/pipeline.asm` — выполнение пайплайнов (цепочка fork + pipe + dup2)
@@ -68,4 +68,4 @@
 
 ---
 
-**Прогресс Phase 1: 15/35 задач выполнено (43%)**
+**Прогресс Phase 1: 23/35 задач выполнено (66%)**

@@ -2,6 +2,8 @@
 ; Minimal Aura Shell REPL for Phase 0
 
 extern arena_alloc
+extern arena_init
+extern arena_reset
 extern window_get_canvas
 extern canvas_clear
 extern canvas_fill_rect
@@ -10,6 +12,15 @@ extern window_present
 extern wayland_keycode_to_ascii
 extern font_char_width
 extern font_char_height
+extern hal_getenv_raw
+extern lexer_init
+extern lexer_tokenize
+extern lexer_get_error
+extern parser_init
+extern parser_parse
+extern parser_get_error
+extern executor_init
+extern executor_run
 
 section .text
 global repl_set_arena
@@ -84,6 +95,8 @@ section .data
 
 section .bss
     repl_arena_ptr                      resq 1
+    repl_exec_arena_ptr                 resq 1
+    repl_envp_ptr                       resq 1
     repl_instance                       resb R_STRUCT_SIZE
 
 section .text
@@ -134,6 +147,20 @@ repl_memeq:
     ret
 .no:
     xor eax, eax
+    ret
+
+; rdi=c-string ptr
+; rax=len
+repl_cstrlen:
+    xor eax, eax
+    test rdi, rdi
+    jz .ret
+.loop:
+    cmp byte [rdi + rax], 0
+    je .ret
+    inc rax
+    jmp .loop
+.ret:
     ret
 
 ; rdi=repl, rsi=abs_line
@@ -276,6 +303,15 @@ repl_init:
     call repl_memcpy
     mov qword [r12 + R_PROMPT_LEN_OFF], repl_prompt_default_len
 
+    ; dedicated execution arena for lexer/parser/executor temporary data
+    mov rdi, 1048576
+    call arena_init
+    test rax, rax
+    jz .fail
+    mov [rel repl_exec_arena_ptr], rax
+    call hal_getenv_raw
+    mov [rel repl_envp_ptr], rax
+
     mov rdi, r12
     call repl_clear_history
 
@@ -401,101 +437,91 @@ repl_execute:
     cmp r12, 0
     je .clear_input
 
-    ; clear
-    cmp r12, 5
-    jne .check_exit
-    mov rdi, r13
-    lea rsi, [rel cmd_clear]
-    mov rdx, 5
-    call repl_memeq
-    cmp rax, 1
-    jne .check_exit
-    mov rdi, rbx
-    call repl_clear_history
-    jmp .clear_input
-
-.check_exit:
+    ; keep "exit" as non-forked REPL action
     cmp r12, 4
-    jne .check_help
+    jne .pipeline_exec
     mov rdi, r13
     lea rsi, [rel cmd_exit]
     mov rdx, 4
     call repl_memeq
     cmp rax, 1
-    jne .check_help
+    jne .pipeline_exec
     mov rax, [rbx + R_WINDOW_PTR_OFF]
     mov qword [rax + WINDOW_SHOULD_CLOSE_OFF], 1
     jmp .clear_input
 
-.check_help:
-    cmp r12, 4
-    jne .check_version
-    mov rdi, r13
-    lea rsi, [rel cmd_help]
-    mov rdx, 4
-    call repl_memeq
-    cmp rax, 1
-    jne .check_version
-    mov rdi, rbx
-    lea rsi, [rel repl_help_text]
-    mov rdx, repl_help_text_len
-    call repl_print
-    jmp .clear_input
+.pipeline_exec:
+    mov rdi, [rel repl_exec_arena_ptr]
+    call arena_reset
 
-.check_version:
-    cmp r12, 7
-    jne .check_echo
-    mov rdi, r13
-    lea rsi, [rel cmd_version]
-    mov rdx, 7
-    call repl_memeq
-    cmp rax, 1
-    jne .check_echo
-    mov rdi, rbx
-    lea rsi, [rel repl_version_text]
-    mov rdx, repl_version_text_len
-    call repl_print
-    jmp .clear_input
-
-.check_echo:
-    cmp r12, 4
-    jb .unknown
-    mov rdi, r13
-    lea rsi, [rel cmd_echo]
-    mov rdx, 4
-    call repl_memeq
-    cmp rax, 1
-    jne .unknown
-
-    cmp r12, 4
-    je .echo_empty
-    cmp byte [r13 + 4], ' '
-    jne .unknown
-    mov rdi, rbx
-    lea rsi, [r13 + 5]
-    mov rdx, r12
-    sub rdx, 5
-    call repl_print
-.echo_empty:
-    mov rdi, rbx
-    lea rsi, [rel repl_newline]
-    mov rdx, 1
-    call repl_print
-    jmp .clear_input
-
-.unknown:
-    mov rdi, rbx
-    lea rsi, [rel repl_unknown_prefix]
-    mov rdx, repl_unknown_prefix_len
-    call repl_print
-    mov rdi, rbx
+    mov rdi, [rel repl_exec_arena_ptr]
     lea rsi, [rbx + R_INPUT_BUF_OFF]
     mov rdx, [rbx + R_INPUT_LEN_OFF]
+    call lexer_init
+    test rax, rax
+    jz .clear_input
+    mov r12, rax                        ; lexer ptr
+
+    mov rdi, r12
+    call lexer_tokenize
+    cmp rax, 0
+    je .parse_stage
+    mov rdi, r12
+    call lexer_get_error
+    test rax, rax
+    jz .clear_input
+    mov r13, rax
+    mov rdi, r13
+    call repl_cstrlen
+    mov rdi, rbx
+    mov rsi, r13
+    mov rdx, rax
     call repl_print
     mov rdi, rbx
     lea rsi, [rel repl_newline]
     mov rdx, 1
     call repl_print
+    jmp .clear_input
+
+.parse_stage:
+    mov rdi, [rel repl_exec_arena_ptr]
+    mov rsi, r12
+    call parser_init
+    test rax, rax
+    jz .clear_input
+    mov r13, rax                        ; parser ptr
+
+    mov rdi, r13
+    call parser_parse
+    test rax, rax
+    jnz .exec_stage
+    mov rdi, r13
+    call parser_get_error
+    test rax, rax
+    jz .clear_input
+    mov r12, rax
+    mov rdi, r12
+    call repl_cstrlen
+    mov rdi, rbx
+    mov rsi, r12
+    mov rdx, rax
+    call repl_print
+    mov rdi, rbx
+    lea rsi, [rel repl_newline]
+    mov rdx, 1
+    call repl_print
+    jmp .clear_input
+
+.exec_stage:
+    mov r12, rax                        ; ast root
+    mov rdi, [rel repl_exec_arena_ptr]
+    mov rsi, [rel repl_envp_ptr]
+    call executor_init
+    test rax, rax
+    jz .clear_input
+    mov rdi, rax
+    mov rsi, r12
+    call executor_run
 
 .clear_input:
     mov qword [rbx + R_INPUT_LEN_OFF], 0

@@ -6,6 +6,7 @@
 extern hal_write
 extern hal_exit
 extern hal_clock_gettime
+extern global_envp
 extern arena_init
 extern arena_destroy
 extern input_queue_init
@@ -65,6 +66,12 @@ timespec_to_ns:
     ret
 
 _start:
+    ; Entry stack layout: argc, argv..., NULL, envp..., NULL
+    mov rcx, [rsp]                      ; argc
+    lea rax, [rsp + 8]                  ; argv
+    lea rdx, [rax + rcx*8 + 8]          ; envp = argv + argc + NULL
+    mov [rel global_envp], rdx
+
     ; 1) Memory arena
     mov rdi, 1048576
     call arena_init

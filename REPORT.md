@@ -359,3 +359,45 @@ Phase 0 завершена. Готов к переходу на Phase 1 (Shell E
 
 ### Статус
 ✅ Завершён
+
+## STEP 12: Выполнение команд (fork/exec) — 2026-03-20
+
+### Что сделано
+- Создан `src/hal/linux_x86_64/process.asm` с syscall-обёртками: `hal_fork`, `hal_execve`, `hal_waitpid`, `hal_dup2`, `hal_pipe`, `hal_access`, `hal_getcwd`, `hal_chdir`, `hal_getenv_raw`.
+- Обновлён `src/hal/linux_x86_64/defs.inc`: добавлены `execve/wait4/dup2/access/getcwd/chdir`, `SIGCHLD`, `WNOHANG`, `F_OK`, `X_OK`.
+- Обновлён `src/main.asm`: в `_start` реализован захват `envp` из стартового стека и сохранение в `global_envp`.
+- Создан `src/shell/executor.asm`:
+  - `executor_init`, `executor_run`;
+  - обход `ListNode` c логикой `OP_AND/OP_OR/OP_SEQ`;
+  - выполнение `PipelineNode` (MVP: выполняется первая команда в цепочке);
+  - `exec_simple_command` для built-in (`echo`, `cd`, `exit`) и внешних команд;
+  - `resolve_path` по `$PATH` через `find_env_value` + `access(X_OK)`;
+  - `build_argv` с копированием в arena и нуль-терминацией;
+  - обработка редиректов в дочернем процессе (`<`, `>`, `>>`) через `open/dup2/close`.
+- Обновлён `src/shell/repl.asm`: `repl_execute` переведён на pipeline `lexer -> parser -> executor` с выводом ошибок лексера/парсера и сбросом временной execution-arena.
+- Создан `tests/unit/test_executor.asm` с интеграционными тестами:
+  - выполнение `echo hello` с перехватом stdout через `pipe+dup2`;
+  - выполнение `/bin/ls /tmp`;
+  - несуществующая команда;
+  - PATH resolution для `echo hello`;
+  - `cd /tmp` и `cd /` с проверкой через `getcwd`;
+  - exit code для `/bin/true` и `/bin/false`.
+- Обновлён `Makefile`: добавлены `process.asm`, `executor.asm`, `test_executor`, обновлена линковка `aura-shell`.
+
+### Результаты тестов
+- `wsl make test_executor`: PASSED.
+- `wsl make test`: PASSED (включая `test_executor`).
+- `wsl make all`: PASSED (`aura-shell` успешно линкуется с новым executor/process-слоем).
+
+### Проблемы и решения
+- Проблема: падение на PATH resolution из-за использования caller-saved регистров после syscall-вызова `access`.
+- Решение: добавлено явное сохранение/восстановление временных регистров при обходе сегментов `$PATH`.
+- Проблема: в ранней версии `copy_to_cstr` нуль-терминатор ставился по сбитому смещению после `memcpy`.
+- Решение: длина сохраняется до копирования и используется для корректной постановки `\0`.
+
+### Метрики
+- Размер бинарника `test_executor`: 34152 байт.
+- Строки кода (STEP 12): 1189 (`src/hal/linux_x86_64/process.asm` + `src/shell/executor.asm` + `tests/unit/test_executor.asm`).
+
+### Статус
+✅ Завершён

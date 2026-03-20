@@ -22,11 +22,13 @@ TEST_WINDOW_BIN = $(BUILD_DIR)/test_window
 TEST_INPUT_BIN = $(BUILD_DIR)/test_input
 TEST_LEXER_BIN = $(BUILD_DIR)/test_lexer
 TEST_PARSER_BIN = $(BUILD_DIR)/test_parser
+TEST_EXECUTOR_BIN = $(BUILD_DIR)/test_executor
 
 HAL_SYSCALL_OBJ = $(BUILD_DIR)/hal_syscall.o
 HAL_ERRNO_OBJ = $(BUILD_DIR)/hal_errno.o
 HAL_WAYLAND_OBJ = $(BUILD_DIR)/hal_wayland.o
 HAL_WAYLAND_INPUT_OBJ = $(BUILD_DIR)/hal_wayland_input.o
+HAL_PROCESS_OBJ = $(BUILD_DIR)/hal_process.o
 CORE_MEMORY_OBJ = $(BUILD_DIR)/core_memory.o
 CORE_SYNC_OBJ = $(BUILD_DIR)/core_sync.o
 CORE_THREADS_OBJ = $(BUILD_DIR)/core_threads.o
@@ -37,6 +39,7 @@ GUI_WINDOW_OBJ = $(BUILD_DIR)/gui_window.o
 SHELL_REPL_OBJ = $(BUILD_DIR)/shell_repl.o
 SHELL_LEXER_OBJ = $(BUILD_DIR)/shell_lexer.o
 SHELL_PARSER_OBJ = $(BUILD_DIR)/shell_parser.o
+SHELL_EXECUTOR_OBJ = $(BUILD_DIR)/shell_executor.o
 MAIN_OBJ = $(BUILD_DIR)/main.o
 CANVAS_RASTERIZER_OBJ = $(BUILD_DIR)/canvas_rasterizer.o
 CANVAS_TEXT_OBJ = $(BUILD_DIR)/canvas_text.o
@@ -51,6 +54,7 @@ TEST_WINDOW_OBJ = $(BUILD_DIR)/test_window.o
 TEST_INPUT_OBJ = $(BUILD_DIR)/test_input.o
 TEST_LEXER_OBJ = $(BUILD_DIR)/test_lexer.o
 TEST_PARSER_OBJ = $(BUILD_DIR)/test_parser.o
+TEST_EXECUTOR_OBJ = $(BUILD_DIR)/test_executor.o
 
 .PHONY: all test run clean
 
@@ -58,7 +62,7 @@ TEST_PARSER_OBJ = $(BUILD_DIR)/test_parser.o
 all: $(AURA_SHELL_BIN)
 
 # Build and run unit tests
-test: test_syscall test_memory test_threads test_event test_ipc test_canvas test_lexer test_parser
+test: test_syscall test_memory test_threads test_event test_ipc test_canvas test_lexer test_parser test_executor
 
 run: $(AURA_SHELL_BIN)
 	./$(AURA_SHELL_BIN)
@@ -93,6 +97,9 @@ test_lexer: $(TEST_LEXER_BIN)
 test_parser: $(TEST_PARSER_BIN)
 	./$(TEST_PARSER_BIN)
 
+test_executor: $(TEST_EXECUTOR_BIN)
+	./$(TEST_EXECUTOR_BIN)
+
 test_window_strict:
 	$(MAKE) WAYLAND_STRICT=1 test_window -B
 
@@ -109,6 +116,9 @@ $(HAL_WAYLAND_OBJ): src/hal/linux_x86_64/wayland.asm src/hal/linux_x86_64/defs.i
 	$(NASM) $(NASM_FLAGS) $< -o $@
 
 $(HAL_WAYLAND_INPUT_OBJ): src/hal/linux_x86_64/wayland_input.asm | $(BUILD_DIR)
+	$(NASM) $(NASM_FLAGS) $< -o $@
+
+$(HAL_PROCESS_OBJ): src/hal/linux_x86_64/process.asm src/hal/linux_x86_64/defs.inc | $(BUILD_DIR)
 	$(NASM) $(NASM_FLAGS) $< -o $@
 
 $(CORE_MEMORY_OBJ): src/core/memory.asm src/hal/linux_x86_64/defs.inc | $(BUILD_DIR)
@@ -139,6 +149,9 @@ $(SHELL_LEXER_OBJ): src/shell/lexer.asm | $(BUILD_DIR)
 	$(NASM) $(NASM_FLAGS) $< -o $@
 
 $(SHELL_PARSER_OBJ): src/shell/parser.asm | $(BUILD_DIR)
+	$(NASM) $(NASM_FLAGS) $< -o $@
+
+$(SHELL_EXECUTOR_OBJ): src/shell/executor.asm src/hal/linux_x86_64/defs.inc | $(BUILD_DIR)
 	$(NASM) $(NASM_FLAGS) $< -o $@
 
 $(MAIN_OBJ): src/main.asm src/hal/linux_x86_64/defs.inc | $(BUILD_DIR)
@@ -183,6 +196,9 @@ $(TEST_LEXER_OBJ): tests/unit/test_lexer.asm src/hal/linux_x86_64/defs.inc | $(B
 $(TEST_PARSER_OBJ): tests/unit/test_parser.asm src/hal/linux_x86_64/defs.inc | $(BUILD_DIR)
 	$(NASM) $(NASM_FLAGS) $< -o $@
 
+$(TEST_EXECUTOR_OBJ): tests/unit/test_executor.asm src/hal/linux_x86_64/defs.inc | $(BUILD_DIR)
+	$(NASM) $(NASM_FLAGS) $< -o $@
+
 $(TEST_SYSCALL_BIN): $(HAL_SYSCALL_OBJ) $(HAL_ERRNO_OBJ) $(TEST_SYSCALL_OBJ)
 	$(LD) $(LD_FLAGS) -o $@ $^
 
@@ -213,7 +229,10 @@ $(TEST_LEXER_BIN): $(HAL_SYSCALL_OBJ) $(CORE_MEMORY_OBJ) $(SHELL_LEXER_OBJ) $(TE
 $(TEST_PARSER_BIN): $(HAL_SYSCALL_OBJ) $(CORE_MEMORY_OBJ) $(SHELL_LEXER_OBJ) $(SHELL_PARSER_OBJ) $(TEST_PARSER_OBJ)
 	$(LD) $(LD_FLAGS) -o $@ $^
 
-$(AURA_SHELL_BIN): $(HAL_SYSCALL_OBJ) $(HAL_WAYLAND_OBJ) $(HAL_WAYLAND_INPUT_OBJ) $(CORE_MEMORY_OBJ) $(CORE_EVENT_OBJ) $(CORE_INPUT_OBJ) $(GUI_WINDOW_OBJ) $(SHELL_REPL_OBJ) $(SHELL_LEXER_OBJ) $(SHELL_PARSER_OBJ) $(CANVAS_RASTERIZER_OBJ) $(CANVAS_TEXT_OBJ) $(CANVAS_SIMD_OBJ) $(MAIN_OBJ)
+$(TEST_EXECUTOR_BIN): $(HAL_SYSCALL_OBJ) $(HAL_PROCESS_OBJ) $(CORE_MEMORY_OBJ) $(SHELL_LEXER_OBJ) $(SHELL_PARSER_OBJ) $(SHELL_EXECUTOR_OBJ) $(TEST_EXECUTOR_OBJ)
+	$(LD) $(LD_FLAGS) -o $@ $^
+
+$(AURA_SHELL_BIN): $(HAL_SYSCALL_OBJ) $(HAL_PROCESS_OBJ) $(HAL_WAYLAND_OBJ) $(HAL_WAYLAND_INPUT_OBJ) $(CORE_MEMORY_OBJ) $(CORE_EVENT_OBJ) $(CORE_INPUT_OBJ) $(GUI_WINDOW_OBJ) $(SHELL_REPL_OBJ) $(SHELL_LEXER_OBJ) $(SHELL_PARSER_OBJ) $(SHELL_EXECUTOR_OBJ) $(CANVAS_RASTERIZER_OBJ) $(CANVAS_TEXT_OBJ) $(CANVAS_SIMD_OBJ) $(MAIN_OBJ)
 	$(LD) $(LD_FLAGS) -o $@ $^
 
 clean:
