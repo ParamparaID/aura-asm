@@ -111,6 +111,36 @@
 ### Статус
 ⚠️ Частично
 
+## STEP 07: Input Abstraction — keyboard/pointer/touch — 2026-03-20
+
+### Что сделано
+- Создан `src/core/input.asm` с unified `InputEvent` (64 байта), константами типов/модификаторов и ring-queue API: `input_queue_init`, `input_push_event`, `input_poll_event`, `input_peek_event` (ёмкость 256 событий).
+- Создан `src/hal/linux_x86_64/wayland_input.asm` с обработкой `wl_keyboard`, `wl_pointer`, `wl_touch` и преобразованием wire-событий в `InputEvent`.
+- Добавлен `wayland_keycode_to_ascii` (MVP US mapping без XKB парсинга) с поддержкой `Shift` для букв и цифр.
+- Реализована интеграция `wl_seat`: bind seat через `registry::global`, обработка `wl_seat.capabilities`, динамический запрос `get_keyboard/get_pointer/get_touch`.
+- Обновлён `src/gui/window.asm`: в `Window` добавлены `seat_id`, `keyboard_id`, `pointer_id`, `touch_id`, `current_modifiers`; в `window_process_events` добавлен буфер partial frames и input-dispatch.
+- Обновлён `src/hal/linux_x86_64/wayland.asm`: `wl_registry_bind` расширен поддержкой интерфейса `wl_seat`.
+- Создан интерактивный тест `tests/unit/test_input.asm`: клавиатура рисует символы на canvas, мышь рисует точки, touch рисует цветные точки, `ESC` завершает тест.
+- Обновлён `Makefile`: добавлены сборка `core_input`, `hal_wayland_input`, цель `test_input`, обновлены линковки `test_window`/`test_input`.
+- Обновлён `TODO.md`: пункты STEP 07 отмечены как выполненные.
+
+### Результаты тестов
+- `wsl make build/test_window build/test_input -B`: PASSED (сборка и линковка новых модулей без ошибок).
+- `wsl make test_input -B`: запускается интерактивный manual-test (`test_input: type keys, move mouse, touch screen, press ESC to exit`), далее завершение по `ESC`/close проверяется вручную в runtime.
+
+### Проблемы и решения
+- Проблема: при первой итерации сборки был некорректный effective address в `window_handle_messages` при вычислении поля `version` в `wl_registry.global`.
+- Решение: вычисление смещения переписано через промежуточный адресный регистр (`lea + add`), после чего сборка проходит стабильно.
+
+### Метрики
+- Размер бинарника `test_input`: 41016 байт.
+- Размер бинарника `test_window`: 40480 байт.
+- Обновлённые/добавленные файлы STEP 07: 6.
+- Строки кода в файлах STEP 07: 2950.
+
+### Статус
+✅ Завершён
+
 ## STEP 04: Event Loop и IPC — 2026-03-20
 
 ### Что сделано

@@ -24,6 +24,9 @@ extern xdg_surface_get_toplevel
 extern xdg_toplevel_set_title
 extern xdg_wm_base_pong
 extern xdg_surface_ack_configure
+extern wayland_input_init
+extern wayland_input_handle_registry_global
+extern wayland_input_handle_message
 extern canvas_init
 extern canvas_destroy
 
@@ -59,7 +62,12 @@ extern canvas_destroy
 %define W_CONFIGURED_OFF             96  ; dq
 %define W_TITLE_PTR_OFF              104 ; dq
 %define W_TITLE_LEN_OFF              112 ; dq
-%define W_STRUCT_SIZE                128
+%define W_SEAT_ID_OFF                120 ; dd
+%define W_KEYBOARD_ID_OFF            124 ; dd
+%define W_POINTER_ID_OFF             128 ; dd
+%define W_TOUCH_ID_OFF               132 ; dd
+%define W_CURRENT_MODIFIERS_OFF      136 ; dd
+%define W_STRUCT_SIZE                160
 
 section .data
     memfd_name              db "aura-shm",0
@@ -225,7 +233,7 @@ window_handle_messages:
     mov ecx, 11
     call window_str_eq
     cmp eax, 1
-    jne .advance
+    jne .check_input_globals
     cmp dword [rbx + W_WM_BASE_ID_OFF], 0
     jne .advance
     mov rdi, rbx
@@ -238,6 +246,23 @@ window_handle_messages:
     mov r8d, 1
     mov r9d, [rbx + W_WM_BASE_ID_OFF]
     call wl_registry_bind
+    jmp .advance
+
+.check_input_globals:
+    mov esi, dword [r12 + r14 + 8]       ; name
+    lea rdx, [r12 + r14 + 16]            ; interface string
+    mov ecx, dword [r12 + r14 + 12]      ; strlen incl NUL
+    test ecx, ecx
+    jle .advance
+    mov r9d, ecx
+    add r9d, 3
+    and r9d, -4
+    lea rax, [r12 + r14 + 16]
+    add rax, r9
+    mov r8d, dword [rax]                ; version
+    dec ecx                              ; without NUL
+    mov rdi, rbx
+    call wayland_input_handle_registry_global
     jmp .advance
 
 .check_ping:
@@ -275,6 +300,13 @@ window_handle_messages:
     mov qword [rbx + W_SHOULD_CLOSE_OFF], 1
 
 .advance:
+    mov esi, dword [r12 + r14 + 0]       ; sender id
+    mov edx, dword [r12 + r14 + 4]
+    and edx, 0xFFFF                      ; opcode
+    lea rcx, [r12 + r14 + 8]             ; payload
+    mov r8d, r15d                        ; message size
+    mov rdi, rbx
+    call wayland_input_handle_message
     add r14, r15
     jmp .msg_loop
 
@@ -337,6 +369,14 @@ window_create:
     mov dword [rbx + W_NEXT_ID_OFF], 2
     mov dword [rbx + W_SHM_FD_OFF], -1
     mov dword [rbx + W_PAD0_OFF], 0      ; recv pending bytes
+    mov dword [rbx + W_SEAT_ID_OFF], 0
+    mov dword [rbx + W_KEYBOARD_ID_OFF], 0
+    mov dword [rbx + W_POINTER_ID_OFF], 0
+    mov dword [rbx + W_TOUCH_ID_OFF], 0
+    mov dword [rbx + W_CURRENT_MODIFIERS_OFF], 0
+
+    mov rdi, rbx
+    call wayland_input_init
 
     ; connect
     call wl_connect
@@ -747,21 +787,42 @@ window_get_canvas:
     ret
 
 window_process_events:
+    push rbx
     test rdi, rdi
     jz .done
     mov rbx, rdi
+    mov ecx, [rbx + W_PAD0_OFF]
+    cmp ecx, 8192
+    jae .done
     mov rdi, [rbx + W_SOCK_FD_OFF]
     lea rsi, [rel wnd_event_buf]
+    add rsi, rcx
     mov rdx, 8192
+    sub rdx, rcx
     call wl_recv_nowait
     cmp rax, 0
-    jle .done
+    jle .process_pending
+    add [rbx + W_PAD0_OFF], eax
+.process_pending:
     mov rdi, rbx
     lea rsi, [rel wnd_event_buf]
-    mov rdx, rax
+    mov edx, [rbx + W_PAD0_OFF]
+    test edx, edx
+    jle .done
     call window_handle_messages
+    mov ecx, [rbx + W_PAD0_OFF]
+    sub ecx, eax
+    jle .no_remain
+    lea rsi, [rel wnd_event_buf]
+    lea rdi, [rel wnd_event_buf]
+    add rsi, rax
+    mov edx, ecx
+    rep movsb
+.no_remain:
+    mov [rbx + W_PAD0_OFF], ecx
 .done:
     xor eax, eax
+    pop rbx
     ret
 
 window_should_close:

@@ -14,6 +14,7 @@ extern hal_close
 %define WL_IFACE_COMPOSITOR    1
 %define WL_IFACE_SHM           2
 %define WL_IFACE_XDG_WM_BASE   3
+%define WL_IFACE_SEAT          4
 
 %define WL_SHM_FORMAT_ARGB8888 0
 
@@ -28,6 +29,7 @@ section .data
     iface_compositor    db "wl_compositor",0
     iface_shm           db "wl_shm",0
     iface_xdg_wm_base   db "xdg_wm_base",0
+    iface_seat          db "wl_seat",0
 
 section .bss
     wl_tmp_buf          resb 512
@@ -349,6 +351,10 @@ wl_registry_bind:
     je .iface_selected
     lea r10, [rel iface_xdg_wm_base]
     mov ecx, 11
+    cmp r14d, WL_IFACE_XDG_WM_BASE
+    je .iface_selected
+    lea r10, [rel iface_seat]
+    mov ecx, 7
 .iface_selected:
     mov eax, ecx
     mov r14d, ecx                   ; raw string length

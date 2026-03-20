@@ -54,12 +54,12 @@
 - [ ] Окно открывается, отображает содержимое framebuffer (заливка цветом)
 
 ## STEP 07: Input Abstraction
-- [ ] `src/core/input.asm` — структура InputEvent (type, x, y, key, modifiers, timestamp)
-- [ ] `src/hal/linux_x86_64/wayland_input.asm` — обработка wl_keyboard (keymap, key, modifiers)
-- [ ] `src/hal/linux_x86_64/wayland_input.asm` — обработка wl_pointer (motion, button, axis)
-- [ ] `src/hal/linux_x86_64/wayland_input.asm` — обработка wl_touch (down, up, motion, frame)
-- [ ] `src/core/input.asm` — unified event queue: touch, mouse, keyboard → единый InputEvent
-- [ ] Все типы ввода преобразуются в InputEvent и попадают в event loop
+- [x] `src/core/input.asm` — структура InputEvent (type, x, y, key, modifiers, timestamp)
+- [x] `src/hal/linux_x86_64/wayland_input.asm` — обработка wl_keyboard (keymap, key, modifiers)
+- [x] `src/hal/linux_x86_64/wayland_input.asm` — обработка wl_pointer (motion, button, axis)
+- [x] `src/hal/linux_x86_64/wayland_input.asm` — обработка wl_touch (down, up, motion, frame)
+- [x] `src/core/input.asm` — unified event queue: touch, mouse, keyboard → единый InputEvent
+- [x] Все типы ввода преобразуются в InputEvent и попадают в event loop
 
 ## STEP 08: Минимальный REPL
 - [ ] `src/shell/repl.asm` — основной цикл: отрисовка prompt, приём ввода, отображение текста
@@ -72,4 +72,4 @@
 
 ---
 
-**Прогресс: 35/37 задач выполнено (95%)**
+**Прогресс: 41/49 задач выполнено (84%)**
