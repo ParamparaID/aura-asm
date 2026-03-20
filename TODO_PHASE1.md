@@ -15,14 +15,14 @@
 - [x] Все тесты проходят
 
 ## STEP 11: Парсер и AST
-- [ ] `src/shell/parser.asm` — построение AST из потока токенов
-- [ ] Узлы AST: CommandNode, PipelineNode, ListNode (&&, ||, ;), RedirectNode
-- [ ] CommandNode: имя команды + массив аргументов + редиректы
-- [ ] PipelineNode: цепочка CommandNode через pipe
-- [ ] ListNode: последовательность pipeline с операторами (&&, ||, ;)
-- [ ] Аллокация AST через arena (быстрый сброс после выполнения)
-- [ ] `tests/unit/test_parser.asm` — тесты парсинга сложных команд
-- [ ] Все тесты проходят
+- [x] `src/shell/parser.asm` — построение AST из потока токенов
+- [x] Узлы AST: CommandNode, PipelineNode, ListNode (&&, ||, ;)
+- [x] CommandNode: имя команды + массив аргументов + редиректы + assignments + background
+- [x] PipelineNode: цепочка CommandNode через pipe
+- [x] ListNode: последовательность pipeline с операторами (&&, ||, ;)
+- [x] Аллокация AST через arena (быстрый сброс после выполнения)
+- [x] `tests/unit/test_parser.asm` — тесты парсинга сложных команд и ошибок
+- [x] Все тесты проходят
 
 ## STEP 12: Выполнение команд (fork/exec)
 - [ ] `src/hal/linux_x86_64/process.asm` — обёртки fork, execve, waitpid, dup2, _exit
@@ -68,4 +68,4 @@
 
 ---
 
-**Прогресс Phase 1: 7/35 задач выполнено (20%)**
+**Прогресс Phase 1: 15/35 задач выполнено (43%)**

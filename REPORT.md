@@ -329,3 +329,33 @@ Phase 0 завершена. Готов к переходу на Phase 1 (Shell E
 
 ### Статус
 ✅ Завершён
+
+## STEP 11: Парсер и AST — 2026-03-20
+
+### Что сделано
+- Создан `src/shell/parser.asm` с API `parser_init`, `parser_parse`, `parser_get_error`.
+- Реализован recursive-descent парсер по грамматике Phase 1: `list -> pipeline -> command -> redirect`.
+- Добавлены AST-узлы MVP:
+  - `NODE_COMMAND` (argv/argc, redirects `< > >>`, assignments, background `&`);
+  - `NODE_PIPELINE` (массив команд в цепочке `|`);
+  - `NODE_LIST` (последовательность pipeline с операторами `&&`, `||`, `;`).
+- Реализованы внутренние функции парсинга: `parse_list`, `parse_pipeline`, `parse_command`, `parse_redirect`, `peek_token`, `advance`, `expect_token`, `alloc_node`, `skip_newlines`.
+- Все AST-узлы и рабочие массивы (`assignments`) аллоцируются через arena (`arena_alloc`) без копирования строк токенов (zero-copy на указатели из lexer).
+- Добавлен `tests/unit/test_parser.asm` с 10 тестами (простая команда, pipeline, redirects, AND/OR, background, assignment + command, сложная конструкция, пустой ввод, ожидаемая ошибка парсинга).
+- Обновлён `Makefile`: добавлены `src/shell/parser.asm`, `tests/unit/test_parser.asm`, цель `test_parser`, и включение `test_parser` в общий `test`.
+
+### Результаты тестов
+- `wsl make test_parser`: PASSED.
+- `wsl make test`: PASSED.
+- Пройдены все тесты проекта, включая новые `test_lexer` и `test_parser`.
+
+### Проблемы и решения
+- Проблема: в первой итерации `test_parser` падал на кейсе редиректа (потеря значений `start/len` filename после `advance`).
+- Решение: в `parse_redirect` сохранение `start/len` перенесено в callee-saved регистры до продвижения токена.
+
+### Метрики
+- Размер бинарника `test_parser`: 31320 байт.
+- Строки кода (STEP 11): 1348 (`src/shell/parser.asm` + `tests/unit/test_parser.asm`).
+
+### Статус
+✅ Завершён
