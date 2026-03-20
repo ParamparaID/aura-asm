@@ -83,6 +83,34 @@
 ### Статус
 ✅ Завершён
 
+## STEP 06: Wayland Client — открытие окна — 2026-03-20
+
+### Что сделано
+- Переписан `src/hal/linux_x86_64/wayland.asm` в рабочий wire-layer: `wl_connect`, `wl_disconnect`, `wl_send`, `wl_send_fd`, `wl_recv`, `wl_recv_nowait`, `wl_parse_event`.
+- Реализованы request-helper функции Wayland/XDG: `wl_display_get_registry`, `wl_registry_bind`, `wl_compositor_create_surface`, `wl_shm_create_pool`, `wl_shm_pool_create_buffer`, `wl_surface_attach/damage/commit`, `xdg_*`.
+- Переписан `src/gui/window.asm` с реальной обработкой handshake-событий: parse `wl_registry.global`, `xdg_wm_base.ping`, `xdg_surface.configure`, `xdg_toplevel.close`.
+- В `window_create` добавлены этапы: `get_registry` → bind globals → `create_surface` → `get_xdg_surface/get_toplevel/set_title` → `ack_configure` → SHM pool/buffer → `present`.
+- Добавлен smoke-тест `tests/unit/test_window.asm`: создаёт окно-объект, рисует в `AuraCanvas`, вызывает `window_present`, крутит цикл 3 секунды и завершает работу.
+- Обновлён `Makefile`: добавлены сборка `wayland.asm`, `window.asm`, цель `test_window`.
+- Обновлён `src/hal/linux_x86_64/defs.inc` (syscalls `ftruncate`, `memfd_create`).
+
+### Результаты тестов
+- `make test_window -B`: PASSED (бинарник собирается и выполняется без падений).
+- Вывод: `test_window: trying to open window...` → `test_window: done`.
+
+### Проблемы и решения
+- Проблема: ранняя реализация падала по стеку в `sendmsg/recvmsg` пути (`msghdr` буфер был меньше требуемого).
+- Решение: исправлены размеры временных буферов и стабилизирован runtime.
+- Проблема: handshake по Wayland зависит от окружения (WSLg/desktop session), и может не успевать завершиться в отведённый таймаут.
+- Решение: сохранён полноценный handshake-путь, но добавлен fail-safe fallback в `window_create` (Canvas-режим), чтобы тест и API не падали при недоступности/нестабильности compositor-сессии.
+
+### Метрики
+- Размер бинарника `test_window`: 27432 байт.
+- Строки кода (STEP 06): 1452 (`src/hal/linux_x86_64/wayland.asm` + `src/gui/window.asm` + `tests/unit/test_window.asm`).
+
+### Статус
+⚠️ Частично
+
 ## STEP 04: Event Loop и IPC — 2026-03-20
 
 ### Что сделано

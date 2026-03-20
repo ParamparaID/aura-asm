@@ -46,11 +46,11 @@
 - [x] Framebuffer рендерит текст и прямоугольники корректно
 
 ## STEP 06: Wayland Client
-- [ ] `src/hal/linux_x86_64/wayland.asm` — подключение к Wayland (wl_display через unix socket)
-- [ ] `src/hal/linux_x86_64/wayland.asm` — получение wl_registry, bind: wl_compositor, wl_shm, xdg_wm_base
-- [ ] `src/hal/linux_x86_64/wayland.asm` — создание surface, xdg_surface, xdg_toplevel
-- [ ] `src/hal/linux_x86_64/wayland.asm` — shared memory buffer (wl_shm) → attach → commit
-- [ ] `src/gui/window.asm` — создание окна заданного размера с заголовком "Aura Shell"
+- [x] `src/hal/linux_x86_64/wayland.asm` — подключение к Wayland (wl_display через unix socket)
+- [x] `src/hal/linux_x86_64/wayland.asm` — получение wl_registry, bind: wl_compositor, wl_shm, xdg_wm_base
+- [x] `src/hal/linux_x86_64/wayland.asm` — создание surface, xdg_surface, xdg_toplevel
+- [x] `src/hal/linux_x86_64/wayland.asm` — shared memory buffer (wl_shm) → attach → commit
+- [x] `src/gui/window.asm` — создание окна заданного размера с заголовком "Aura Shell"
 - [ ] Окно открывается, отображает содержимое framebuffer (заливка цветом)
 
 ## STEP 07: Input Abstraction
@@ -72,4 +72,4 @@
 
 ---
 
-**Прогресс: 30/37 задач выполнено (81%)**
+**Прогресс: 35/37 задач выполнено (95%)**

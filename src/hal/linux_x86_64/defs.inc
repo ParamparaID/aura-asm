@@ -15,6 +15,7 @@
 %define sys_munmap           11
 %define sys_clone            56
 %define sys_exit             60
+%define sys_ftruncate        77
 %define sys_futex            202
 %define sys_clock_gettime    228
 %define sys_epoll_wait       232
@@ -23,6 +24,7 @@
 %define sys_timerfd_settime  286
 %define sys_epoll_create1    291
 %define sys_pipe2            293
+%define sys_memfd_create     319
 %define sys_socket           41
 %define sys_connect          42
 %define sys_sendmsg          46
@@ -37,6 +39,7 @@
 %define SYS_MUNMAP           sys_munmap
 %define SYS_CLONE            sys_clone
 %define SYS_EXIT             sys_exit
+%define SYS_FTRUNCATE        sys_ftruncate
 %define SYS_FUTEX            sys_futex
 %define SYS_CLOCK_GETTIME    sys_clock_gettime
 %define SYS_EPOLL_WAIT       sys_epoll_wait
@@ -45,6 +48,7 @@
 %define SYS_TIMERFD_SETTIME  sys_timerfd_settime
 %define SYS_EPOLL_CREATE1    sys_epoll_create1
 %define SYS_PIPE2            sys_pipe2
+%define SYS_MEMFD_CREATE     sys_memfd_create
 %define SYS_SOCKET           sys_socket
 %define SYS_CONNECT          sys_connect
 %define SYS_SENDMSG          sys_sendmsg
