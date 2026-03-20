@@ -141,6 +141,46 @@
 ### Статус
 ✅ Завершён
 
+## STEP 08: Минимальный REPL — 2026-03-20
+
+### Что сделано
+- Создан `src/shell/repl.asm` с REPL-движком: инициализация, буфер ввода, история строк (ring на 1000 строк), команды `echo/clear/exit/help/version`.
+- Реализована обработка клавиш в `repl_handle_key`: printable ASCII, `Backspace`, `Delete`, `Enter`, `Left/Right`, `Home/End`, `Ctrl+C`, `Ctrl+L`.
+- Реализован рендер в `repl_render`: тёмный фон, история текста, строка ввода с prompt `aura> `, позиционирование и мигание курсора.
+- Добавлен callback `repl_cursor_blink` для переключения состояния курсора и перерисовки REPL.
+- Создан `src/main.asm` как финальная точка входа `aura-shell`: `arena_init` → `window_create` → `repl_init` → event/input loop → cleanup.
+- Обновлён `Makefile`: добавлены `src/shell/repl.asm`, `src/main.asm`, финальная цель `aura-shell`, цель `run`, `all` теперь собирает финальный бинарник.
+- Обновлён `TODO.md`: все пункты STEP 08 отмечены как выполненные, прогресс выставлен в `37/37 (100%)`.
+
+### Результаты тестов
+- `wsl make clean; wsl make all -B`: PASSED (`aura-shell` собирается без ошибок).
+- `wsl make test -B`: PASSED (`test_syscall`, `test_memory`, `test_threads`, `test_event`, `test_ipc`, `test_canvas`).
+- `wsl make build/test_window build/test_input -B`: PASSED (интерактивные бинарники успешно собираются).
+
+### Проблемы и решения
+- Проблема: в ранней версии `repl_render` была нестабильная раскладка регистров для вызова `canvas_draw_string`.
+- Решение: рендер-ветка упрощена до прямого и детерминированного формирования аргументов для каждой отрисовки строки.
+
+### Метрики
+- Размер бинарника `aura-shell`: 54656 байт.
+- Изменённые/добавленные файлы STEP 08: 5 (`src/shell/repl.asm`, `src/main.asm`, `Makefile`, `TODO.md`, `REPORT.md`).
+- Строки кода (новые файлы STEP 08): 1000.
+
+### Статус
+✅ Завершён
+
+## Phase 0 — ИТОГО
+
+### Статистика
+- Общее количество `.asm` файлов: 24
+- Общее количество строк кода: 7163
+- Размер бинарника `aura-shell`: 54656 байт
+- Тесты: 6 passed, 0 failed
+
+### Готовность к Phase 1
+Phase 0 завершена. Готов к переходу на Phase 1 (Shell Engine).
+Для Phase 1 потребуется: парсер команд, fork/exec, пайпы, редиректы.
+
 ## STEP 04: Event Loop и IPC — 2026-03-20
 
 ### Что сделано

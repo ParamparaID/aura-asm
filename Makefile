@@ -11,6 +11,7 @@ WAYLAND_STRICT_FLAG =
 endif
 
 BUILD_DIR = build
+AURA_SHELL_BIN = aura-shell
 TEST_SYSCALL_BIN = $(BUILD_DIR)/test_syscall
 TEST_MEMORY_BIN = $(BUILD_DIR)/test_memory
 TEST_THREADS_BIN = $(BUILD_DIR)/test_threads
@@ -31,6 +32,8 @@ CORE_EVENT_OBJ = $(BUILD_DIR)/core_event.o
 CORE_IPC_OBJ = $(BUILD_DIR)/core_ipc.o
 CORE_INPUT_OBJ = $(BUILD_DIR)/core_input.o
 GUI_WINDOW_OBJ = $(BUILD_DIR)/gui_window.o
+SHELL_REPL_OBJ = $(BUILD_DIR)/shell_repl.o
+MAIN_OBJ = $(BUILD_DIR)/main.o
 CANVAS_RASTERIZER_OBJ = $(BUILD_DIR)/canvas_rasterizer.o
 CANVAS_TEXT_OBJ = $(BUILD_DIR)/canvas_text.o
 CANVAS_SIMD_OBJ = $(BUILD_DIR)/canvas_simd.o
@@ -43,13 +46,16 @@ TEST_CANVAS_OBJ = $(BUILD_DIR)/test_canvas.o
 TEST_WINDOW_OBJ = $(BUILD_DIR)/test_window.o
 TEST_INPUT_OBJ = $(BUILD_DIR)/test_input.o
 
-.PHONY: all test clean
+.PHONY: all test run clean
 
-# Build main target (for now: test binary)
-all: $(TEST_SYSCALL_BIN) $(TEST_MEMORY_BIN) $(TEST_THREADS_BIN) $(TEST_EVENT_BIN) $(TEST_IPC_BIN) $(TEST_CANVAS_BIN) $(TEST_WINDOW_BIN) $(TEST_INPUT_BIN)
+# Final binary
+all: $(AURA_SHELL_BIN)
 
 # Build and run unit tests
 test: test_syscall test_memory test_threads test_event test_ipc test_canvas
+
+run: $(AURA_SHELL_BIN)
+	./$(AURA_SHELL_BIN)
 
 test_syscall: $(TEST_SYSCALL_BIN)
 	./$(TEST_SYSCALL_BIN)
@@ -114,6 +120,12 @@ $(CORE_INPUT_OBJ): src/core/input.asm | $(BUILD_DIR)
 $(GUI_WINDOW_OBJ): src/gui/window.asm src/hal/linux_x86_64/defs.inc | $(BUILD_DIR)
 	$(NASM) $(NASM_FLAGS) $(WAYLAND_STRICT_FLAG) $< -o $@
 
+$(SHELL_REPL_OBJ): src/shell/repl.asm | $(BUILD_DIR)
+	$(NASM) $(NASM_FLAGS) $< -o $@
+
+$(MAIN_OBJ): src/main.asm src/hal/linux_x86_64/defs.inc | $(BUILD_DIR)
+	$(NASM) $(NASM_FLAGS) $< -o $@
+
 $(CANVAS_RASTERIZER_OBJ): src/canvas/rasterizer.asm src/hal/linux_x86_64/defs.inc | $(BUILD_DIR)
 	$(NASM) $(NASM_FLAGS) $< -o $@
 
@@ -171,5 +183,8 @@ $(TEST_WINDOW_BIN): $(HAL_SYSCALL_OBJ) $(HAL_WAYLAND_OBJ) $(HAL_WAYLAND_INPUT_OB
 $(TEST_INPUT_BIN): $(HAL_SYSCALL_OBJ) $(HAL_WAYLAND_OBJ) $(HAL_WAYLAND_INPUT_OBJ) $(CORE_INPUT_OBJ) $(GUI_WINDOW_OBJ) $(CANVAS_RASTERIZER_OBJ) $(CANVAS_TEXT_OBJ) $(CANVAS_SIMD_OBJ) $(TEST_INPUT_OBJ)
 	$(LD) $(LD_FLAGS) -o $@ $^
 
+$(AURA_SHELL_BIN): $(HAL_SYSCALL_OBJ) $(HAL_WAYLAND_OBJ) $(HAL_WAYLAND_INPUT_OBJ) $(CORE_MEMORY_OBJ) $(CORE_EVENT_OBJ) $(CORE_INPUT_OBJ) $(GUI_WINDOW_OBJ) $(SHELL_REPL_OBJ) $(CANVAS_RASTERIZER_OBJ) $(CANVAS_TEXT_OBJ) $(CANVAS_SIMD_OBJ) $(MAIN_OBJ)
+	$(LD) $(LD_FLAGS) -o $@ $^
+
 clean:
-	rm -rf $(BUILD_DIR)
+	rm -rf $(BUILD_DIR) $(AURA_SHELL_BIN)

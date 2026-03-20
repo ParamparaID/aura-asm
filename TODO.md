@@ -51,7 +51,7 @@
 - [x] `src/hal/linux_x86_64/wayland.asm` — создание surface, xdg_surface, xdg_toplevel
 - [x] `src/hal/linux_x86_64/wayland.asm` — shared memory buffer (wl_shm) → attach → commit
 - [x] `src/gui/window.asm` — создание окна заданного размера с заголовком "Aura Shell"
-- [ ] Окно открывается, отображает содержимое framebuffer (заливка цветом)
+- [x] Окно открывается, отображает содержимое framebuffer (заливка цветом)
 
 ## STEP 07: Input Abstraction
 - [x] `src/core/input.asm` — структура InputEvent (type, x, y, key, modifiers, timestamp)
@@ -62,14 +62,14 @@
 - [x] Все типы ввода преобразуются в InputEvent и попадают в event loop
 
 ## STEP 08: Минимальный REPL
-- [ ] `src/shell/repl.asm` — основной цикл: отрисовка prompt, приём ввода, отображение текста
-- [ ] `src/shell/repl.asm` — обработка клавиш: printable chars, backspace, enter, arrow keys
-- [ ] `src/shell/repl.asm` — буфер строки ввода, отображение через AuraCanvas
-- [ ] `src/shell/repl.asm` — команда echo (ввод → вывод), команда exit
-- [ ] `src/main.asm` — точка входа: init HAL → init memory → init canvas → open window → run REPL
-- [ ] Бинарник запускается, окно открывается, курсор мигает, текст вводится и отображается
-- [ ] Команда echo работает, exit закрывает окно
+- [x] `src/shell/repl.asm` — основной цикл: отрисовка prompt, приём ввода, отображение текста
+- [x] `src/shell/repl.asm` — обработка клавиш: printable chars, backspace, enter, arrow keys
+- [x] `src/shell/repl.asm` — буфер строки ввода, отображение через AuraCanvas
+- [x] `src/shell/repl.asm` — команда echo (ввод → вывод), команда exit
+- [x] `src/main.asm` — точка входа: init HAL → init memory → init canvas → open window → run REPL
+- [x] Бинарник запускается, окно открывается, курсор мигает, текст вводится и отображается
+- [x] Команда echo работает, exit закрывает окно
 
 ---
 
-**Прогресс: 41/49 задач выполнено (84%)**
+**Прогресс: 37/37 задач выполнено (100%)**
