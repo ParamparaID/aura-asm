@@ -22,5 +22,5 @@ tests/unit/test_*
 Thumbs.db
 
 # Debug
-core
+/core
 *.dSYM/
