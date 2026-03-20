@@ -486,3 +486,78 @@ Phase 0 завершена. Готов к переходу на Phase 1 (Shell E
 
 ### Статус
 ⚠️ Частично (MVP)
+
+## STEP 15: Job Control — 2026-03-20
+
+### Что сделано
+- Создан `src/hal/linux_x86_64/signals.asm` с обёртками:
+  - `hal_sigaction`, `hal_kill`, `hal_getpid`, `hal_setpgid`, `hal_tcsetpgrp`, `hal_tcgetpgrp`;
+  - `hal_sigreturn_restorer` для `SA_RESTORER` на Linux x86_64.
+- Обновлён `src/hal/linux_x86_64/defs.inc`:
+  - добавлены syscall-константы для сигналов/tty (`rt_sigaction`, `kill`, `getpid`, `setpgid`, `ioctl`);
+  - добавлены сигналы и флаги job control (`SIGCHLD`, `SIGTSTP`, `SIGCONT`, `SIGINT`, `SIGTTIN`, `SIGTTOU`, `WUNTRACED`, `WCONTINUED`, `SA_*`, `SIG_IGN`/`SIG_DFL`);
+  - добавлены `TIOCSPGRP`/`TIOCGPGRP`.
+- Создан `src/shell/jobs.asm`:
+  - таблица задач (`MAX_JOBS=64`);
+  - `jobs_init`, `jobs_add`, `jobs_remove`, `jobs_find_by_id`, `jobs_find_by_pgid`;
+  - `jobs_update_status` (poll через `waitpid(WNOHANG|WUNTRACED|WCONTINUED)`);
+  - `jobs_list`, `jobs_fg`, `jobs_bg`;
+  - `sigchld_handler` + флаг `sigchld_received`.
+- Обновлён `src/shell/executor.asm`:
+  - интеграция `builtin_dispatch` (расширенные builtins);
+  - при `command &` добавление фоновой задачи через `jobs_add`;
+  - вывод идентификатора фоновой задачи в формате `[job] pid`.
+- Обновлён `src/shell/builtins.asm`:
+  - добавлены встроенные команды `jobs`, `fg`, `bg`, `wait`;
+  - в `builtins_init` добавлена инициализация job control (`jobs_init`).
+- Обновлён `src/shell/repl.asm`:
+  - интеграция `jobs_update_status` перед выполнением очередной команды;
+  - добавлена установка ignore-policy для `SIGTSTP`, `SIGTTIN`, `SIGTTOU`.
+- Добавлен `tests/unit/test_jobs.asm`:
+  - background job через полный pipeline `lexer -> parser -> executor`;
+  - операции job table (`jobs_add`, `jobs_remove`);
+  - проверка update-path и фоновой pipeline-команды.
+- Обновлён `Makefile`:
+  - добавлены `signals.asm`, `jobs.asm`;
+  - добавлена цель `test_jobs`;
+  - обновлена линковка `test_executor`, `test_pipeline`, `test_builtins`, `test_jobs`, `aura-shell`.
+
+### Результаты тестов
+- `wsl make test_jobs`: PASSED.
+- `wsl make test`: PASSED (включая `test_jobs` и весь regression-suite).
+- `wsl make all`: PASSED.
+
+### Проблемы и решения
+- Проблема: ошибки адресации в `jobs.asm` из-за недопустимого масштабирования индекса на произвольный `JOB_SIZE`.
+- Решение: расчёт адресов слотов переписан через `imul` + базовый адрес.
+- Проблема: `test_executor` падал после интеграции dispatch-path из-за приоритета нового диспетчера.
+- Решение: в `executor` восстановлен legacy fast-path для `echo/cd/exit`, а расширенный dispatcher вызывается для остальных builtin-команд.
+
+### Метрики
+- Размер бинарника `aura-shell`: 101408 байт.
+- Строки кода (STEP 15): 828 (`src/hal/linux_x86_64/signals.asm` + `src/shell/jobs.asm` + `tests/unit/test_jobs.asm`).
+
+### Статус
+✅ Завершён
+
+## Phase 1 — ИТОГО
+
+### Статистика
+- Новые .asm файлы в Phase 1: 17
+- Новые строки кода: 8085
+- Размер бинарника aura-shell: 101408 байт
+- Тесты Phase 1: 6 passed, 0 failed
+
+### Возможности
+- Полноценный командный интерпретатор
+- Пайпы, редиректы, условное выполнение
+- 30+ встроенных команд
+- Переменные окружения с expand
+- Алиасы
+- История команд с навигацией
+- Job control (bg/fg/jobs)
+- Обработка сигналов
+
+### Готовность к Phase 2
+Phase 1 завершена. Готов к переходу на Phase 2 (Растеризатор и виджеты).
+Для Phase 2 потребуется: TrueType, PNG, градиенты, blur, виджеты, layout engine.

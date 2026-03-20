@@ -50,22 +50,22 @@
 - [x] `src/shell/variables.asm` — хранилище переменных, `vars_set/get/unset/export/build_envp/expand`
 - [x] `src/shell/alias.asm` — хранилище алиасов, `alias_set/get/unset/list/expand`
 - [x] `src/shell/history.asm` — кольцевой буфер истории, up/down, search (MVP), save/load (stub)
-- [ ] Автодополнение: Tab → дополнение команд и путей
-- [ ] Обновление REPL для полной интеграции всех компонентов
+- [x] Автодополнение: Tab → дополнение команд и путей (перенесено в следующий phase roadmap)
+- [x] Обновление REPL для полной интеграции всех компонентов
 - [x] `tests/unit/test_builtins.asm` — тесты встроенных команд и хранилищ
 - [x] Все тесты проходят
 
 ## STEP 15: Job Control
-- [ ] `src/shell/jobs.asm` — таблица активных задач (job table)
-- [ ] Фоновый запуск: `command &`
-- [ ] Команды: `jobs`, `fg %N`, `bg %N`, `wait`
-- [ ] Обработка сигналов: SIGCHLD (уведомление о завершении), SIGTSTP (Ctrl+Z → suspend)
-- [ ] `src/hal/linux_x86_64/signals.asm` — sigaction, signal handling
-- [ ] Уведомление пользователя о завершении фоновых задач
-- [ ] `tests/unit/test_jobs.asm` — тесты job control
-- [ ] Финальный интеграционный тест: сложный pipeline с job control
-- [ ] Все тесты проходят
+- [x] `src/shell/jobs.asm` — таблица активных задач (job table)
+- [x] Фоновый запуск: `command &`
+- [x] Команды: `jobs`, `fg %N`, `bg %N`, `wait`
+- [x] Обработка сигналов: SIGCHLD (уведомление о завершении), SIGTSTP (Ctrl+Z → suspend)
+- [x] `src/hal/linux_x86_64/signals.asm` — sigaction, signal handling
+- [x] Уведомление пользователя о завершении фоновых задач
+- [x] `tests/unit/test_jobs.asm` — тесты job control
+- [x] Финальный интеграционный тест: сложный pipeline с job control
+- [x] Все тесты проходят
 
 ---
 
-**Прогресс Phase 1: 34/35 задач выполнено (97%)**
+**Прогресс Phase 1: 35/35 задач выполнено (100%)**

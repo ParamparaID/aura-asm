@@ -7,6 +7,7 @@ extern hal_write
 extern hal_exit
 extern hal_chdir
 extern hal_getcwd
+extern hal_waitpid
 extern vars_init
 extern vars_get
 extern vars_set
@@ -22,6 +23,10 @@ extern history_get
 extern history_navigate_up
 extern history_navigate_down
 extern history_reset_cursor
+extern jobs_init
+extern jobs_list
+extern jobs_fg
+extern jobs_bg
 
 section .text
 global builtins_init
@@ -49,6 +54,10 @@ section .data
     cmd_unalias             db "unalias"
     cmd_history             db "history"
     cmd_help                db "help"
+    cmd_jobs                db "jobs"
+    cmd_fg                  db "fg"
+    cmd_bg                  db "bg"
+    cmd_wait                db "wait"
     help_text               db "Builtins: echo cd exit true false export set unset alias unalias history help",10
     help_text_len           equ $ - help_text
     eq_char                 db "="
@@ -146,6 +155,10 @@ builtins_init:
     test rax, rax
     jz .fail_pop
     mov [rel g_history_store], rax
+    mov rdi, rbx
+    call jobs_init
+    cmp rax, 0
+    jne .fail_pop
     xor eax, eax
     pop rbx
     ret
@@ -420,7 +433,7 @@ builtin_dispatch:
 
 .chk_help:
     cmp r13, 4
-    jne .not_builtin
+    jne .chk_jobs
     mov rdi, r12
     lea rsi, [rel cmd_help]
     mov rdx, 4
@@ -431,6 +444,84 @@ builtin_dispatch:
     lea rsi, [rel help_text]
     mov rdx, help_text_len
     call hal_write
+    xor eax, eax
+    jmp .ret
+
+.chk_jobs:
+    cmp r13, 4
+    jne .chk_fg
+    mov rdi, r12
+    lea rsi, [rel cmd_jobs]
+    mov rdx, 4
+    call streq_b
+    cmp rax, 1
+    jne .chk_fg
+    call jobs_list
+    xor eax, eax
+    jmp .ret
+
+.chk_fg:
+    cmp r13, 2
+    jne .chk_bg
+    mov rdi, r12
+    lea rsi, [rel cmd_fg]
+    mov rdx, 2
+    call streq_b
+    cmp rax, 1
+    jne .chk_bg
+    mov edi, 0
+    cmp dword [rbx + CMD_ARGC_OFF], 2
+    jb .do_fg
+    mov edi, dword [rbx + CMD_ARGV_LEN_OFF + 4]
+    and edi, 0xFF
+.do_fg:
+    call jobs_fg
+    cmp eax, 0
+    jne .ret_fail
+    xor eax, eax
+    jmp .ret
+
+.chk_bg:
+    cmp r13, 2
+    jne .chk_wait
+    mov rdi, r12
+    lea rsi, [rel cmd_bg]
+    mov rdx, 2
+    call streq_b
+    cmp rax, 1
+    jne .chk_wait
+    mov edi, 0
+    cmp dword [rbx + CMD_ARGC_OFF], 2
+    jb .do_bg
+    mov edi, dword [rbx + CMD_ARGV_LEN_OFF + 4]
+    and edi, 0xFF
+.do_bg:
+    call jobs_bg
+    cmp eax, 0
+    jne .ret_fail
+    xor eax, eax
+    jmp .ret
+
+.chk_wait:
+    cmp r13, 4
+    jne .not_builtin
+    mov rdi, r12
+    lea rsi, [rel cmd_wait]
+    mov rdx, 4
+    call streq_b
+    cmp rax, 1
+    jne .not_builtin
+    sub rsp, 16
+    mov edi, -1
+    cmp dword [rbx + CMD_ARGC_OFF], 2
+    jb .do_wait
+    mov edi, dword [rbx + CMD_ARGV_LEN_OFF + 4]
+    and edi, 0xFF
+.do_wait:
+    lea rsi, [rsp]
+    xor rdx, rdx
+    call hal_waitpid
+    add rsp, 16
     xor eax, eax
     jmp .ret
 

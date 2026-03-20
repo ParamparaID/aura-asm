@@ -15,6 +15,9 @@ extern hal_dup2
 extern hal_access
 extern hal_chdir
 extern exec_pipeline
+extern builtin_dispatch
+extern jobs_add
+extern jobs_update_status
 
 section .text
 global executor_init
@@ -77,6 +80,9 @@ section .rodata
 section .data
     out_space              db " "
     out_nl                 db 10
+    bg_lbr                 db "["
+    bg_mid                 db "] "
+    bg_nl                  db 10
 
 section .text
 
@@ -139,6 +145,41 @@ copy_to_cstr:
     mov byte [rbx + rcx], 0
     mov rax, rbx
     pop rcx
+    pop rbx
+    ret
+
+write_u32:
+    ; rdi=value
+    push rbx
+    push r12
+    sub rsp, 32
+    mov rbx, rdi
+    lea r12, [rsp + 31]
+    mov byte [r12], 0
+    cmp ebx, 0
+    jne .loop
+    dec r12
+    mov byte [r12], '0'
+    jmp .emit
+.loop:
+    xor edx, edx
+    mov eax, ebx
+    mov ecx, 10
+    div ecx
+    add dl, '0'
+    dec r12
+    mov [r12], dl
+    mov ebx, eax
+    test ebx, ebx
+    jnz .loop
+.emit:
+    mov rdi, STDOUT
+    mov rsi, r12
+    lea rdx, [rsp + 31]
+    sub rdx, r12
+    call hal_write
+    add rsp, 32
+    pop r12
     pop rbx
     ret
 
@@ -495,6 +536,10 @@ exec_simple_command:
     mov rbx, rdi
     mov r12, rsi
 
+    cmp dword [r12 + CMD_ARGC_OFF], 0
+    je .exec_fail_ret
+
+    ; keep legacy fast path for echo/cd/exit
     mov rdi, r12
     call is_builtin
     cmp eax, 1
@@ -536,7 +581,7 @@ exec_simple_command:
 
 .check_exit:
     cmp eax, 3
-    jne .external
+    jne .dispatch_extra
     mov eax, 0
     cmp dword [r12 + CMD_ARGC_OFF], 2
     jb .do_exit
@@ -548,6 +593,16 @@ exec_simple_command:
     call hal_exit
     mov eax, 0
     jmp .ret
+
+.dispatch_extra:
+    ; extended builtins (jobs/fg/bg/wait/etc.)
+    mov rdi, [r12 + CMD_ARGV_OFF]
+    mov esi, dword [r12 + CMD_ARGV_LEN_OFF]
+    mov rdx, r12
+    mov rcx, rbx
+    call builtin_dispatch
+    cmp eax, -1
+    jne .ret
 
 .external:
     ; resolve path
@@ -573,9 +628,9 @@ exec_simple_command:
     jz .child
 
     ; parent
+    mov r14, rax                        ; child pid
     cmp dword [r12 + CMD_BACKGROUND_OFF], 1
     je .bg_ok
-    mov r14, rax                        ; pid
     lea rsi, [rsp + 8]
     mov rdi, r14
     xor rdx, rdx
@@ -587,6 +642,32 @@ exec_simple_command:
     and eax, 0xFF
     jmp .ret
 .bg_ok:
+    ; register background job and print [job] pid
+    mov dword [rsp + 0], r14d           ; pid list (1 pid)
+    mov rdi, r14                        ; pgid
+    lea rsi, [rsp + 0]                  ; pids ptr
+    mov rdx, 1
+    mov rcx, 1                          ; background
+    mov r8, [r12 + CMD_ARGV_OFF]        ; command (argv0)
+    mov r9d, dword [r12 + CMD_ARGV_LEN_OFF]
+    call jobs_add
+    mov r15d, eax                       ; job id
+    mov rdi, STDOUT
+    lea rsi, [rel bg_lbr]
+    mov rdx, 1
+    call hal_write
+    mov edi, r15d
+    call write_u32
+    mov rdi, STDOUT
+    lea rsi, [rel bg_mid]
+    mov rdx, 2
+    call hal_write
+    mov edi, r14d
+    call write_u32
+    mov rdi, STDOUT
+    lea rsi, [rel bg_nl]
+    mov rdx, 1
+    call hal_write
     xor eax, eax
     jmp .ret
 

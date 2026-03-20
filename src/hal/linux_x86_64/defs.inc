@@ -15,13 +15,18 @@
 %define sys_dup2             33
 %define sys_mmap             9
 %define sys_munmap           11
+%define sys_rt_sigaction     13
+%define sys_ioctl            16
 %define sys_clone            56
 %define sys_execve           59
 %define sys_exit             60
+%define sys_kill             62
 %define sys_wait4            61
+%define sys_getpid           39
 %define sys_ftruncate        77
 %define sys_getcwd           79
 %define sys_chdir            80
+%define sys_setpgid          109
 %define sys_futex            202
 %define sys_clock_gettime    228
 %define sys_epoll_wait       232
@@ -45,13 +50,18 @@
 %define SYS_DUP2             sys_dup2
 %define SYS_MMAP             sys_mmap
 %define SYS_MUNMAP           sys_munmap
+%define SYS_RT_SIGACTION     sys_rt_sigaction
+%define SYS_IOCTL            sys_ioctl
 %define SYS_CLONE            sys_clone
 %define SYS_EXECVE           sys_execve
 %define SYS_EXIT             sys_exit
 %define SYS_WAIT4            sys_wait4
+%define SYS_KILL             sys_kill
+%define SYS_GETPID           sys_getpid
 %define SYS_FTRUNCATE        sys_ftruncate
 %define SYS_GETCWD           sys_getcwd
 %define SYS_CHDIR            sys_chdir
+%define SYS_SETPGID          sys_setpgid
 %define SYS_FUTEX            sys_futex
 %define SYS_CLOCK_GETTIME    sys_clock_gettime
 %define SYS_EPOLL_WAIT       sys_epoll_wait
@@ -111,7 +121,28 @@
 
 ; --- signal/wait flags ---
 %define SIGCHLD              17
+%define SIGINT               2
+%define SIGQUIT              3
+%define SIGTERM              15
+%define SIGCONT              18
+%define SIGTSTP              20
+%define SIGTTIN              21
+%define SIGTTOU              22
 %define WNOHANG              1
+%define WUNTRACED            2
+%define WCONTINUED           8
+
+; sigaction flags and handlers
+%define SIG_DFL              0
+%define SIG_IGN              1
+%define SA_SIGINFO           0x00000004
+%define SA_RESTORER          0x04000000
+%define SA_RESTART           0x10000000
+%define SA_NOCLDSTOP         0x00000001
+
+; tty ioctls
+%define TIOCGPGRP            0x540F
+%define TIOCSPGRP            0x5410
 
 ; --- access(2) modes ---
 %define F_OK                 0

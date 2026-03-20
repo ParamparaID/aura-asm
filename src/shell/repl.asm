@@ -1,6 +1,8 @@
 ; repl.asm
 ; Minimal Aura Shell REPL for Phase 0
 
+%include "src/hal/linux_x86_64/defs.inc"
+
 extern arena_alloc
 extern arena_init
 extern arena_reset
@@ -13,6 +15,8 @@ extern wayland_keycode_to_ascii
 extern font_char_width
 extern font_char_height
 extern hal_getenv_raw
+extern hal_sigaction
+extern hal_sigreturn_restorer
 extern lexer_init
 extern lexer_tokenize
 extern lexer_get_error
@@ -21,6 +25,8 @@ extern parser_parse
 extern parser_get_error
 extern executor_init
 extern executor_run
+extern builtins_init
+extern jobs_update_status
 
 section .text
 global repl_set_arena
@@ -161,6 +167,20 @@ repl_cstrlen:
     inc rax
     jmp .loop
 .ret:
+    ret
+
+; rdi=signum
+repl_ignore_signal:
+    sub rsp, 32
+    mov qword [rsp + 0], SIG_IGN
+    mov qword [rsp + 8], SA_RESTART | SA_RESTORER
+    lea rax, [rel hal_sigreturn_restorer]
+    mov [rsp + 16], rax
+    mov qword [rsp + 24], 0
+    mov rsi, rsp
+    xor rdx, rdx
+    call hal_sigaction
+    add rsp, 32
     ret
 
 ; rdi=repl, rsi=abs_line
@@ -312,6 +332,18 @@ repl_init:
     call hal_getenv_raw
     mov [rel repl_envp_ptr], rax
 
+    ; initialize persistent shell stores (builtins/vars/alias/history/jobs)
+    mov rdi, [rel repl_arena_ptr]
+    call builtins_init
+
+    ; shell should not be suspended by terminal job-control signals
+    mov rdi, SIGTSTP
+    call repl_ignore_signal
+    mov rdi, SIGTTIN
+    call repl_ignore_signal
+    mov rdi, SIGTTOU
+    call repl_ignore_signal
+
     mov rdi, r12
     call repl_clear_history
 
@@ -417,6 +449,9 @@ repl_execute:
     test rdi, rdi
     jz .ret
     mov rbx, rdi
+
+    ; process background job updates before running next command
+    call jobs_update_status
 
     ; print entered command line: prompt + input + \n
     mov rdi, rbx
