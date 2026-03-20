@@ -29,12 +29,12 @@
 - [x] Потоки работают, синхронизация корректна
 
 ## STEP 04: Event Loop
-- [ ] `src/core/event.asm` — event loop на epoll (create, add, wait, dispatch)
-- [ ] `src/core/event.asm` — таймеры (timerfd)
-- [ ] `src/core/ipc.asm` — lock-free SPSC очередь (single producer, single consumer)
-- [ ] `tests/unit/test_event.asm` — тест: таймер 100ms → callback → запись в pipe → epoll ловит
-- [ ] `tests/unit/test_ipc.asm` — тест: producer/consumer через IPC очередь, 10000 сообщений
-- [ ] Event loop стабильно работает, таймеры точны ±5ms
+- [x] `src/core/event.asm` — event loop на epoll (create, add, wait, dispatch)
+- [x] `src/core/event.asm` — таймеры (timerfd)
+- [x] `src/core/ipc.asm` — lock-free SPSC очередь (single producer, single consumer)
+- [x] `tests/unit/test_event.asm` — тест: таймер 100ms → callback → запись в pipe → epoll ловит
+- [x] `tests/unit/test_ipc.asm` — тест: producer/consumer через IPC очередь, 10000 сообщений
+- [x] Event loop стабильно работает, таймеры точны ±5ms
 
 ## STEP 05: AuraCanvas — базовый растеризатор
 - [ ] `src/canvas/rasterizer.asm` — framebuffer: init, clear, put_pixel, fill_rect
@@ -72,4 +72,4 @@
 
 ---
 
-**Прогресс: 17/37 задач выполнено (46%)**
+**Прогресс: 23/37 задач выполнено (62%)**

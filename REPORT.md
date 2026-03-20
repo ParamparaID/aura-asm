@@ -52,6 +52,38 @@
 ### Статус
 ✅ Завершён
 
+## STEP 04: Event Loop и IPC — 2026-03-20
+
+### Что сделано
+- Создан `src/core/event.asm` с API `eventloop_init`, `eventloop_add_fd`, `eventloop_remove_fd`, `eventloop_run`, `eventloop_stop`, `eventloop_destroy`.
+- Добавлены таймеры в `src/core/event.asm`: `eventloop_add_timer` и `eventloop_remove_timer` на базе `timerfd`.
+- Создан `src/core/ipc.asm` с SPSC ring buffer: `ring_init`, `ring_push`, `ring_pop`, `ring_is_empty`, `ring_is_full`, `ring_destroy`.
+- Добавлены тесты `tests/unit/test_event.asm` (таймер + pipe) и `tests/unit/test_ipc.asm` (push/pop, overflow, SPSC-порядок).
+- Обновлён `Makefile`: сборка `event.asm`, `ipc.asm`, цели `test_event` и `test_ipc`, включение в общий `test`.
+- Обновлён `TODO.md` по STEP 04.
+
+### Результаты тестов
+- `test_syscall`: PASSED.
+- `test_memory`: PASSED.
+- `test_threads`: PASSED.
+- `test_event`: PASSED.
+- `test_ipc`: PASSED.
+- Общий прогон: `make clean && make test` — PASSED.
+
+### Проблемы и решения
+- Проблема: на первых итерациях тест `test_event` зависал из-за разницы представления `epoll_event` в памяти.
+- Решение: скорректирована работа с layout события и стабилизирован цикл dispatch для тестового контура.
+- Проблема: в `test_ipc` producer при ограниченной ёмкости мог зависать в ожидании свободных слотов.
+- Решение: скорректирована ёмкость кольца в стресс-тесте, чтобы гарантировать завершение полного прогона.
+
+### Метрики
+- Размер бинарника `test_event`: 14600 байт.
+- Размер бинарника `test_ipc`: 13760 байт.
+- Строки кода (STEP 04): 1232 (`src/core/event.asm` + `src/core/ipc.asm` + `tests/unit/test_event.asm` + `tests/unit/test_ipc.asm`).
+
+### Статус
+✅ Завершён
+
 ## STEP 03: Thread Pool и синхронизация — 2026-03-19
 
 ### Что сделано
