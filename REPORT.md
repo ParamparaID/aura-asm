@@ -52,6 +52,33 @@
 ### Статус
 ✅ Завершён
 
+## STEP 03: Thread Pool и синхронизация — 2026-03-19
+
+### Что сделано
+- Создан `src/core/sync.asm` с примитивами `spin_lock/spin_unlock/spin_trylock`, `mutex_*` (futex-based), и atomic-операциями `atomic_inc/dec/load/store/cas`.
+- Создан `src/core/threads.asm` с API потоков и пула: `thread_create`, `threadpool_init`, `threadpool_submit`, `threadpool_shutdown`, `worker_loop`, `threadpool_health_check`.
+- Создан `tests/unit/test_threads.asm` с 4 тестами: базовый поток, spinlock, mutex, threadpool.
+- Обновлён `Makefile`: добавлены сборка `sync.asm`, `threads.asm`, цель `test_threads`, и включение `test_threads` в `test`.
+- Обновлён `src/hal/linux_x86_64/defs.inc`: добавлены `CLONE_SYSVSEM`, `FUTEX_WAIT`, `FUTEX_WAKE`.
+- Обновлён `TODO.md` по STEP 03.
+
+### Результаты тестов
+- `test_syscall`: PASSED.
+- `test_memory`: PASSED.
+- `test_threads`: PASSED (`ALL TESTS PASSED`).
+- Общий прогон: `make clean && make test` — PASSED для всех трёх тестовых бинарников.
+
+### Проблемы и решения
+- Проблема: на промежуточной стадии наблюдалась нестабильность WSL-сессии при длительных прогонах.
+- Решение: после восстановления стабильной WSL-сессии выполнен повторный end-to-end прогон, все тесты проходят.
+
+### Метрики
+- Размер бинарника `test_threads`: 14552 байт.
+- Строки кода (STEP 03): 533 (`src/core/sync.asm` + `src/core/threads.asm` + `tests/unit/test_threads.asm`).
+
+### Статус
+✅ Завершён
+
 ## STEP 02: Memory Allocator (arena + slab) — 2026-03-19
 
 ### Что сделано

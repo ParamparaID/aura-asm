@@ -6,26 +6,33 @@ LD_FLAGS = -nostdlib
 BUILD_DIR = build
 TEST_SYSCALL_BIN = $(BUILD_DIR)/test_syscall
 TEST_MEMORY_BIN = $(BUILD_DIR)/test_memory
+TEST_THREADS_BIN = $(BUILD_DIR)/test_threads
 
 HAL_SYSCALL_OBJ = $(BUILD_DIR)/hal_syscall.o
 HAL_ERRNO_OBJ = $(BUILD_DIR)/hal_errno.o
 CORE_MEMORY_OBJ = $(BUILD_DIR)/core_memory.o
+CORE_SYNC_OBJ = $(BUILD_DIR)/core_sync.o
+CORE_THREADS_OBJ = $(BUILD_DIR)/core_threads.o
 TEST_SYSCALL_OBJ = $(BUILD_DIR)/test_syscall.o
 TEST_MEMORY_OBJ = $(BUILD_DIR)/test_memory.o
+TEST_THREADS_OBJ = $(BUILD_DIR)/test_threads.o
 
 .PHONY: all test clean
 
 # Build main target (for now: test binary)
-all: $(TEST_SYSCALL_BIN) $(TEST_MEMORY_BIN)
+all: $(TEST_SYSCALL_BIN) $(TEST_MEMORY_BIN) $(TEST_THREADS_BIN)
 
 # Build and run unit tests
-test: test_syscall test_memory
+test: test_syscall test_memory test_threads
 
 test_syscall: $(TEST_SYSCALL_BIN)
 	./$(TEST_SYSCALL_BIN)
 
 test_memory: $(TEST_MEMORY_BIN)
 	./$(TEST_MEMORY_BIN)
+
+test_threads: $(TEST_THREADS_BIN)
+	./$(TEST_THREADS_BIN)
 
 $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
@@ -39,16 +46,28 @@ $(HAL_ERRNO_OBJ): src/hal/linux_x86_64/errno.asm | $(BUILD_DIR)
 $(CORE_MEMORY_OBJ): src/core/memory.asm src/hal/linux_x86_64/defs.inc | $(BUILD_DIR)
 	$(NASM) $(NASM_FLAGS) $< -o $@
 
+$(CORE_SYNC_OBJ): src/core/sync.asm src/hal/linux_x86_64/defs.inc | $(BUILD_DIR)
+	$(NASM) $(NASM_FLAGS) $< -o $@
+
+$(CORE_THREADS_OBJ): src/core/threads.asm src/hal/linux_x86_64/defs.inc | $(BUILD_DIR)
+	$(NASM) $(NASM_FLAGS) $< -o $@
+
 $(TEST_SYSCALL_OBJ): tests/unit/test_syscall.asm src/hal/linux_x86_64/defs.inc | $(BUILD_DIR)
 	$(NASM) $(NASM_FLAGS) $< -o $@
 
 $(TEST_MEMORY_OBJ): tests/unit/test_memory.asm src/hal/linux_x86_64/defs.inc | $(BUILD_DIR)
 	$(NASM) $(NASM_FLAGS) $< -o $@
 
+$(TEST_THREADS_OBJ): tests/unit/test_threads.asm src/hal/linux_x86_64/defs.inc | $(BUILD_DIR)
+	$(NASM) $(NASM_FLAGS) $< -o $@
+
 $(TEST_SYSCALL_BIN): $(HAL_SYSCALL_OBJ) $(HAL_ERRNO_OBJ) $(TEST_SYSCALL_OBJ)
 	$(LD) $(LD_FLAGS) -o $@ $^
 
 $(TEST_MEMORY_BIN): $(HAL_SYSCALL_OBJ) $(CORE_MEMORY_OBJ) $(TEST_MEMORY_OBJ)
+	$(LD) $(LD_FLAGS) -o $@ $^
+
+$(TEST_THREADS_BIN): $(HAL_SYSCALL_OBJ) $(CORE_SYNC_OBJ) $(CORE_THREADS_OBJ) $(TEST_THREADS_OBJ)
 	$(LD) $(LD_FLAGS) -o $@ $^
 
 clean:

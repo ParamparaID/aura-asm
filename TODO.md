@@ -21,12 +21,12 @@
 - [x] Все тесты проходят, нет утечек (munmap при завершении)
 
 ## STEP 03: Thread Pool
-- [ ] `src/core/threads.asm` — создание потоков (clone syscall), завершение, join
-- [ ] `src/core/threads.asm` — thread pool: init, submit_task, shutdown
-- [ ] `src/core/threads.asm` — health monitor: счётчик падений, авто-рестарт
-- [ ] `src/core/sync.asm` — примитивы синхронизации: spinlock, futex-based mutex
-- [ ] `tests/unit/test_threads.asm` — тесты: запуск 4 потоков, каждый инкрементит счётчик, проверка результата
-- [ ] Потоки работают, синхронизация корректна
+- [x] `src/core/threads.asm` — создание потоков (clone syscall), завершение, join
+- [x] `src/core/threads.asm` — thread pool: init, submit_task, shutdown
+- [x] `src/core/threads.asm` — health monitor: счётчик падений, авто-рестарт
+- [x] `src/core/sync.asm` — примитивы синхронизации: spinlock, futex-based mutex
+- [x] `tests/unit/test_threads.asm` — тесты: запуск 4 потоков, каждый инкрементит счётчик, проверка результата
+- [x] Потоки работают, синхронизация корректна
 
 ## STEP 04: Event Loop
 - [ ] `src/core/event.asm` — event loop на epoll (create, add, wait, dispatch)
@@ -72,4 +72,4 @@
 
 ---
 
-**Прогресс: 11/37 задач выполнено (30%)**
+**Прогресс: 17/37 задач выполнено (46%)**

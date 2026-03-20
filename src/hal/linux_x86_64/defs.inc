@@ -86,7 +86,12 @@
 %define CLONE_FS             0x00000200
 %define CLONE_FILES          0x00000400
 %define CLONE_SIGHAND        0x00000800
+%define CLONE_SYSVSEM        0x00040000
 %define CLONE_THREAD         0x00010000
+
+; --- futex operations ---
+%define FUTEX_WAIT           0
+%define FUTEX_WAKE           1
 
 ; --- standard file descriptors ---
 %define STDIN                0
