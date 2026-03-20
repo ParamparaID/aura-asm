@@ -14,10 +14,14 @@ extern hal_waitpid
 extern hal_dup2
 extern hal_access
 extern hal_chdir
+extern exec_pipeline
 
 section .text
 global executor_init
 global executor_run
+global exec_simple_command
+global resolve_path
+global build_argv
 
 ; AST node types
 %define NODE_COMMAND                1
@@ -342,13 +346,14 @@ build_argv:
     test rax, rax
     jz .fail
     mov [r14 + r15*8], rax
+    mov r10, rax
     mov r8, [rsp + 0]
     mov r9, [rsp + 8]
-    mov rdi, rax
+    mov rdi, r10
     mov rsi, r8
     mov rdx, r9
     call memcpy_simple
-    mov byte [rax + r9], 0
+    mov byte [r10 + r9], 0
     inc r15
     jmp .arg_loop
 
@@ -494,6 +499,10 @@ exec_simple_command:
     call is_builtin
     cmp eax, 1
     jne .check_cd
+    cmp qword [r12 + CMD_REDIRECT_IN_OFF], 0
+    jne .external
+    cmp qword [r12 + CMD_REDIRECT_OUT_OFF], 0
+    jne .external
     mov rdi, r12
     call builtin_echo
     jmp .ret
@@ -673,23 +682,62 @@ exec_simple_command:
     pop rbx
     ret
 
-execute_pipeline:
-    ; rdi=state, rsi=pipeline
-    ; rax=exit code
+exec_list:
+    ; rdi=state, rsi=list_node
+    ; rax=last exit code
     push rbx
+    push r12
+    push r13
+    push r14
     mov rbx, rdi
-    test rsi, rsi
-    jz .fail
-    mov rdx, [rsi + PL_COMMANDS_OFF]
-    test rdx, rdx
-    jz .fail
+    mov r12, rsi
+    mov r13d, dword [r12 + LS_COUNT_OFF]
+    test r13d, r13d
+    jz .zero
+
+    xor r14d, r14d
+    xor eax, eax
+.loop:
+    cmp r14d, r13d
+    jae .done
+
+    cmp r14d, 0
+    je .run_item
+    mov ecx, dword [r12 + LS_OPERATORS_OFF + r14*4]
+    cmp ecx, OP_AND
+    jne .check_or
+    cmp eax, 0
+    jne .skip
+    jmp .run_item
+.check_or:
+    cmp ecx, OP_OR
+    jne .run_item
+    cmp eax, 0
+    je .skip
+    jmp .run_item
+
+.skip:
+    inc r14d
+    jmp .loop
+
+.run_item:
     mov rdi, rbx
-    mov rsi, rdx
-    call exec_simple_command
-    pop rbx
-    ret
-.fail:
-    mov eax, 1
+    mov rsi, [r12 + LS_PIPELINES_OFF + r14*8]
+    call exec_pipeline
+    mov dword [rbx + EX_LAST_EXIT_OFF], eax
+    inc r14d
+    jmp .loop
+
+.done:
+    mov eax, dword [rbx + EX_LAST_EXIT_OFF]
+    jmp .ret
+.zero:
+    xor eax, eax
+    mov dword [rbx + EX_LAST_EXIT_OFF], eax
+.ret:
+    pop r14
+    pop r13
+    pop r12
     pop rbx
     ret
 
@@ -729,49 +777,9 @@ executor_run:
 
     cmp dword [r12 + LS_TYPE_OFF], NODE_LIST
     jne .fail
-    mov r13d, dword [r12 + LS_COUNT_OFF]
-    test r13d, r13d
-    jz .done_zero
-
-    xor r14d, r14d                       ; index
-    xor eax, eax
-.loop:
-    cmp r14d, r13d
-    jae .done
-
-    cmp r14d, 0
-    je .run_item
-    mov ecx, dword [r12 + LS_OPERATORS_OFF + r14*4]
-    cmp ecx, OP_AND
-    jne .check_or
-    cmp eax, 0
-    jne .skip_item
-    jmp .run_item
-.check_or:
-    cmp ecx, OP_OR
-    jne .run_item
-    cmp eax, 0
-    je .skip_item
-    jmp .run_item
-
-.skip_item:
-    inc r14d
-    jmp .loop
-
-.run_item:
     mov rdi, rbx
-    mov rsi, [r12 + LS_PIPELINES_OFF + r14*8]
-    call execute_pipeline
-    mov dword [rbx + EX_LAST_EXIT_OFF], eax
-    inc r14d
-    jmp .loop
-
-.done:
-    mov eax, dword [rbx + EX_LAST_EXIT_OFF]
-    jmp .ret
-.done_zero:
-    xor eax, eax
-    mov dword [rbx + EX_LAST_EXIT_OFF], eax
+    mov rsi, r12
+    call exec_list
     jmp .ret
 .fail:
     mov eax, 1

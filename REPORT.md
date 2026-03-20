@@ -401,3 +401,50 @@ Phase 0 завершена. Готов к переходу на Phase 1 (Shell E
 
 ### Статус
 ✅ Завершён
+
+## STEP 13: Пайпы и редиректы — 2026-03-20
+
+### Что сделано
+- Создан `src/shell/pipeline.asm` с реализацией `exec_pipeline(state, pipeline_node)` для цепочек команд через `|`:
+  - создание `N-1` pipe;
+  - `fork` на каждую команду;
+  - корректный `dup2` для stdin/stdout на основе позиции команды;
+  - закрытие всех pipe fd и в child, и в parent;
+  - `waitpid` всех дочерних, возврат exit code последней команды pipeline (POSIX-поведение).
+- Реализован `apply_redirects(state, cmd_node)` в `pipeline.asm`:
+  - `<` через `open(O_RDONLY)` + `dup2(STDIN)`;
+  - `>` через `open(O_WRONLY|O_CREAT|O_TRUNC, 0644)` + `dup2(STDOUT)`;
+  - `>>` через `open(O_WRONLY|O_CREAT|O_APPEND, 0644)` + `dup2(STDOUT)`.
+- Обновлён `src/shell/executor.asm`:
+  - `executor_run` теперь выполняет `ListNode` через отдельный `exec_list` с полной логикой `OP_AND`, `OP_OR`, `OP_SEQ`;
+  - исполнение каждого pipeline делегировано в `exec_pipeline` (из `pipeline.asm`);
+  - экспортированы helper-функции `resolve_path`, `build_argv`, `exec_simple_command` для переиспользования в pipeline-слое;
+  - поправлен `build_argv` (корректная нуль-терминация аргументов без порчи адресов).
+- Обновлён `Makefile`:
+  - добавлены `src/shell/pipeline.asm`, объект `shell_pipeline.o`;
+  - добавлена цель `test_pipeline`;
+  - обновлены линковки `test_executor` и `aura-shell` с `shell_pipeline.o`.
+- Добавлен `tests/unit/test_pipeline.asm` с 9 сценариями:
+  - простой pipe;
+  - тройной pipe;
+  - `>`, `>>`, `<`;
+  - `pipe + redirect`;
+  - `&&`, `||`, `;`.
+
+### Результаты тестов
+- `wsl make test_pipeline`: PASSED.
+- `wsl make test`: PASSED (включая `test_pipeline`).
+- `wsl make all`: PASSED (`aura-shell` успешно линкуется с pipeline-слоем).
+
+### Проблемы и решения
+- Проблема: падения/нестабильность в `exec_pipeline` из-за использования caller-saved счётчиков (`rcx`) через syscall-wrapper вызовы.
+- Решение: счётчики циклов переведены на callee-saved регистры и сохранение промежуточных указателей через стек.
+- Проблема: порча строк при построении argv/redirect path из-за записи `\0` по адресу из повреждённого регистра после memcpy.
+- Решение: явное сохранение destination-адреса до копирования и постановка терминатора по сохранённому указателю.
+
+### Метрики
+- Размер бинарника `test_pipeline`: 43088 байт.
+- Строки кода (STEP 13): 949 (`src/shell/pipeline.asm` + `tests/unit/test_pipeline.asm`).
+
+### Статус
+✅ Завершён

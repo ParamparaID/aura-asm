@@ -23,6 +23,7 @@ TEST_INPUT_BIN = $(BUILD_DIR)/test_input
 TEST_LEXER_BIN = $(BUILD_DIR)/test_lexer
 TEST_PARSER_BIN = $(BUILD_DIR)/test_parser
 TEST_EXECUTOR_BIN = $(BUILD_DIR)/test_executor
+TEST_PIPELINE_BIN = $(BUILD_DIR)/test_pipeline
 
 HAL_SYSCALL_OBJ = $(BUILD_DIR)/hal_syscall.o
 HAL_ERRNO_OBJ = $(BUILD_DIR)/hal_errno.o
@@ -40,6 +41,7 @@ SHELL_REPL_OBJ = $(BUILD_DIR)/shell_repl.o
 SHELL_LEXER_OBJ = $(BUILD_DIR)/shell_lexer.o
 SHELL_PARSER_OBJ = $(BUILD_DIR)/shell_parser.o
 SHELL_EXECUTOR_OBJ = $(BUILD_DIR)/shell_executor.o
+SHELL_PIPELINE_OBJ = $(BUILD_DIR)/shell_pipeline.o
 MAIN_OBJ = $(BUILD_DIR)/main.o
 CANVAS_RASTERIZER_OBJ = $(BUILD_DIR)/canvas_rasterizer.o
 CANVAS_TEXT_OBJ = $(BUILD_DIR)/canvas_text.o
@@ -55,6 +57,7 @@ TEST_INPUT_OBJ = $(BUILD_DIR)/test_input.o
 TEST_LEXER_OBJ = $(BUILD_DIR)/test_lexer.o
 TEST_PARSER_OBJ = $(BUILD_DIR)/test_parser.o
 TEST_EXECUTOR_OBJ = $(BUILD_DIR)/test_executor.o
+TEST_PIPELINE_OBJ = $(BUILD_DIR)/test_pipeline.o
 
 .PHONY: all test run clean
 
@@ -62,7 +65,7 @@ TEST_EXECUTOR_OBJ = $(BUILD_DIR)/test_executor.o
 all: $(AURA_SHELL_BIN)
 
 # Build and run unit tests
-test: test_syscall test_memory test_threads test_event test_ipc test_canvas test_lexer test_parser test_executor
+test: test_syscall test_memory test_threads test_event test_ipc test_canvas test_lexer test_parser test_executor test_pipeline
 
 run: $(AURA_SHELL_BIN)
 	./$(AURA_SHELL_BIN)
@@ -99,6 +102,9 @@ test_parser: $(TEST_PARSER_BIN)
 
 test_executor: $(TEST_EXECUTOR_BIN)
 	./$(TEST_EXECUTOR_BIN)
+
+test_pipeline: $(TEST_PIPELINE_BIN)
+	./$(TEST_PIPELINE_BIN)
 
 test_window_strict:
 	$(MAKE) WAYLAND_STRICT=1 test_window -B
@@ -154,6 +160,9 @@ $(SHELL_PARSER_OBJ): src/shell/parser.asm | $(BUILD_DIR)
 $(SHELL_EXECUTOR_OBJ): src/shell/executor.asm src/hal/linux_x86_64/defs.inc | $(BUILD_DIR)
 	$(NASM) $(NASM_FLAGS) $< -o $@
 
+$(SHELL_PIPELINE_OBJ): src/shell/pipeline.asm src/hal/linux_x86_64/defs.inc | $(BUILD_DIR)
+	$(NASM) $(NASM_FLAGS) $< -o $@
+
 $(MAIN_OBJ): src/main.asm src/hal/linux_x86_64/defs.inc | $(BUILD_DIR)
 	$(NASM) $(NASM_FLAGS) $< -o $@
 
@@ -199,6 +208,9 @@ $(TEST_PARSER_OBJ): tests/unit/test_parser.asm src/hal/linux_x86_64/defs.inc | $
 $(TEST_EXECUTOR_OBJ): tests/unit/test_executor.asm src/hal/linux_x86_64/defs.inc | $(BUILD_DIR)
 	$(NASM) $(NASM_FLAGS) $< -o $@
 
+$(TEST_PIPELINE_OBJ): tests/unit/test_pipeline.asm src/hal/linux_x86_64/defs.inc | $(BUILD_DIR)
+	$(NASM) $(NASM_FLAGS) $< -o $@
+
 $(TEST_SYSCALL_BIN): $(HAL_SYSCALL_OBJ) $(HAL_ERRNO_OBJ) $(TEST_SYSCALL_OBJ)
 	$(LD) $(LD_FLAGS) -o $@ $^
 
@@ -229,10 +241,13 @@ $(TEST_LEXER_BIN): $(HAL_SYSCALL_OBJ) $(CORE_MEMORY_OBJ) $(SHELL_LEXER_OBJ) $(TE
 $(TEST_PARSER_BIN): $(HAL_SYSCALL_OBJ) $(CORE_MEMORY_OBJ) $(SHELL_LEXER_OBJ) $(SHELL_PARSER_OBJ) $(TEST_PARSER_OBJ)
 	$(LD) $(LD_FLAGS) -o $@ $^
 
-$(TEST_EXECUTOR_BIN): $(HAL_SYSCALL_OBJ) $(HAL_PROCESS_OBJ) $(CORE_MEMORY_OBJ) $(SHELL_LEXER_OBJ) $(SHELL_PARSER_OBJ) $(SHELL_EXECUTOR_OBJ) $(TEST_EXECUTOR_OBJ)
+$(TEST_EXECUTOR_BIN): $(HAL_SYSCALL_OBJ) $(HAL_PROCESS_OBJ) $(CORE_MEMORY_OBJ) $(SHELL_LEXER_OBJ) $(SHELL_PARSER_OBJ) $(SHELL_EXECUTOR_OBJ) $(SHELL_PIPELINE_OBJ) $(TEST_EXECUTOR_OBJ)
 	$(LD) $(LD_FLAGS) -o $@ $^
 
-$(AURA_SHELL_BIN): $(HAL_SYSCALL_OBJ) $(HAL_PROCESS_OBJ) $(HAL_WAYLAND_OBJ) $(HAL_WAYLAND_INPUT_OBJ) $(CORE_MEMORY_OBJ) $(CORE_EVENT_OBJ) $(CORE_INPUT_OBJ) $(GUI_WINDOW_OBJ) $(SHELL_REPL_OBJ) $(SHELL_LEXER_OBJ) $(SHELL_PARSER_OBJ) $(SHELL_EXECUTOR_OBJ) $(CANVAS_RASTERIZER_OBJ) $(CANVAS_TEXT_OBJ) $(CANVAS_SIMD_OBJ) $(MAIN_OBJ)
+$(TEST_PIPELINE_BIN): $(HAL_SYSCALL_OBJ) $(HAL_PROCESS_OBJ) $(CORE_MEMORY_OBJ) $(SHELL_LEXER_OBJ) $(SHELL_PARSER_OBJ) $(SHELL_EXECUTOR_OBJ) $(SHELL_PIPELINE_OBJ) $(TEST_PIPELINE_OBJ)
+	$(LD) $(LD_FLAGS) -o $@ $^
+
+$(AURA_SHELL_BIN): $(HAL_SYSCALL_OBJ) $(HAL_PROCESS_OBJ) $(HAL_WAYLAND_OBJ) $(HAL_WAYLAND_INPUT_OBJ) $(CORE_MEMORY_OBJ) $(CORE_EVENT_OBJ) $(CORE_INPUT_OBJ) $(GUI_WINDOW_OBJ) $(SHELL_REPL_OBJ) $(SHELL_LEXER_OBJ) $(SHELL_PARSER_OBJ) $(SHELL_EXECUTOR_OBJ) $(SHELL_PIPELINE_OBJ) $(CANVAS_RASTERIZER_OBJ) $(CANVAS_TEXT_OBJ) $(CANVAS_SIMD_OBJ) $(MAIN_OBJ)
 	$(LD) $(LD_FLAGS) -o $@ $^
 
 clean:
