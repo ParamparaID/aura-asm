@@ -303,3 +303,29 @@ Phase 0 завершена. Готов к переходу на Phase 1 (Shell E
 
 ### Статус
 ✅ Завершён
+
+## STEP 10: Токенизатор и лексер — 2026-03-20
+
+### Что сделано
+- Создан `src/shell/lexer.asm` с полным API: `lexer_init`, `lexer_tokenize`, `lexer_get_tokens`, `lexer_get_count`, `lexer_get_error`.
+- Реализованы типизированные токены `TOK_WORD`, `TOK_PIPE`, `TOK_REDIRECT_IN`, `TOK_REDIRECT_OUT`, `TOK_REDIRECT_APPEND`, `TOK_AND`, `TOK_OR`, `TOK_SEMICOLON`, `TOK_AMPERSAND`, `TOK_LPAREN`, `TOK_RPAREN`, `TOK_LBRACE`, `TOK_RBRACE`, `TOK_VARIABLE`, `TOK_ASSIGNMENT`, `TOK_NEWLINE`, `TOK_EOF`, `TOK_ERROR`.
+- Реализованы внутренние стадии лексера: `skip_whitespace`, `read_word`, `read_single_quoted`, `read_double_quoted`, `read_variable`, `check_assignment`, `read_operator`, а также эмит токенов с флагами `FLAG_QUOTED`/`FLAG_EXPANDED`.
+- Добавлен `tests/unit/test_lexer.asm` с 13 unit-сценариями: простая команда, пайп, редиректы (`>`, `>>`), `&&/||`, background `&`, одинарные/двойные кавычки, переменные, assignment, комментарии, пустой ввод, сложная комбинированная команда.
+- Обновлён `Makefile`: добавлены `src/shell/lexer.asm`, сборка `test_lexer`, цель `test_lexer`, и включение `test_lexer` в общий `test`.
+
+### Результаты тестов
+- `wsl make test`: PASSED.
+- Пройдены все существующие тесты (`test_syscall`, `test_memory`, `test_threads`, `test_event`, `test_ipc`, `test_canvas`) и новый `test_lexer`.
+
+### Проблемы и решения
+- Проблема: NASM-ошибки парсинга символа одинарной кавычки в `lexer.asm`.
+- Решение: заменено сравнение с символьным литералом на ASCII-код `39`.
+- Проблема: некорректная адресация в macro-проверках `test_lexer.asm` при вычислении смещения токена.
+- Решение: пересчёт адреса переписан через `lea` с константным множителем `TOKEN_SIZE`.
+
+### Метрики
+- Размер бинарника `test_lexer`: 28264 байт.
+- Строки кода (STEP 10): 1466 (`src/shell/lexer.asm` + `tests/unit/test_lexer.asm`).
+
+### Статус
+✅ Завершён

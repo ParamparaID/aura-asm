@@ -1,0 +1,71 @@
+# Aura Shell — Phase 1: TODO
+
+> Продолжение TODO из Phase 0 (37/37 ✅).
+> `[x]` = выполнено, `[ ]` = ожидает.
+
+---
+
+## STEP 10: Токенизатор и лексер
+- [x] `src/shell/lexer.asm` — токенизация входной строки
+- [x] Типы токенов: WORD, PIPE, REDIRECT_IN, REDIRECT_OUT, REDIRECT_APPEND, AND, OR, SEMICOLON, AMPERSAND, LPAREN, RPAREN, LBRACE, RBRACE, VARIABLE, ASSIGNMENT, NEWLINE, EOF, ERROR
+- [x] Обработка кавычек: `"hello world"` как один токен, `'literal $var'` без раскрытия
+- [x] Обработка escape: `\ ` (пробел), `\"`, `\\`, `\n`
+- [x] Переменные: `$VAR`, `${VAR}` помечаются как `TOK_VARIABLE` (без раскрытия на этапе лексера)
+- [x] `tests/unit/test_lexer.asm` — тесты типов токенов и сложных команд
+- [x] Все тесты проходят
+
+## STEP 11: Парсер и AST
+- [ ] `src/shell/parser.asm` — построение AST из потока токенов
+- [ ] Узлы AST: CommandNode, PipelineNode, ListNode (&&, ||, ;), RedirectNode
+- [ ] CommandNode: имя команды + массив аргументов + редиректы
+- [ ] PipelineNode: цепочка CommandNode через pipe
+- [ ] ListNode: последовательность pipeline с операторами (&&, ||, ;)
+- [ ] Аллокация AST через arena (быстрый сброс после выполнения)
+- [ ] `tests/unit/test_parser.asm` — тесты парсинга сложных команд
+- [ ] Все тесты проходят
+
+## STEP 12: Выполнение команд (fork/exec)
+- [ ] `src/hal/linux_x86_64/process.asm` — обёртки fork, execve, waitpid, dup2, _exit
+- [ ] `src/shell/executor.asm` — обход AST и выполнение
+- [ ] Поиск команды в PATH (разбор $PATH, проверка access)
+- [ ] Выполнение внешних программ: fork → execve
+- [ ] Ожидание завершения: waitpid, получение exit code
+- [ ] Передача переменных окружения в execve
+- [ ] `tests/unit/test_executor.asm` — тесты: /bin/echo, /bin/ls, несуществующая команда
+- [ ] Все тесты проходят
+
+## STEP 13: Пайпы и редиректы
+- [ ] `src/shell/pipeline.asm` — выполнение пайплайнов (цепочка fork + pipe + dup2)
+- [ ] Редирект ввода: `< file`
+- [ ] Редирект вывода: `> file` (создание/перезапись)
+- [ ] Редирект добавления: `>> file`
+- [ ] Комбинация: `cmd < in.txt | cmd2 > out.txt`
+- [ ] Условное выполнение: `&&` (если предыдущий exit 0), `||` (если exit != 0)
+- [ ] `;` — последовательное выполнение
+- [ ] `tests/unit/test_pipeline.asm` — тесты пайплайнов и редиректов
+- [ ] Все тесты проходят
+
+## STEP 14: Встроенные команды, переменные, алиасы, история
+- [ ] `src/shell/builtins.asm` — 30+ встроенных команд
+- [ ] `src/shell/variables.asm` — хранилище переменных (hash map), export, set, unset
+- [ ] `src/shell/alias.asm` — хранилище алиасов, подстановка перед парсингом
+- [ ] `src/shell/history.asm` — кольцевой буфер истории, стрелки вверх/вниз, сохранение в файл
+- [ ] Автодополнение: Tab → дополнение команд и путей
+- [ ] Обновление REPL для интеграции всех компонентов
+- [ ] `tests/unit/test_builtins.asm` — тесты встроенных команд
+- [ ] Все тесты проходят
+
+## STEP 15: Job Control
+- [ ] `src/shell/jobs.asm` — таблица активных задач (job table)
+- [ ] Фоновый запуск: `command &`
+- [ ] Команды: `jobs`, `fg %N`, `bg %N`, `wait`
+- [ ] Обработка сигналов: SIGCHLD (уведомление о завершении), SIGTSTP (Ctrl+Z → suspend)
+- [ ] `src/hal/linux_x86_64/signals.asm` — sigaction, signal handling
+- [ ] Уведомление пользователя о завершении фоновых задач
+- [ ] `tests/unit/test_jobs.asm` — тесты job control
+- [ ] Финальный интеграционный тест: сложный pipeline с job control
+- [ ] Все тесты проходят
+
+---
+
+**Прогресс Phase 1: 7/35 задач выполнено (20%)**
