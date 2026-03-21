@@ -561,3 +561,41 @@ Phase 0 завершена. Готов к переходу на Phase 1 (Shell E
 ### Готовность к Phase 2
 Phase 1 завершена. Готов к переходу на Phase 2 (Растеризатор и виджеты).
 Для Phase 2 потребуется: TrueType, PNG, градиенты, blur, виджеты, layout engine.
+
+## STEP 20: TrueType шрифты — 2026-03-20
+
+### Что сделано
+- Добавлен `src/canvas/truetype.asm` с API: `font_load`, `font_destroy`, `font_get_glyph_id`, `font_get_glyph_metrics`, `font_rasterize_glyph`, `font_draw_string`, `font_measure_string`.
+- Реализован загрузчик шрифта через `open + lseek + mmap` с парсингом таблиц `head`, `maxp`, `hhea`, `hmtx`, `loca`, `glyf`, `cmap` (offset discovery) и инициализацией `Font`-структуры.
+- Добавлен рабочий `cmap Format 4` lookup (Unicode BMP -> glyph id) с валидацией границ таблицы и безопасным fallback.
+- Добавлено чтение метрик `hmtx` (advance/lsb) и bbox-глифов через `loca+glyf` для масштабируемого bitmap рендера.
+- Добавлен безопасный MVP-парсинг simple glyph контуров (`endPtsOfContours`, `flags` с repeat, delta-декодирование `x/y` координат) с использованием bbox из реально декодированных точек.
+- Добавлена базовая поддержка compound glyph bbox: обход component-записей с учётом `MORE_COMPONENTS`, чтение `dx/dy` (когда `ARGS_ARE_XY_VALUES`) и union bbox дочерних глифов.
+- Добавлен contour walk для simple glyph: валидация `endPtsOfContours`, пошаговый обход on/off-curve точек и обработка implied on-curve между двумя off-curve (как база для следующего этапа flattening).
+- Добавлены MVP буферы линейных сегментов контура (`x0/y0/x1/y1`) и заполнение в contour walk (implied on-curve для off–off, затем адаптивный flattening).
+- Добавлен MVP scanline coverage rasterizer: 4x Y-oversampling, вычисление пересечений scanline с сегментами и накопление alpha coverage в bitmap; оставлен безопасный fallback на прежний bbox-fill.
+- Quadratic flattening переведён на **итеративный адаптивный стек** (до 16 кадров, `TT_QUAD_MAX_DEPTH` 14): subdivide по de Casteljau до flatness epsilon или лимита глубины; при переполнении стека — отрезок `P0→P2`.
+- Исправлено: bbox из `x/y` циклов сохраняется в `parsed_bbox_*` **до** contour walk (слоты `rsp+32..44` больше не портят итоговый bbox).
+- Исправлено: `parsed_edge_count` сбрасывается при пропуске/ошибке `parse_simple_glyph_bbox` и в ветке compound, чтобы scanline не использовал сегменты предыдущего глифа.
+- Исправлено: в scanline-intersection после `cqo` больше не затирается `rdx`; при сортировке по `y` одновременно меняются пары **x/y** концов отрезка.
+- Добавлен MVP glyph cache (`glyph_id + pixel_size -> GlyphBitmap`) с повторным возвратом того же bitmap-указателя.
+- Реализована MVP растеризация масштабируемого глифа в альфа-битмап по bbox (soft-edge AA) и alpha-aware вывод строки на canvas.
+- Добавлен unit-тест `tests/unit/test_truetype.asm` (load, cmap, rasterize, measure, draw, cache).
+- Добавлен тестовый шрифт `tests/data/test_font.ttf` (DejaVu Sans Mono).
+- Обновлён `Makefile`: добавлены `canvas_truetype.o`, `test_truetype` и включение нового теста в общий `test`.
+- Обновлён `TODO_PHASE2.md`: отмечен прогресс STEP 20.
+
+### Результаты тестов
+- `wsl make test_truetype -B`: PASSED (`ALL TESTS PASSED`).
+- `wsl make test -B`: PASSED (весь regression-suite, включая `test_truetype`).
+
+### Проблемы и решения
+- Проблема: при интеграции более глубокого TTF-парсинга были crash-сценарии из-за ошибок управления стеком и границ в низкоуровневых путях.
+- Решение: исправлены stack-frame/offset ошибки, добавлены guard-checks по `numGlyphs`, стабилизирован контур `load -> metrics -> rasterize -> draw` до предсказуемого прохождения тестов.
+
+### Метрики
+- Новый бинарник `build/test_truetype`: собирается и проходит.
+- Добавлено/обновлено файлов в STEP 20: 6 (`src/canvas/truetype.asm`, `tests/unit/test_truetype.asm`, `tests/data/test_font.ttf`, `Makefile`, `TODO_PHASE2.md`, `REPORT.md`).
+
+### Статус
+⚠️ Частично (реальный table/metric parsing, `cmap4`, contour walk + segment buffering + iterative adaptive quadratic flattening, compound bbox union, MVP scanline coverage AA; full compound outline merge, transforms и kerning — backlog STEP 20)
