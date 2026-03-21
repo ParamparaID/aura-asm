@@ -1,7 +1,7 @@
 NASM = nasm
 LD = ld
 NASM_FLAGS = -f elf64 -g -F dwarf
-LD_FLAGS = -nostdlib
+LD_FLAGS = -nostdlib -e _start
 WAYLAND_STRICT ?= 0
 
 ifeq ($(WAYLAND_STRICT),1)
@@ -27,6 +27,7 @@ TEST_PIPELINE_BIN = $(BUILD_DIR)/test_pipeline
 TEST_BUILTINS_BIN = $(BUILD_DIR)/test_builtins
 TEST_JOBS_BIN = $(BUILD_DIR)/test_jobs
 TEST_TRUETYPE_BIN = $(BUILD_DIR)/test_truetype
+TEST_PNG_BIN = $(BUILD_DIR)/test_png
 
 HAL_SYSCALL_OBJ = $(BUILD_DIR)/hal_syscall.o
 HAL_ERRNO_OBJ = $(BUILD_DIR)/hal_errno.o
@@ -56,6 +57,7 @@ CANVAS_RASTERIZER_OBJ = $(BUILD_DIR)/canvas_rasterizer.o
 CANVAS_TEXT_OBJ = $(BUILD_DIR)/canvas_text.o
 CANVAS_SIMD_OBJ = $(BUILD_DIR)/canvas_simd.o
 CANVAS_TRUETYPE_OBJ = $(BUILD_DIR)/canvas_truetype.o
+CANVAS_PNG_OBJ = $(BUILD_DIR)/canvas_png.o
 TEST_SYSCALL_OBJ = $(BUILD_DIR)/test_syscall.o
 TEST_MEMORY_OBJ = $(BUILD_DIR)/test_memory.o
 TEST_THREADS_OBJ = $(BUILD_DIR)/test_threads.o
@@ -71,6 +73,7 @@ TEST_PIPELINE_OBJ = $(BUILD_DIR)/test_pipeline.o
 TEST_BUILTINS_OBJ = $(BUILD_DIR)/test_builtins.o
 TEST_JOBS_OBJ = $(BUILD_DIR)/test_jobs.o
 TEST_TRUETYPE_OBJ = $(BUILD_DIR)/test_truetype.o
+TEST_PNG_OBJ = $(BUILD_DIR)/test_png.o
 
 .PHONY: all test run clean
 
@@ -78,7 +81,7 @@ TEST_TRUETYPE_OBJ = $(BUILD_DIR)/test_truetype.o
 all: $(AURA_SHELL_BIN)
 
 # Build and run unit tests
-test: test_syscall test_memory test_threads test_event test_ipc test_canvas test_lexer test_parser test_executor test_pipeline test_builtins test_jobs test_truetype
+test: test_syscall test_memory test_threads test_event test_ipc test_canvas test_lexer test_parser test_executor test_pipeline test_builtins test_jobs test_truetype test_png
 
 run: $(AURA_SHELL_BIN)
 	./$(AURA_SHELL_BIN)
@@ -127,6 +130,9 @@ test_jobs: $(TEST_JOBS_BIN)
 
 test_truetype: $(TEST_TRUETYPE_BIN)
 	./$(TEST_TRUETYPE_BIN)
+
+test_png: $(TEST_PNG_BIN)
+	./$(TEST_PNG_BIN)
 
 test_window_strict:
 	$(MAKE) WAYLAND_STRICT=1 test_window -B
@@ -218,6 +224,9 @@ $(CANVAS_SIMD_OBJ): src/canvas/simd.asm | $(BUILD_DIR)
 $(CANVAS_TRUETYPE_OBJ): src/canvas/truetype.asm src/hal/linux_x86_64/defs.inc | $(BUILD_DIR)
 	$(NASM) $(NASM_FLAGS) $< -o $@
 
+$(CANVAS_PNG_OBJ): src/canvas/png.asm src/hal/linux_x86_64/defs.inc | $(BUILD_DIR)
+	$(NASM) $(NASM_FLAGS) $< -o $@
+
 $(TEST_SYSCALL_OBJ): tests/unit/test_syscall.asm src/hal/linux_x86_64/defs.inc | $(BUILD_DIR)
 	$(NASM) $(NASM_FLAGS) $< -o $@
 
@@ -261,6 +270,9 @@ $(TEST_JOBS_OBJ): tests/unit/test_jobs.asm src/hal/linux_x86_64/defs.inc | $(BUI
 	$(NASM) $(NASM_FLAGS) $< -o $@
 
 $(TEST_TRUETYPE_OBJ): tests/unit/test_truetype.asm src/hal/linux_x86_64/defs.inc | $(BUILD_DIR)
+	$(NASM) $(NASM_FLAGS) $< -o $@
+
+$(TEST_PNG_OBJ): tests/unit/test_png.asm | $(BUILD_DIR)
 	$(NASM) $(NASM_FLAGS) $< -o $@
 
 $(TEST_SYSCALL_BIN): $(HAL_SYSCALL_OBJ) $(HAL_ERRNO_OBJ) $(TEST_SYSCALL_OBJ)
@@ -308,7 +320,10 @@ $(TEST_JOBS_BIN): $(HAL_SYSCALL_OBJ) $(HAL_PROCESS_OBJ) $(HAL_SIGNALS_OBJ) $(COR
 $(TEST_TRUETYPE_BIN): $(HAL_SYSCALL_OBJ) $(CORE_MEMORY_OBJ) $(CANVAS_RASTERIZER_OBJ) $(CANVAS_SIMD_OBJ) $(CANVAS_TRUETYPE_OBJ) $(TEST_TRUETYPE_OBJ)
 	$(LD) $(LD_FLAGS) -o $@ $^
 
-$(AURA_SHELL_BIN): $(HAL_SYSCALL_OBJ) $(HAL_PROCESS_OBJ) $(HAL_SIGNALS_OBJ) $(HAL_WAYLAND_OBJ) $(HAL_WAYLAND_INPUT_OBJ) $(CORE_MEMORY_OBJ) $(CORE_EVENT_OBJ) $(CORE_INPUT_OBJ) $(GUI_WINDOW_OBJ) $(SHELL_REPL_OBJ) $(SHELL_LEXER_OBJ) $(SHELL_PARSER_OBJ) $(SHELL_EXECUTOR_OBJ) $(SHELL_PIPELINE_OBJ) $(SHELL_VARIABLES_OBJ) $(SHELL_ALIAS_OBJ) $(SHELL_HISTORY_OBJ) $(SHELL_JOBS_OBJ) $(SHELL_BUILTINS_OBJ) $(CANVAS_RASTERIZER_OBJ) $(CANVAS_TEXT_OBJ) $(CANVAS_SIMD_OBJ) $(CANVAS_TRUETYPE_OBJ) $(MAIN_OBJ)
+$(TEST_PNG_BIN): $(HAL_SYSCALL_OBJ) $(CORE_MEMORY_OBJ) $(CANVAS_RASTERIZER_OBJ) $(CANVAS_SIMD_OBJ) $(CANVAS_PNG_OBJ) $(TEST_PNG_OBJ)
+	$(LD) $(LD_FLAGS) -o $@ $^
+
+$(AURA_SHELL_BIN): $(HAL_SYSCALL_OBJ) $(HAL_PROCESS_OBJ) $(HAL_SIGNALS_OBJ) $(HAL_WAYLAND_OBJ) $(HAL_WAYLAND_INPUT_OBJ) $(CORE_MEMORY_OBJ) $(CORE_EVENT_OBJ) $(CORE_INPUT_OBJ) $(GUI_WINDOW_OBJ) $(SHELL_REPL_OBJ) $(SHELL_LEXER_OBJ) $(SHELL_PARSER_OBJ) $(SHELL_EXECUTOR_OBJ) $(SHELL_PIPELINE_OBJ) $(SHELL_VARIABLES_OBJ) $(SHELL_ALIAS_OBJ) $(SHELL_HISTORY_OBJ) $(SHELL_JOBS_OBJ) $(SHELL_BUILTINS_OBJ) $(CANVAS_RASTERIZER_OBJ) $(CANVAS_TEXT_OBJ) $(CANVAS_SIMD_OBJ) $(CANVAS_TRUETYPE_OBJ) $(CANVAS_PNG_OBJ) $(MAIN_OBJ)
 	$(LD) $(LD_FLAGS) -o $@ $^
 
 clean:

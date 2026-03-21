@@ -18,16 +18,16 @@
 - [x] Все тесты проходят
 
 ## STEP 21: PNG декодер
-- [ ] `src/canvas/png.asm` — парсер PNG: signature, IHDR, IDAT, IEND
-- [ ] Распаковка DEFLATE (inflate): Huffman decoding, LZ77 back-references
-- [ ] Обратная фильтрация: None, Sub, Up, Average, Paeth
-- [ ] Поддержка: RGB (8 bit), RGBA (8 bit), Grayscale, Indexed (PLTE)
-- [ ] Конвертация в ARGB32 (формат canvas)
-- [ ] API: `png_load(path)` → Image struct, `png_load_mem(buf, len)`, `png_destroy`
-- [ ] `canvas_draw_image(canvas, image, x, y)` — отрисовка с альфа-блендингом
-- [ ] `canvas_draw_image_scaled(canvas, image, x, y, w, h)` — масштабирование (bilinear)
-- [ ] `tests/unit/test_png.asm` — загрузка тестового PNG, проверка размеров и пикселей
-- [ ] Все тесты проходят
+- [x] `src/canvas/png.asm` — парсер PNG: signature, IHDR, PLTE, IDAT (concat), IEND; `interlace != 0` → ошибка
+- [x] Распаковка DEFLATE (inflate): Huffman + LZ77; fixed / dynamic / uncompressed blocks; zlib: пропуск 2-байт заголовка, Adler32 не проверяется (MVP)
+- [x] Обратная фильтрация: None, Sub, Up, Average, Paeth
+- [x] Поддержка: RGB/RGBA/Grayscale/Grayscale+Alpha/Indexed (8 bit), PLTE
+- [x] Конвертация в ARGB32 (премультиплицированный альфа для canvas)
+- [x] API: `png_load(path, path_len)` → `Image` (+8 от указателя — размер для `munmap`), `png_load_mem`, `png_destroy`
+- [x] `canvas_draw_image` — альфа-блендинг (скалярно, округление `*257`); SSE2 из ТЗ — опциональный backlog
+- [x] `canvas_draw_image_scaled` — MVP nearest-neighbor; bilinear — backlog
+- [x] `tests/unit/test_png.asm` + `tests/data/test_image.png`; смоки DEFLATE (stored + срез IDAT)
+- [x] `Makefile`: `canvas_png.o`, `test_png`, включено в `test`
 
 ## STEP 22: Продвинутый рендеринг
 - [ ] `src/canvas/gradient.asm` — линейный градиент (2 цвета, произвольный угол)
@@ -97,4 +97,4 @@
 
 ---
 
-**Прогресс Phase 2: 7/48 задач выполнено (14.6%)**
+**Прогресс Phase 2: 18/48 задач выполнено (37.5%)**

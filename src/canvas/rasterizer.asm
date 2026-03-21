@@ -39,6 +39,8 @@ global canvas_fill_rect_scalar
 global canvas_draw_rect
 global canvas_hline
 global canvas_vline
+global canvas_draw_image
+global canvas_draw_image_scaled
 
 ; canvas_init(width, height)
 ; Params: rdi=width, rsi=height
@@ -430,6 +432,350 @@ canvas_hline:
     mov rdx, rcx
     mov rcx, rax
     call canvas_fill_rect
+    ret
+
+; Image: width dd, height dd, pixels dq, stride dd
+%define IMG_WIDTH_OFF            0
+%define IMG_HEIGHT_OFF           4
+%define IMG_PIXELS_OFF           8
+%define IMG_STRIDE_OFF           16
+
+; canvas_draw_image(canvas, image, x, y)  rdi, rsi, edx, ecx
+canvas_draw_image:
+    push rbx
+    push r12
+    push r13
+    push r14
+    push r15
+    push rbp
+
+    test rdi, rdi
+    jz .di_bad
+    test rsi, rsi
+    jz .di_bad
+
+    mov rbx, rdi
+    mov r12, rsi
+    mov r13d, edx
+    mov r14d, ecx
+
+    mov r8d, dword [r12 + IMG_WIDTH_OFF]
+    mov r9d, dword [r12 + IMG_HEIGHT_OFF]
+    mov r15, qword [r12 + IMG_PIXELS_OFF]
+    mov ebp, dword [r12 + IMG_STRIDE_OFF]
+
+    xor edx, edx
+.sy:
+    cmp edx, r9d
+    jae .di_ok
+    xor ecx, ecx
+.sx:
+    cmp ecx, r8d
+    jae .ny
+
+    lea eax, [r13 + rcx]
+    cmp eax, 0
+    jl .nx
+    cmp eax, dword [rbx + CV_WIDTH_OFF]
+    jge .nx
+    lea eax, [r14 + rdx]
+    cmp eax, 0
+    jl .nx
+    cmp eax, dword [rbx + CV_HEIGHT_OFF]
+    jge .nx
+
+    mov eax, edx
+    imul eax, ebp
+    cdqe
+    mov esi, ecx
+    shl esi, 2
+    movsxd rsi, esi
+    add rax, rsi
+    add rax, r15
+    mov r10d, dword [rax]
+
+    mov r11, qword [rbx + CV_BUFFER_OFF]
+    mov eax, r14d
+    add eax, edx
+    imul eax, dword [rbx + CV_STRIDE_OFF]
+    cdqe
+    lea r11, [r11 + rax]
+    lea rax, [r13 + rcx]
+    lea r11, [r11 + rax*4]
+
+    mov eax, r10d
+    shr eax, 24
+    test eax, eax
+    jz .nx
+    cmp eax, 255
+    je .opaque
+
+    push rcx
+    push rdx
+
+    mov r8d, eax                  ; sa
+    mov esi, 255
+    sub esi, r8d                  ; inv
+
+    mov edi, dword [r11]
+
+    mov eax, r10d
+    and eax, 0xFF
+    imul eax, r8d
+    mov ecx, edi
+    and ecx, 0xFF
+    imul ecx, esi
+    add eax, ecx
+    imul eax, 257
+    add eax, 257
+    shr eax, 16
+    push rax
+
+    mov eax, r10d
+    shr eax, 8
+    and eax, 0xFF
+    imul eax, r8d
+    mov ecx, edi
+    shr ecx, 8
+    and ecx, 0xFF
+    imul ecx, esi
+    add eax, ecx
+    imul eax, 257
+    add eax, 257
+    shr eax, 16
+    push rax
+
+    mov eax, r10d
+    shr eax, 16
+    and eax, 0xFF
+    imul eax, r8d
+    mov ecx, edi
+    shr ecx, 16
+    and ecx, 0xFF
+    imul ecx, esi
+    add eax, ecx
+    imul eax, 257
+    add eax, 257
+    shr eax, 16
+
+    pop rdx
+    pop rcx
+    shl eax, 16
+    shl edx, 8
+    or eax, edx
+    or eax, ecx
+    or eax, 0xFF000000
+    mov dword [r11], eax
+
+    pop rdx
+    pop rcx
+    jmp .nx
+
+.opaque:
+    mov dword [r11], r10d
+
+.nx:
+    inc ecx
+    jmp .sx
+.ny:
+    inc edx
+    jmp .sy
+
+.di_ok:
+    xor eax, eax
+    jmp .di_out
+.di_bad:
+    mov eax, -1
+.di_out:
+    pop rbp
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    pop rbx
+    ret
+
+; canvas_draw_image_scaled(canvas, image, x, y, dw, dh) rdi rsi rdx rcx r8 r9
+; [rsp+0]=iw, +4=ih, +8=dw, +12=dh after sub rsp,16
+canvas_draw_image_scaled:
+    push rbx
+    push r12
+    push r13
+    push r14
+    push r15
+    push rbp
+    sub rsp, 16
+
+    test rdi, rdi
+    jz .ds_bad
+    test rsi, rsi
+    jz .ds_bad
+    test r8, r8
+    jle .ds_bad
+    test r9, r9
+    jle .ds_bad
+
+    mov rbx, rdi
+    mov r12, rsi
+    mov r13d, edx
+    mov r14d, ecx
+
+    mov eax, r8d
+    mov dword [rsp + 8], eax
+    mov eax, r9d
+    mov dword [rsp + 12], eax
+
+    mov eax, dword [r12 + IMG_WIDTH_OFF]
+    mov dword [rsp + 0], eax
+    mov eax, dword [r12 + IMG_HEIGHT_OFF]
+    mov dword [rsp + 4], eax
+    test eax, eax
+    jz .ds_bad
+    cmp dword [rsp + 0], 0
+    je .ds_bad
+
+    xor r8d, r8d
+.dsy:
+    cmp r8d, dword [rsp + 12]
+    jae .ds_ok
+    xor ecx, ecx
+.dsx:
+    cmp ecx, dword [rsp + 8]
+    jae .dny
+
+    mov eax, r8d
+    mul dword [rsp + 4]
+    div dword [rsp + 12]
+    mov r10d, eax                 ; sy
+
+    mov eax, ecx
+    mul dword [rsp + 0]
+    div dword [rsp + 8]
+    mov r9d, eax                  ; sx
+
+    lea eax, [r13 + rcx]
+    cmp eax, 0
+    jl .dnx
+    cmp eax, dword [rbx + CV_WIDTH_OFF]
+    jge .dnx
+    mov eax, r14d
+    add eax, r8d
+    cmp eax, 0
+    jl .dnx
+    cmp eax, dword [rbx + CV_HEIGHT_OFF]
+    jge .dnx
+
+    mov esi, dword [r12 + IMG_STRIDE_OFF]
+    mov eax, r10d
+    imul eax, esi
+    cdqe
+    mov rdi, qword [r12 + IMG_PIXELS_OFF]
+    add rax, rdi
+    mov esi, r9d
+    shl esi, 2
+    movsxd rsi, esi
+    add rax, rsi
+    mov r10d, dword [rax]
+
+    mov r11, qword [rbx + CV_BUFFER_OFF]
+    mov eax, r14d
+    add eax, r8d
+    imul eax, dword [rbx + CV_STRIDE_OFF]
+    cdqe
+    lea r11, [r11 + rax]
+    lea rax, [r13 + rcx]
+    lea r11, [r11 + rax*4]
+
+    mov eax, r10d
+    shr eax, 24
+    test eax, eax
+    jz .dnx
+    cmp eax, 255
+    je .ds_opq
+
+    push rcx
+    push r8
+
+    mov r8d, eax
+    mov esi, 255
+    sub esi, r8d
+
+    mov edi, dword [r11]
+
+    mov eax, r10d
+    and eax, 0xFF
+    imul eax, r8d
+    mov ecx, edi
+    and ecx, 0xFF
+    imul ecx, esi
+    add eax, ecx
+    imul eax, 257
+    add eax, 257
+    shr eax, 16
+    push rax
+
+    mov eax, r10d
+    shr eax, 8
+    and eax, 0xFF
+    imul eax, r8d
+    mov ecx, edi
+    shr ecx, 8
+    and ecx, 0xFF
+    imul ecx, esi
+    add eax, ecx
+    imul eax, 257
+    add eax, 257
+    shr eax, 16
+    push rax
+
+    mov eax, r10d
+    shr eax, 16
+    and eax, 0xFF
+    imul eax, r8d
+    mov ecx, edi
+    shr ecx, 16
+    and ecx, 0xFF
+    imul ecx, esi
+    add eax, ecx
+    imul eax, 257
+    add eax, 257
+    shr eax, 16
+    pop rdx
+    pop rcx
+    shl eax, 16
+    shl rdx, 8
+    or eax, edx
+    or eax, ecx
+    or eax, 0xFF000000
+    mov dword [r11], eax
+
+    pop r8
+    pop rcx
+    jmp .dnx
+
+.ds_opq:
+    mov dword [r11], r10d
+
+.dnx:
+    inc ecx
+    jmp .dsx
+.dny:
+    inc r8d
+    jmp .dsy
+
+.ds_ok:
+    xor eax, eax
+    jmp .ds_out
+.ds_bad:
+    mov eax, -1
+.ds_out:
+    add rsp, 16
+    pop rbp
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    pop rbx
     ret
 
 ; canvas_vline(canvas_ptr, x, y1, y2, color)
