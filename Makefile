@@ -28,6 +28,7 @@ TEST_BUILTINS_BIN = $(BUILD_DIR)/test_builtins
 TEST_JOBS_BIN = $(BUILD_DIR)/test_jobs
 TEST_TRUETYPE_BIN = $(BUILD_DIR)/test_truetype
 TEST_PNG_BIN = $(BUILD_DIR)/test_png
+TEST_RENDERING_BIN = $(BUILD_DIR)/test_rendering
 
 HAL_SYSCALL_OBJ = $(BUILD_DIR)/hal_syscall.o
 HAL_ERRNO_OBJ = $(BUILD_DIR)/hal_errno.o
@@ -58,6 +59,12 @@ CANVAS_TEXT_OBJ = $(BUILD_DIR)/canvas_text.o
 CANVAS_SIMD_OBJ = $(BUILD_DIR)/canvas_simd.o
 CANVAS_TRUETYPE_OBJ = $(BUILD_DIR)/canvas_truetype.o
 CANVAS_PNG_OBJ = $(BUILD_DIR)/canvas_png.o
+CANVAS_GRADIENT_OBJ = $(BUILD_DIR)/canvas_gradient.o
+CANVAS_ROUNDED_OBJ = $(BUILD_DIR)/canvas_rounded.o
+CANVAS_BLUR_OBJ = $(BUILD_DIR)/canvas_blur.o
+CANVAS_COMPOSITE_OBJ = $(BUILD_DIR)/canvas_composite.o
+CANVAS_LINE_OBJ = $(BUILD_DIR)/canvas_line.o
+CANVAS_CLIP_OBJ = $(BUILD_DIR)/canvas_clip.o
 TEST_SYSCALL_OBJ = $(BUILD_DIR)/test_syscall.o
 TEST_MEMORY_OBJ = $(BUILD_DIR)/test_memory.o
 TEST_THREADS_OBJ = $(BUILD_DIR)/test_threads.o
@@ -74,6 +81,7 @@ TEST_BUILTINS_OBJ = $(BUILD_DIR)/test_builtins.o
 TEST_JOBS_OBJ = $(BUILD_DIR)/test_jobs.o
 TEST_TRUETYPE_OBJ = $(BUILD_DIR)/test_truetype.o
 TEST_PNG_OBJ = $(BUILD_DIR)/test_png.o
+TEST_RENDERING_OBJ = $(BUILD_DIR)/test_rendering.o
 
 .PHONY: all test run clean
 
@@ -81,7 +89,7 @@ TEST_PNG_OBJ = $(BUILD_DIR)/test_png.o
 all: $(AURA_SHELL_BIN)
 
 # Build and run unit tests
-test: test_syscall test_memory test_threads test_event test_ipc test_canvas test_lexer test_parser test_executor test_pipeline test_builtins test_jobs test_truetype test_png
+test: test_syscall test_memory test_threads test_event test_ipc test_canvas test_lexer test_parser test_executor test_pipeline test_builtins test_jobs test_truetype test_png test_rendering
 
 run: $(AURA_SHELL_BIN)
 	./$(AURA_SHELL_BIN)
@@ -133,6 +141,9 @@ test_truetype: $(TEST_TRUETYPE_BIN)
 
 test_png: $(TEST_PNG_BIN)
 	./$(TEST_PNG_BIN)
+
+test_rendering: $(TEST_RENDERING_BIN)
+	./$(TEST_RENDERING_BIN)
 
 test_window_strict:
 	$(MAKE) WAYLAND_STRICT=1 test_window -B
@@ -227,6 +238,24 @@ $(CANVAS_TRUETYPE_OBJ): src/canvas/truetype.asm src/hal/linux_x86_64/defs.inc | 
 $(CANVAS_PNG_OBJ): src/canvas/png.asm src/hal/linux_x86_64/defs.inc | $(BUILD_DIR)
 	$(NASM) $(NASM_FLAGS) $< -o $@
 
+$(CANVAS_GRADIENT_OBJ): src/canvas/gradient.asm | $(BUILD_DIR)
+	$(NASM) $(NASM_FLAGS) $< -o $@
+
+$(CANVAS_ROUNDED_OBJ): src/canvas/rounded.asm | $(BUILD_DIR)
+	$(NASM) $(NASM_FLAGS) $< -o $@
+
+$(CANVAS_BLUR_OBJ): src/canvas/blur.asm src/hal/linux_x86_64/defs.inc | $(BUILD_DIR)
+	$(NASM) $(NASM_FLAGS) $< -o $@
+
+$(CANVAS_COMPOSITE_OBJ): src/canvas/composite.asm | $(BUILD_DIR)
+	$(NASM) $(NASM_FLAGS) $< -o $@
+
+$(CANVAS_LINE_OBJ): src/canvas/line.asm | $(BUILD_DIR)
+	$(NASM) $(NASM_FLAGS) $< -o $@
+
+$(CANVAS_CLIP_OBJ): src/canvas/clip.asm | $(BUILD_DIR)
+	$(NASM) $(NASM_FLAGS) $< -o $@
+
 $(TEST_SYSCALL_OBJ): tests/unit/test_syscall.asm src/hal/linux_x86_64/defs.inc | $(BUILD_DIR)
 	$(NASM) $(NASM_FLAGS) $< -o $@
 
@@ -272,7 +301,10 @@ $(TEST_JOBS_OBJ): tests/unit/test_jobs.asm src/hal/linux_x86_64/defs.inc | $(BUI
 $(TEST_TRUETYPE_OBJ): tests/unit/test_truetype.asm src/hal/linux_x86_64/defs.inc | $(BUILD_DIR)
 	$(NASM) $(NASM_FLAGS) $< -o $@
 
-$(TEST_PNG_OBJ): tests/unit/test_png.asm | $(BUILD_DIR)
+$(TEST_PNG_OBJ): tests/unit/test_png.asm src/hal/linux_x86_64/defs.inc | $(BUILD_DIR)
+	$(NASM) $(NASM_FLAGS) $< -o $@
+
+$(TEST_RENDERING_OBJ): tests/unit/test_rendering.asm | $(BUILD_DIR)
 	$(NASM) $(NASM_FLAGS) $< -o $@
 
 $(TEST_SYSCALL_BIN): $(HAL_SYSCALL_OBJ) $(HAL_ERRNO_OBJ) $(TEST_SYSCALL_OBJ)
@@ -323,7 +355,10 @@ $(TEST_TRUETYPE_BIN): $(HAL_SYSCALL_OBJ) $(CORE_MEMORY_OBJ) $(CANVAS_RASTERIZER_
 $(TEST_PNG_BIN): $(HAL_SYSCALL_OBJ) $(CORE_MEMORY_OBJ) $(CANVAS_RASTERIZER_OBJ) $(CANVAS_SIMD_OBJ) $(CANVAS_PNG_OBJ) $(TEST_PNG_OBJ)
 	$(LD) $(LD_FLAGS) -o $@ $^
 
-$(AURA_SHELL_BIN): $(HAL_SYSCALL_OBJ) $(HAL_PROCESS_OBJ) $(HAL_SIGNALS_OBJ) $(HAL_WAYLAND_OBJ) $(HAL_WAYLAND_INPUT_OBJ) $(CORE_MEMORY_OBJ) $(CORE_EVENT_OBJ) $(CORE_INPUT_OBJ) $(GUI_WINDOW_OBJ) $(SHELL_REPL_OBJ) $(SHELL_LEXER_OBJ) $(SHELL_PARSER_OBJ) $(SHELL_EXECUTOR_OBJ) $(SHELL_PIPELINE_OBJ) $(SHELL_VARIABLES_OBJ) $(SHELL_ALIAS_OBJ) $(SHELL_HISTORY_OBJ) $(SHELL_JOBS_OBJ) $(SHELL_BUILTINS_OBJ) $(CANVAS_RASTERIZER_OBJ) $(CANVAS_TEXT_OBJ) $(CANVAS_SIMD_OBJ) $(CANVAS_TRUETYPE_OBJ) $(CANVAS_PNG_OBJ) $(MAIN_OBJ)
+$(TEST_RENDERING_BIN): $(HAL_SYSCALL_OBJ) $(CORE_MEMORY_OBJ) $(CANVAS_RASTERIZER_OBJ) $(CANVAS_SIMD_OBJ) $(CANVAS_GRADIENT_OBJ) $(CANVAS_ROUNDED_OBJ) $(CANVAS_BLUR_OBJ) $(CANVAS_COMPOSITE_OBJ) $(CANVAS_LINE_OBJ) $(CANVAS_CLIP_OBJ) $(TEST_RENDERING_OBJ)
+	$(LD) $(LD_FLAGS) -o $@ $^
+
+$(AURA_SHELL_BIN): $(HAL_SYSCALL_OBJ) $(HAL_PROCESS_OBJ) $(HAL_SIGNALS_OBJ) $(HAL_WAYLAND_OBJ) $(HAL_WAYLAND_INPUT_OBJ) $(CORE_MEMORY_OBJ) $(CORE_EVENT_OBJ) $(CORE_INPUT_OBJ) $(GUI_WINDOW_OBJ) $(SHELL_REPL_OBJ) $(SHELL_LEXER_OBJ) $(SHELL_PARSER_OBJ) $(SHELL_EXECUTOR_OBJ) $(SHELL_PIPELINE_OBJ) $(SHELL_VARIABLES_OBJ) $(SHELL_ALIAS_OBJ) $(SHELL_HISTORY_OBJ) $(SHELL_JOBS_OBJ) $(SHELL_BUILTINS_OBJ) $(CANVAS_RASTERIZER_OBJ) $(CANVAS_TEXT_OBJ) $(CANVAS_SIMD_OBJ) $(CANVAS_TRUETYPE_OBJ) $(CANVAS_PNG_OBJ) $(CANVAS_GRADIENT_OBJ) $(CANVAS_ROUNDED_OBJ) $(CANVAS_BLUR_OBJ) $(CANVAS_COMPOSITE_OBJ) $(CANVAS_LINE_OBJ) $(CANVAS_CLIP_OBJ) $(MAIN_OBJ)
 	$(LD) $(LD_FLAGS) -o $@ $^
 
 clean:

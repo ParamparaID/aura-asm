@@ -3,12 +3,9 @@
 ; Author: Aura Shell Team
 ; Date: 2026-03-20
 
-extern canvas_fill_rect_scalar
+%include "src/canvas/canvas.inc"
 
-%define CV_BUFFER_OFF            0
-%define CV_WIDTH_OFF             8
-%define CV_HEIGHT_OFF            12
-%define CV_STRIDE_OFF            16
+extern canvas_fill_rect_scalar
 
 section .data
 
@@ -122,8 +119,32 @@ canvas_fill_rect_simd:
     cmp r12, r9
     jle .ok
 
+    mov eax, [rbx + CV_CLIP_W_OFF]
+    test eax, eax
+    jz .ok
+    mov eax, [rbx + CV_CLIP_X_OFF]
+    mov ecx, [rbx + CV_CLIP_Y_OFF]
+    mov rdx, rax
+    add rdx, [rbx + CV_CLIP_W_OFF]
+    mov r14, rcx
+    add r14d, [rbx + CV_CLIP_H_OFF]
+    cmp r8, rax
+    cmovl r8, rax
+    cmp r9, rcx
+    cmovl r9, rcx
+    cmp r11, rdx
+    cmova r11, rdx
+    cmp r12, r14
+    cmova r12, r14
+    cmp r11, r8
+    jle .ok
+    cmp r12, r9
+    jle .ok
+
     movd xmm0, r10d
     pshufd xmm0, xmm0, 0
+
+    mov r15, r11                    ; x1 — keep; prefix loop clobbers r11
 
     mov r13, r9                     ; ycur
 .row_loop:
@@ -135,7 +156,7 @@ canvas_fill_rect_simd:
     add rax, rdx
     lea rax, [rax + r8*4]           ; row ptr
 
-    mov r14, r11
+    mov r14, r15
     sub r14, r8                     ; pixels in row
     mov rcx, r14
 

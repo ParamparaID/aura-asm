@@ -4,6 +4,7 @@
 ; Date: 2026-03-20
 
 %include "src/hal/linux_x86_64/defs.inc"
+%include "src/canvas/canvas.inc"
 
 extern hal_mmap
 extern hal_munmap
@@ -13,14 +14,6 @@ extern canvas_clear_simd
 
 %define PAGE_SIZE                4096
 %define MAX_CANVAS               8
-
-%define CV_BUFFER_OFF            0
-%define CV_WIDTH_OFF             8
-%define CV_HEIGHT_OFF            12
-%define CV_STRIDE_OFF            16
-%define CV_PAD_OFF               20
-%define CV_SIZE_OFF              24
-%define CV_STRUCT_SIZE           32
 
 section .data
 
@@ -108,6 +101,11 @@ canvas_init:
     mov dword [rdi + CV_STRIDE_OFF], r14d
     mov dword [rdi + CV_PAD_OFF], 0
     mov [rdi + CV_SIZE_OFF], r11
+    mov dword [rdi + CV_CLIP_DEPTH_OFF], 0
+    mov dword [rdi + CV_CLIP_X_OFF], 0
+    mov dword [rdi + CV_CLIP_Y_OFF], 0
+    mov [rdi + CV_CLIP_W_OFF], r12d
+    mov [rdi + CV_CLIP_H_OFF], r13d
     mov rax, rdi
     jmp .ret
 
@@ -193,6 +191,7 @@ canvas_clear:
 canvas_put_pixel:
     test rdi, rdi
     jz .bad
+    push rbx
     test rsi, rsi
     js .ok
     test rdx, rdx
@@ -203,14 +202,32 @@ canvas_put_pixel:
     mov eax, [rdi + CV_HEIGHT_OFF]
     cmp rdx, rax
     jae .ok
-    mov r8, [rdi + CV_BUFFER_OFF]
+    mov eax, [rdi + CV_CLIP_W_OFF]
+    test eax, eax
+    jz .ok
+    mov eax, [rdi + CV_CLIP_X_OFF]
+    cmp esi, eax
+    jl .ok
+    mov eax, [rdi + CV_CLIP_Y_OFF]
+    cmp edx, eax
+    jl .ok
+    mov eax, [rdi + CV_CLIP_X_OFF]
+    add eax, [rdi + CV_CLIP_W_OFF]
+    cmp esi, eax
+    jge .ok
+    mov eax, [rdi + CV_CLIP_Y_OFF]
+    add eax, [rdi + CV_CLIP_H_OFF]
+    cmp edx, eax
+    jge .ok
+    mov rbx, [rdi + CV_BUFFER_OFF]
     mov eax, [rdi + CV_STRIDE_OFF]
     imul rdx, rax
     lea rax, [rsi*4]
     add rdx, rax
-    add r8, rdx
-    mov dword [r8], ecx
+    add rbx, rdx
+    mov dword [rbx], ecx
 .ok:
+    pop rbx
     xor eax, eax
     ret
 .bad:
@@ -302,6 +319,28 @@ canvas_fill_rect_scalar:
     cmp r12, rdx
     cmova r12, rdx
 
+    cmp r11, r8
+    jle .ok
+    cmp r12, r9
+    jle .ok
+
+    mov eax, [rbx + CV_CLIP_W_OFF]
+    test eax, eax
+    jz .ok
+    mov eax, [rbx + CV_CLIP_X_OFF]
+    mov ebp, [rbx + CV_CLIP_Y_OFF]
+    mov edi, eax
+    add edi, [rbx + CV_CLIP_W_OFF]
+    mov esi, ebp
+    add esi, [rbx + CV_CLIP_H_OFF]
+    cmp r8, rax
+    cmovl r8, rax
+    cmp r9, rbp
+    cmovl r9, rbp
+    cmp r11, rdi
+    cmova r11, rdi
+    cmp r12, rsi
+    cmova r12, rsi
     cmp r11, r8
     jle .ok
     cmp r12, r9
@@ -484,6 +523,24 @@ canvas_draw_image:
     cmp eax, dword [rbx + CV_HEIGHT_OFF]
     jge .nx
 
+    mov eax, dword [rbx + CV_CLIP_W_OFF]
+    test eax, eax
+    jz .nx
+    lea esi, [r13 + rcx]
+    lea eax, [r14 + rdx]
+    cmp esi, dword [rbx + CV_CLIP_X_OFF]
+    jl .nx
+    cmp eax, dword [rbx + CV_CLIP_Y_OFF]
+    jl .nx
+    mov edi, dword [rbx + CV_CLIP_X_OFF]
+    add edi, dword [rbx + CV_CLIP_W_OFF]
+    cmp esi, edi
+    jge .nx
+    mov edi, dword [rbx + CV_CLIP_Y_OFF]
+    add edi, dword [rbx + CV_CLIP_H_OFF]
+    cmp eax, edi
+    jge .nx
+
     mov eax, edx
     imul eax, ebp
     cdqe
@@ -663,6 +720,25 @@ canvas_draw_image_scaled:
     cmp eax, 0
     jl .dnx
     cmp eax, dword [rbx + CV_HEIGHT_OFF]
+    jge .dnx
+
+    mov eax, dword [rbx + CV_CLIP_W_OFF]
+    test eax, eax
+    jz .dnx
+    lea esi, [r13 + rcx]
+    mov eax, r14d
+    add eax, r8d
+    cmp esi, dword [rbx + CV_CLIP_X_OFF]
+    jl .dnx
+    cmp eax, dword [rbx + CV_CLIP_Y_OFF]
+    jl .dnx
+    mov edi, dword [rbx + CV_CLIP_X_OFF]
+    add edi, dword [rbx + CV_CLIP_W_OFF]
+    cmp esi, edi
+    jge .dnx
+    mov edi, dword [rbx + CV_CLIP_Y_OFF]
+    add edi, dword [rbx + CV_CLIP_H_OFF]
+    cmp eax, edi
     jge .dnx
 
     mov esi, dword [r12 + IMG_STRIDE_OFF]

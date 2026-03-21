@@ -2,6 +2,7 @@
 ; TrueType loader and glyph rasterization (Phase 2, partial)
 
 %include "src/hal/linux_x86_64/defs.inc"
+%include "src/canvas/canvas.inc"
 
 extern hal_open
 extern hal_close
@@ -70,12 +71,6 @@ extern arena_destroy
 %define C_BITMAP_PTR_OFF            8
 %define C_NEXT_OFF                  16
 %define C_STRUCT_SIZE               24
-
-; canvas layout
-%define CV_BUFFER_OFF               0
-%define CV_WIDTH_OFF                8
-%define CV_HEIGHT_OFF               12
-%define CV_STRIDE_OFF               16
 
 section .bss
     ttf_flag_buf                    resb MAX_TTF_POINTS
@@ -2149,6 +2144,21 @@ font_draw_string:
     mov ecx, [r12 + CV_HEIGHT_OFF]
     cmp rdi, rcx
     jae .advance
+    mov ecx, dword [r12 + CV_CLIP_W_OFF]
+    test ecx, ecx
+    jz .advance
+    cmp esi, dword [r12 + CV_CLIP_X_OFF]
+    jl .advance
+    cmp edi, dword [r12 + CV_CLIP_Y_OFF]
+    jl .advance
+    mov ecx, dword [r12 + CV_CLIP_X_OFF]
+    add ecx, dword [r12 + CV_CLIP_W_OFF]
+    cmp esi, ecx
+    jge .advance
+    mov ecx, dword [r12 + CV_CLIP_Y_OFF]
+    add ecx, dword [r12 + CV_CLIP_H_OFF]
+    cmp edi, ecx
+    jge .advance
     mov rcx, [r12 + CV_BUFFER_OFF]
     mov r8d, [r12 + CV_STRIDE_OFF]
     mov rax, rdi

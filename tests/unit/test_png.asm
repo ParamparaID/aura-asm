@@ -1,4 +1,6 @@
 ; test_png.asm — PNG load, pixels, canvas blit, deflate smoke
+%include "src/hal/linux_x86_64/defs.inc"
+
 extern hal_write
 extern hal_exit
 extern hal_open
@@ -156,8 +158,8 @@ _start:
 
     xor rdi, rdi
     mov rsi, 4096
-    mov rdx, 3
-    mov rcx, 34
+    mov rdx, PROT_READ
+    mov rcx, MAP_PRIVATE
     mov r8, rbx
     xor r9, r9
     call hal_mmap

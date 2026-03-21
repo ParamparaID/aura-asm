@@ -840,10 +840,10 @@ deflate_inflate:
     ret
 
 ; =============================================================================
-; png_bpp(color_type al) -> eax
+; png_bpp(color_type in dil per SysV rdi) -> eax
 ; =============================================================================
 png_bpp_from_ct:
-    movzx eax, al
+    movzx eax, dil
     cmp al, 0
     je .g
     cmp al, 2
@@ -1306,7 +1306,7 @@ png_load:
     pop rbx
     ret
 
-; Stack frame png_load_mem (sub rsp, 80)
+; Stack frame png_load_mem (sub rsp, 256)
 ; +0 raw q, +8 filt q, +16 plte q
 ; +24 idat_total dword, +28 bpp, +32 exp_raw, +36 ihdr_ok, +40 plte_len
 ; +44 ihdr 16 bytes (use 13), +60 hdword
@@ -1323,12 +1323,12 @@ png_load_mem:
     push rbp
     mov r12, rdi
     mov r13, rsi
-    sub rsp, 80
+    sub rsp, 256
 
     cld
     xor eax, eax
     mov rdi, rsp
-    mov ecx, 80
+    mov ecx, 256
     rep stosb
 
     cmp r13, 33
@@ -1622,7 +1622,7 @@ png_load_mem:
     call arena_destroy
 
     lea rax, [r15 + 8]
-    add rsp, 80
+    add rsp, 256
     pop rbp
     pop r15
     pop r14
@@ -1638,7 +1638,7 @@ png_load_mem:
     call arena_destroy
 .mfail0:
     xor eax, eax
-    add rsp, 80
+    add rsp, 256
     pop rbp
     pop r15
     pop r14

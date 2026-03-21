@@ -30,16 +30,17 @@
 - [x] `Makefile`: `canvas_png.o`, `test_png`, включено в `test`
 
 ## STEP 22: Продвинутый рендеринг
-- [ ] `src/canvas/gradient.asm` — линейный градиент (2 цвета, произвольный угол)
-- [ ] `src/canvas/gradient.asm` — радиальный градиент (center, radius)
-- [ ] `src/canvas/rounded.asm` — прямоугольник со скруглёнными углами (4 независимых радиуса)
-- [ ] `src/canvas/blur.asm` — box blur (горизонтальный + вертикальный pass, SIMD-оптимизация)
-- [ ] `src/canvas/blur.asm` — stackblur или аппроксимация Gaussian
-- [ ] `src/canvas/composite.asm` — альфа-композиция слоёв (Porter-Duff: src-over)
-- [ ] `src/canvas/line.asm` — произвольные линии с антиалиасингом (Xiaolin Wu)
-- [ ] `src/canvas/clip.asm` — расширенный клиппинг (стек clip regions, вложенность)
-- [ ] `tests/unit/test_rendering.asm` — тесты: градиент, blur, rounded rect, compositing
-- [ ] Все тесты проходят
+- [x] `src/canvas/gradient.asm` — линейный градиент (2 цвета, произвольный угол, fixed-point t)
+- [x] `src/canvas/gradient.asm` — радиальный градиент (center, radius)
+- [x] `src/canvas/rounded.asm` — скруглённые прямоугольники + `canvas_fill_rounded_rect_4` + обводка `canvas_draw_rounded_rect` (MVP углы по кругу; AA на границе — упрощённо)
+- [x] `src/canvas/blur.asm` — двухпроходный box blur + `canvas_blur_region` (arena temp); SIMD по ТЗ — backlog
+- [ ] `src/canvas/blur.asm` — stackblur / многопроходный box ≈ Gaussian — backlog
+- [x] `src/canvas/composite.asm` — src-over + `canvas_fill_rect_alpha` (скалярно; SIMD — backlog)
+- [x] `src/canvas/line.asm` — `canvas_draw_line_aa` (DDA + 16.16, не полный Xiaolin Wu) — Wu — backlog
+- [x] `src/canvas/clip.asm` — стек clip до 16, пересечение, проверка в примитивах
+- [x] `tests/unit/test_rendering.asm` — градиент, rounded, blur, composite, clip + blur_region
+- [x] `Makefile`: объекты canvas + `test_rendering`
+- [x] `make test`: `test_rendering` ✅; `test_png` ✅ (`png_bpp_from_ct` → `dil`; mmap файла без `MAP_ANONYMOUS`)
 
 ## STEP 23: Physics Engine (UI анимации)
 - [ ] `src/canvas/physics.asm` — spring model (масса, жёсткость, затухание, target)
@@ -97,4 +98,4 @@
 
 ---
 
-**Прогресс Phase 2: 18/48 задач выполнено (37.5%)**
+**Прогресс Phase 2: ~26/48 задач выполнено (~54%)** (STEP 22 по функционалу закрыт; часть пунктов ТЗ — SIMD/Wu/Gaussian — в backlog)
