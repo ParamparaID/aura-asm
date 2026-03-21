@@ -53,25 +53,26 @@
 - [x] `Makefile`: `canvas_physics.o`, `test_physics`, включено в `test`
 
 ## STEP 24: Виджеты (core set)
-- [ ] `src/gui/widget.asm` — базовый Widget struct (x, y, w, h, visible, focused, dirty, children)
-- [ ] `src/gui/widget.asm` — dispatch: render, handle_input, layout, measure
-- [ ] `src/gui/widgets/label.asm` — текстовая метка (TrueType)
-- [ ] `src/gui/widgets/button.asm` — кнопка с ripple-эффектом
-- [ ] `src/gui/widgets/text_input.asm` — однострочное поле ввода с курсором
-- [ ] `src/gui/widgets/text_area.asm` — многострочное поле с инерционной прокруткой
-- [ ] `src/gui/widgets/list.asm` — прокручиваемый список с overscroll bounce
-- [ ] `src/gui/widgets/table.asm` — таблица с сортировкой по колонкам
-- [ ] `src/gui/widgets/tree.asm` — дерево (expand/collapse)
-- [ ] `src/gui/widgets/scrollbar.asm` — полоса прокрутки (auto-hide)
-- [ ] `src/gui/widgets/radial_menu.asm` — Context Bloom (pie menu)
-- [ ] `src/gui/widgets/bottom_sheet.asm` — выдвижная панель снизу
-- [ ] `src/gui/widgets/tab_bar.asm` — вкладки с swipe
-- [ ] `src/gui/widgets/progress_bar.asm` — полоса прогресса (анимированная)
-- [ ] `src/gui/widgets/dialog.asm` — модальное окно с backdrop blur
-- [ ] `src/gui/widgets/status_bar.asm` — строка состояния
-- [ ] `src/gui/widgets/split_pane.asm` — разделитель панелей
-- [ ] `tests/unit/test_widgets.asm` — рендер каждого виджета в буфер, проверка
-- [ ] Все тесты проходят
+- [x] `src/gui/widget.inc` / `src/gui/widget.asm` — Widget 128 байт, vtable, arena, dirty/focus, `widget_init` / children / render / hit-test / input
+- [x] `src/gui/widget.asm` — dispatch: `widget_render`, `widget_handle_input`, `widget_measure`, `widget_layout`, `widget_abs_pos`
+- [x] `src/gui/widgets/label.asm` — текстовая метка (TrueType)
+- [x] `src/gui/widgets/button.asm` — кнопка с ripple (spring) и touch/mouse
+- [x] `src/gui/widgets/text_input.asm` — однострочное поле ввода с курсором
+- [x] `src/gui/widgets/text_area.asm` — многострочное поле с инерционной прокруткой
+- [x] `src/gui/widgets/list.asm` — прокручиваемый список (инерция, bounce)
+- [x] `src/gui/widgets/table.asm` — таблица с сортировкой по колонкам
+- [x] `src/gui/widgets/tree.asm` — дерево (expand/collapse)
+- [x] `src/gui/widgets/scrollbar.asm` — полоса прокрутки (auto-hide spring)
+- [x] `src/gui/widgets/radial_menu.asm` — Context Bloom (open spring, выбор по углу)
+- [x] `src/gui/widgets/bottom_sheet.asm` — выдвижная панель снизу (spring snap)
+- [x] `src/gui/widgets/tab_bar.asm` — вкладки (индикатор spring)
+- [x] `src/gui/widgets/progress_bar.asm` — полоса прогресса (spring к value)
+- [x] `src/gui/widgets/dialog.asm` — модальное окно (backdrop spring)
+- [x] `src/gui/widgets/status_bar.asm` — строка состояния (лево/право)
+- [x] `src/gui/widgets/split_pane.asm` — разделитель панелей (drag split)
+- [x] `src/gui/widgets/container.asm` — группировка дочерних виджетов
+- [x] `tests/unit/test_widgets.asm` — label, button+callback, list+inertia, hit-test, radial pixel
+- [x] Все тесты проходят (`make test`, в т.ч. `test_widgets`)
 
 ## STEP 25: Layout Engine
 - [ ] `src/gui/layout.asm` — flex-подобный layout (direction: row/column, wrap, align, justify)
@@ -98,4 +99,4 @@
 
 ---
 
-**Прогресс Phase 2: ~33/48 задач выполнено (~69%)** (STEP 23 закрыт; STEP 22 backlog: SIMD/Wu/Gaussian)
+**Прогресс Phase 2: ~52/68 задач выполнено (~76%)** (STEP 20–24 MVP закрыты; STEP 22 backlog: SIMD/Wu/Gaussian)

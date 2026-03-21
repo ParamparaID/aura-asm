@@ -30,6 +30,7 @@ TEST_TRUETYPE_BIN = $(BUILD_DIR)/test_truetype
 TEST_PNG_BIN = $(BUILD_DIR)/test_png
 TEST_RENDERING_BIN = $(BUILD_DIR)/test_rendering
 TEST_PHYSICS_BIN = $(BUILD_DIR)/test_physics
+TEST_WIDGETS_BIN = $(BUILD_DIR)/test_widgets
 
 HAL_SYSCALL_OBJ = $(BUILD_DIR)/hal_syscall.o
 HAL_ERRNO_OBJ = $(BUILD_DIR)/hal_errno.o
@@ -44,6 +45,24 @@ CORE_EVENT_OBJ = $(BUILD_DIR)/core_event.o
 CORE_IPC_OBJ = $(BUILD_DIR)/core_ipc.o
 CORE_INPUT_OBJ = $(BUILD_DIR)/core_input.o
 GUI_WINDOW_OBJ = $(BUILD_DIR)/gui_window.o
+GUI_WIDGET_OBJ = $(BUILD_DIR)/gui_widget.o
+WIDGET_LABEL_OBJ = $(BUILD_DIR)/widget_label.o
+WIDGET_BUTTON_OBJ = $(BUILD_DIR)/widget_button.o
+WIDGET_TEXT_INPUT_OBJ = $(BUILD_DIR)/widget_text_input.o
+WIDGET_TEXT_AREA_OBJ = $(BUILD_DIR)/widget_text_area.o
+WIDGET_LIST_OBJ = $(BUILD_DIR)/widget_list.o
+WIDGET_TABLE_OBJ = $(BUILD_DIR)/widget_table.o
+WIDGET_TREE_OBJ = $(BUILD_DIR)/widget_tree.o
+WIDGET_SCROLLBAR_OBJ = $(BUILD_DIR)/widget_scrollbar.o
+WIDGET_RADIAL_OBJ = $(BUILD_DIR)/widget_radial_menu.o
+WIDGET_BOTTOM_SHEET_OBJ = $(BUILD_DIR)/widget_bottom_sheet.o
+WIDGET_TAB_BAR_OBJ = $(BUILD_DIR)/widget_tab_bar.o
+WIDGET_PROGRESS_OBJ = $(BUILD_DIR)/widget_progress_bar.o
+WIDGET_DIALOG_OBJ = $(BUILD_DIR)/widget_dialog.o
+WIDGET_STATUS_OBJ = $(BUILD_DIR)/widget_status_bar.o
+WIDGET_SPLIT_OBJ = $(BUILD_DIR)/widget_split_pane.o
+WIDGET_CONTAINER_OBJ = $(BUILD_DIR)/widget_container.o
+WIDGET_OBJS = $(WIDGET_LABEL_OBJ) $(WIDGET_BUTTON_OBJ) $(WIDGET_TEXT_INPUT_OBJ) $(WIDGET_TEXT_AREA_OBJ) $(WIDGET_LIST_OBJ) $(WIDGET_TABLE_OBJ) $(WIDGET_TREE_OBJ) $(WIDGET_SCROLLBAR_OBJ) $(WIDGET_RADIAL_OBJ) $(WIDGET_BOTTOM_SHEET_OBJ) $(WIDGET_TAB_BAR_OBJ) $(WIDGET_PROGRESS_OBJ) $(WIDGET_DIALOG_OBJ) $(WIDGET_STATUS_OBJ) $(WIDGET_SPLIT_OBJ) $(WIDGET_CONTAINER_OBJ)
 SHELL_REPL_OBJ = $(BUILD_DIR)/shell_repl.o
 SHELL_LEXER_OBJ = $(BUILD_DIR)/shell_lexer.o
 SHELL_PARSER_OBJ = $(BUILD_DIR)/shell_parser.o
@@ -85,6 +104,7 @@ TEST_TRUETYPE_OBJ = $(BUILD_DIR)/test_truetype.o
 TEST_PNG_OBJ = $(BUILD_DIR)/test_png.o
 TEST_RENDERING_OBJ = $(BUILD_DIR)/test_rendering.o
 TEST_PHYSICS_OBJ = $(BUILD_DIR)/test_physics.o
+TEST_WIDGETS_OBJ = $(BUILD_DIR)/test_widgets.o
 
 .PHONY: all test run clean
 
@@ -92,7 +112,7 @@ TEST_PHYSICS_OBJ = $(BUILD_DIR)/test_physics.o
 all: $(AURA_SHELL_BIN)
 
 # Build and run unit tests
-test: test_syscall test_memory test_threads test_event test_ipc test_canvas test_lexer test_parser test_executor test_pipeline test_builtins test_jobs test_truetype test_png test_rendering
+test: test_syscall test_memory test_threads test_event test_ipc test_canvas test_lexer test_parser test_executor test_pipeline test_builtins test_jobs test_truetype test_png test_rendering test_physics test_widgets
 
 run: $(AURA_SHELL_BIN)
 	./$(AURA_SHELL_BIN)
@@ -151,6 +171,9 @@ test_rendering: $(TEST_RENDERING_BIN)
 test_physics: $(TEST_PHYSICS_BIN)
 	./$(TEST_PHYSICS_BIN)
 
+test_widgets: $(TEST_WIDGETS_BIN)
+	./$(TEST_WIDGETS_BIN)
+
 test_window_strict:
 	$(MAKE) WAYLAND_STRICT=1 test_window -B
 
@@ -195,6 +218,57 @@ $(CORE_INPUT_OBJ): src/core/input.asm | $(BUILD_DIR)
 
 $(GUI_WINDOW_OBJ): src/gui/window.asm src/hal/linux_x86_64/defs.inc | $(BUILD_DIR)
 	$(NASM) $(NASM_FLAGS) $(WAYLAND_STRICT_FLAG) $< -o $@
+
+$(GUI_WIDGET_OBJ): src/gui/widget.asm src/hal/linux_x86_64/defs.inc src/gui/widget.inc | $(BUILD_DIR)
+	$(NASM) $(NASM_FLAGS) $< -o $@
+
+$(WIDGET_LABEL_OBJ): src/gui/widgets/label.asm src/hal/linux_x86_64/defs.inc src/gui/widget.inc | $(BUILD_DIR)
+	$(NASM) $(NASM_FLAGS) $< -o $@
+
+$(WIDGET_BUTTON_OBJ): src/gui/widgets/button.asm src/hal/linux_x86_64/defs.inc src/gui/widget.inc | $(BUILD_DIR)
+	$(NASM) $(NASM_FLAGS) $< -o $@
+
+$(WIDGET_TEXT_INPUT_OBJ): src/gui/widgets/text_input.asm src/hal/linux_x86_64/defs.inc src/gui/widget.inc | $(BUILD_DIR)
+	$(NASM) $(NASM_FLAGS) $< -o $@
+
+$(WIDGET_TEXT_AREA_OBJ): src/gui/widgets/text_area.asm src/hal/linux_x86_64/defs.inc src/gui/widget.inc | $(BUILD_DIR)
+	$(NASM) $(NASM_FLAGS) $< -o $@
+
+$(WIDGET_LIST_OBJ): src/gui/widgets/list.asm src/hal/linux_x86_64/defs.inc src/gui/widget.inc | $(BUILD_DIR)
+	$(NASM) $(NASM_FLAGS) $< -o $@
+
+$(WIDGET_TABLE_OBJ): src/gui/widgets/table.asm src/hal/linux_x86_64/defs.inc src/gui/widget.inc | $(BUILD_DIR)
+	$(NASM) $(NASM_FLAGS) $< -o $@
+
+$(WIDGET_TREE_OBJ): src/gui/widgets/tree.asm src/hal/linux_x86_64/defs.inc src/gui/widget.inc | $(BUILD_DIR)
+	$(NASM) $(NASM_FLAGS) $< -o $@
+
+$(WIDGET_SCROLLBAR_OBJ): src/gui/widgets/scrollbar.asm src/hal/linux_x86_64/defs.inc src/gui/widget.inc | $(BUILD_DIR)
+	$(NASM) $(NASM_FLAGS) $< -o $@
+
+$(WIDGET_RADIAL_OBJ): src/gui/widgets/radial_menu.asm src/hal/linux_x86_64/defs.inc src/gui/widget.inc | $(BUILD_DIR)
+	$(NASM) $(NASM_FLAGS) $< -o $@
+
+$(WIDGET_BOTTOM_SHEET_OBJ): src/gui/widgets/bottom_sheet.asm src/hal/linux_x86_64/defs.inc src/gui/widget.inc | $(BUILD_DIR)
+	$(NASM) $(NASM_FLAGS) $< -o $@
+
+$(WIDGET_TAB_BAR_OBJ): src/gui/widgets/tab_bar.asm src/hal/linux_x86_64/defs.inc src/gui/widget.inc | $(BUILD_DIR)
+	$(NASM) $(NASM_FLAGS) $< -o $@
+
+$(WIDGET_PROGRESS_OBJ): src/gui/widgets/progress_bar.asm src/hal/linux_x86_64/defs.inc src/gui/widget.inc | $(BUILD_DIR)
+	$(NASM) $(NASM_FLAGS) $< -o $@
+
+$(WIDGET_DIALOG_OBJ): src/gui/widgets/dialog.asm src/hal/linux_x86_64/defs.inc src/gui/widget.inc | $(BUILD_DIR)
+	$(NASM) $(NASM_FLAGS) $< -o $@
+
+$(WIDGET_STATUS_OBJ): src/gui/widgets/status_bar.asm src/hal/linux_x86_64/defs.inc src/gui/widget.inc | $(BUILD_DIR)
+	$(NASM) $(NASM_FLAGS) $< -o $@
+
+$(WIDGET_SPLIT_OBJ): src/gui/widgets/split_pane.asm src/hal/linux_x86_64/defs.inc src/gui/widget.inc | $(BUILD_DIR)
+	$(NASM) $(NASM_FLAGS) $< -o $@
+
+$(WIDGET_CONTAINER_OBJ): src/gui/widgets/container.asm src/hal/linux_x86_64/defs.inc src/gui/widget.inc | $(BUILD_DIR)
+	$(NASM) $(NASM_FLAGS) $< -o $@
 
 $(SHELL_REPL_OBJ): src/shell/repl.asm | $(BUILD_DIR)
 	$(NASM) $(NASM_FLAGS) $< -o $@
@@ -319,6 +393,9 @@ $(TEST_RENDERING_OBJ): tests/unit/test_rendering.asm | $(BUILD_DIR)
 $(TEST_PHYSICS_OBJ): tests/unit/test_physics.asm src/hal/linux_x86_64/defs.inc | $(BUILD_DIR)
 	$(NASM) $(NASM_FLAGS) $< -o $@
 
+$(TEST_WIDGETS_OBJ): tests/unit/test_widgets.asm src/hal/linux_x86_64/defs.inc src/gui/widget.inc | $(BUILD_DIR)
+	$(NASM) $(NASM_FLAGS) $< -o $@
+
 $(TEST_SYSCALL_BIN): $(HAL_SYSCALL_OBJ) $(HAL_ERRNO_OBJ) $(TEST_SYSCALL_OBJ)
 	$(LD) $(LD_FLAGS) -o $@ $^
 
@@ -371,6 +448,9 @@ $(TEST_RENDERING_BIN): $(HAL_SYSCALL_OBJ) $(CORE_MEMORY_OBJ) $(CANVAS_RASTERIZER
 	$(LD) $(LD_FLAGS) -o $@ $^
 
 $(TEST_PHYSICS_BIN): $(HAL_SYSCALL_OBJ) $(CANVAS_PHYSICS_OBJ) $(TEST_PHYSICS_OBJ)
+	$(LD) $(LD_FLAGS) -o $@ $^
+
+$(TEST_WIDGETS_BIN): $(HAL_SYSCALL_OBJ) $(CORE_MEMORY_OBJ) $(CANVAS_RASTERIZER_OBJ) $(CANVAS_SIMD_OBJ) $(CANVAS_TRUETYPE_OBJ) $(CANVAS_ROUNDED_OBJ) $(CANVAS_COMPOSITE_OBJ) $(CANVAS_CLIP_OBJ) $(CANVAS_PHYSICS_OBJ) $(GUI_WIDGET_OBJ) $(WIDGET_OBJS) $(TEST_WIDGETS_OBJ)
 	$(LD) $(LD_FLAGS) -o $@ $^
 
 $(AURA_SHELL_BIN): $(HAL_SYSCALL_OBJ) $(HAL_PROCESS_OBJ) $(HAL_SIGNALS_OBJ) $(HAL_WAYLAND_OBJ) $(HAL_WAYLAND_INPUT_OBJ) $(CORE_MEMORY_OBJ) $(CORE_EVENT_OBJ) $(CORE_INPUT_OBJ) $(GUI_WINDOW_OBJ) $(SHELL_REPL_OBJ) $(SHELL_LEXER_OBJ) $(SHELL_PARSER_OBJ) $(SHELL_EXECUTOR_OBJ) $(SHELL_PIPELINE_OBJ) $(SHELL_VARIABLES_OBJ) $(SHELL_ALIAS_OBJ) $(SHELL_HISTORY_OBJ) $(SHELL_JOBS_OBJ) $(SHELL_BUILTINS_OBJ) $(CANVAS_RASTERIZER_OBJ) $(CANVAS_TEXT_OBJ) $(CANVAS_SIMD_OBJ) $(CANVAS_TRUETYPE_OBJ) $(CANVAS_PNG_OBJ) $(CANVAS_GRADIENT_OBJ) $(CANVAS_ROUNDED_OBJ) $(CANVAS_BLUR_OBJ) $(CANVAS_COMPOSITE_OBJ) $(CANVAS_LINE_OBJ) $(CANVAS_CLIP_OBJ) $(MAIN_OBJ)
