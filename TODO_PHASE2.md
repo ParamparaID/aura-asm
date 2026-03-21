@@ -43,14 +43,14 @@
 - [x] `make test`: `test_rendering` ✅; `test_png` ✅ (`png_bpp_from_ct` → `dil`; mmap файла без `MAP_ANONYMOUS`)
 
 ## STEP 23: Physics Engine (UI анимации)
-- [ ] `src/canvas/physics.asm` — spring model (масса, жёсткость, затухание, target)
-- [ ] `src/canvas/physics.asm` — inertia model (velocity, friction, deceleration)
-- [ ] `src/canvas/physics.asm` — snap points (позиции притяжения, snap-to-grid)
-- [ ] `src/canvas/physics.asm` — animation scheduler (tick-based, 60fps target)
-- [ ] API: `spring_create`, `spring_update(dt)`, `spring_value`, `spring_is_settled`
-- [ ] API: `inertia_create`, `inertia_fling(velocity)`, `inertia_update(dt)`, `inertia_value`
-- [ ] `tests/unit/test_physics.asm` — тесты: spring сходится к target, inertia замедляется до 0
-- [ ] Все тесты проходят
+- [x] `src/canvas/physics.asm` — spring model (16.16 fp, mass/stiffness/damping, settle threshold)
+- [x] `src/canvas/physics.asm` — inertia model (friction, bounds, bounce fp ~0.3)
+- [x] `src/canvas/physics.asm` — snap points + `snap_apply` → `spring_set_target`
+- [x] `src/canvas/physics.asm` — `anim_scheduler_*` + `hal_clock_gettime`, dt в fp с clamp (жёсткие пружины + явный Эйлер не любят большой dt)
+- [x] API: `spring_init` / `spring_set_target` / `spring_update` / `spring_value` / `spring_is_settled`
+- [x] API: `inertia_init` / `inertia_fling` / `inertia_update` / `inertia_value` / `inertia_is_settled`
+- [x] `tests/unit/test_physics.asm` — spring converge/overshoot, inertia, snap, scheduler (3 пружины 50/80/120)
+- [x] `Makefile`: `canvas_physics.o`, `test_physics`, включено в `test`
 
 ## STEP 24: Виджеты (core set)
 - [ ] `src/gui/widget.asm` — базовый Widget struct (x, y, w, h, visible, focused, dirty, children)
@@ -98,4 +98,4 @@
 
 ---
 
-**Прогресс Phase 2: ~26/48 задач выполнено (~54%)** (STEP 22 по функционалу закрыт; часть пунктов ТЗ — SIMD/Wu/Gaussian — в backlog)
+**Прогресс Phase 2: ~33/48 задач выполнено (~69%)** (STEP 23 закрыт; STEP 22 backlog: SIMD/Wu/Gaussian)
