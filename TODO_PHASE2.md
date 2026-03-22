@@ -75,15 +75,17 @@
 - [x] Все тесты проходят (`make test`, в т.ч. `test_widgets`)
 
 ## STEP 25: Layout Engine
-- [ ] `src/gui/layout.asm` — flex-подобный layout (direction: row/column, wrap, align, justify)
-- [ ] `src/gui/layout.asm` — measure pass (intrinsic sizes) + layout pass (final positions)
-- [ ] `src/gui/layout.asm` — адаптивность: breakpoints (desktop >1200, tablet >600, phone <600)
-- [ ] `src/gui/layout.asm` — padding, margin, gap для каждого виджета
-- [ ] `src/core/gesture.asm` — Gesture Recognizer: swipe, pinch, long press, multi-finger
-- [ ] `src/core/gesture.asm` — gesture state machine: possible → recognized → ended/cancelled
-- [ ] `tests/unit/test_layout.asm` — тесты layout для разных viewport размеров
-- [ ] `tests/unit/test_gesture.asm` — тесты распознавания жестов по последовательности touch events
-- [ ] Все тесты проходят
+- [x] `src/gui/layout.inc` / `src/gui/layout.asm` — flex-подобный layout (row/column, wrap, align, justify, flex_grow/shrink)
+- [x] `layout_measure` / `layout_arrange` — measure + финальные позиции; рекурсия для вложенных контейнеров с `W_DATA`
+- [x] Адаптивность: `layout_get_form_factor`, `layout_set_responsive`, `layout_apply_viewport` (phone/tablet/desktop)
+- [x] Padding (`FlexContainerData`), margin/gap через `LayoutParams` у дочерних виджетов
+- [x] `src/core/gesture.inc` / `src/core/gesture.asm` — MVP: tap, long press, swipe (направление); TOUCH_UP учитывает координаты отпускания
+- [x] Gesture state machine: IDLE → POSSIBLE → RECOGNIZED; пороги в `gesture_init`
+- [ ] Pinch, непрерывный PAN в потоке событий, 2/3-пальцевые жесты из ТЗ — backlog
+- [x] `tests/unit/test_layout.asm` — row/column justify, flex grow, form factor
+- [x] `tests/unit/test_gesture.asm` — tap, swipe right, long press, «не tap»
+- [x] `Makefile`: `gui_layout.o`, `core_gesture.o`, `test_layout`, `test_gesture`, включено в `make test`
+- [x] Все тесты проходят
 
 ## STEP 26: Интеграция и темы
 - [ ] `src/gui/theme.asm` — парсер .auratheme (текстовый формат → бинарный)
@@ -99,4 +101,4 @@
 
 ---
 
-**Прогресс Phase 2: ~52/68 задач выполнено (~76%)** (STEP 20–24 MVP закрыты; STEP 22 backlog: SIMD/Wu/Gaussian)
+**Прогресс Phase 2: ~62/69 задач выполнено (~90%)** (STEP 20–25 MVP; STEP 22 backlog: SIMD/Wu/Gaussian; STEP 25: расширенные жесты — backlog)

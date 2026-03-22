@@ -31,6 +31,8 @@ TEST_PNG_BIN = $(BUILD_DIR)/test_png
 TEST_RENDERING_BIN = $(BUILD_DIR)/test_rendering
 TEST_PHYSICS_BIN = $(BUILD_DIR)/test_physics
 TEST_WIDGETS_BIN = $(BUILD_DIR)/test_widgets
+TEST_LAYOUT_BIN = $(BUILD_DIR)/test_layout
+TEST_GESTURE_BIN = $(BUILD_DIR)/test_gesture
 
 HAL_SYSCALL_OBJ = $(BUILD_DIR)/hal_syscall.o
 HAL_ERRNO_OBJ = $(BUILD_DIR)/hal_errno.o
@@ -42,10 +44,12 @@ CORE_MEMORY_OBJ = $(BUILD_DIR)/core_memory.o
 CORE_SYNC_OBJ = $(BUILD_DIR)/core_sync.o
 CORE_THREADS_OBJ = $(BUILD_DIR)/core_threads.o
 CORE_EVENT_OBJ = $(BUILD_DIR)/core_event.o
+CORE_GESTURE_OBJ = $(BUILD_DIR)/core_gesture.o
 CORE_IPC_OBJ = $(BUILD_DIR)/core_ipc.o
 CORE_INPUT_OBJ = $(BUILD_DIR)/core_input.o
 GUI_WINDOW_OBJ = $(BUILD_DIR)/gui_window.o
 GUI_WIDGET_OBJ = $(BUILD_DIR)/gui_widget.o
+GUI_LAYOUT_OBJ = $(BUILD_DIR)/gui_layout.o
 WIDGET_LABEL_OBJ = $(BUILD_DIR)/widget_label.o
 WIDGET_BUTTON_OBJ = $(BUILD_DIR)/widget_button.o
 WIDGET_TEXT_INPUT_OBJ = $(BUILD_DIR)/widget_text_input.o
@@ -105,6 +109,8 @@ TEST_PNG_OBJ = $(BUILD_DIR)/test_png.o
 TEST_RENDERING_OBJ = $(BUILD_DIR)/test_rendering.o
 TEST_PHYSICS_OBJ = $(BUILD_DIR)/test_physics.o
 TEST_WIDGETS_OBJ = $(BUILD_DIR)/test_widgets.o
+TEST_LAYOUT_OBJ = $(BUILD_DIR)/test_layout.o
+TEST_GESTURE_OBJ = $(BUILD_DIR)/test_gesture.o
 
 .PHONY: all test run clean
 
@@ -112,7 +118,7 @@ TEST_WIDGETS_OBJ = $(BUILD_DIR)/test_widgets.o
 all: $(AURA_SHELL_BIN)
 
 # Build and run unit tests
-test: test_syscall test_memory test_threads test_event test_ipc test_canvas test_lexer test_parser test_executor test_pipeline test_builtins test_jobs test_truetype test_png test_rendering test_physics test_widgets
+test: test_syscall test_memory test_threads test_event test_ipc test_canvas test_lexer test_parser test_executor test_pipeline test_builtins test_jobs test_truetype test_png test_rendering test_physics test_widgets test_layout test_gesture
 
 run: $(AURA_SHELL_BIN)
 	./$(AURA_SHELL_BIN)
@@ -174,6 +180,12 @@ test_physics: $(TEST_PHYSICS_BIN)
 test_widgets: $(TEST_WIDGETS_BIN)
 	./$(TEST_WIDGETS_BIN)
 
+test_layout: $(TEST_LAYOUT_BIN)
+	./$(TEST_LAYOUT_BIN)
+
+test_gesture: $(TEST_GESTURE_BIN)
+	./$(TEST_GESTURE_BIN)
+
 test_window_strict:
 	$(MAKE) WAYLAND_STRICT=1 test_window -B
 
@@ -220,6 +232,12 @@ $(GUI_WINDOW_OBJ): src/gui/window.asm src/hal/linux_x86_64/defs.inc | $(BUILD_DI
 	$(NASM) $(NASM_FLAGS) $(WAYLAND_STRICT_FLAG) $< -o $@
 
 $(GUI_WIDGET_OBJ): src/gui/widget.asm src/hal/linux_x86_64/defs.inc src/gui/widget.inc | $(BUILD_DIR)
+	$(NASM) $(NASM_FLAGS) $< -o $@
+
+$(GUI_LAYOUT_OBJ): src/gui/layout.asm src/hal/linux_x86_64/defs.inc src/gui/widget.inc src/gui/layout.inc | $(BUILD_DIR)
+	$(NASM) $(NASM_FLAGS) $< -o $@
+
+$(CORE_GESTURE_OBJ): src/core/gesture.asm src/hal/linux_x86_64/defs.inc src/core/gesture.inc | $(BUILD_DIR)
 	$(NASM) $(NASM_FLAGS) $< -o $@
 
 $(WIDGET_LABEL_OBJ): src/gui/widgets/label.asm src/hal/linux_x86_64/defs.inc src/gui/widget.inc | $(BUILD_DIR)
@@ -396,6 +414,12 @@ $(TEST_PHYSICS_OBJ): tests/unit/test_physics.asm src/hal/linux_x86_64/defs.inc |
 $(TEST_WIDGETS_OBJ): tests/unit/test_widgets.asm src/hal/linux_x86_64/defs.inc src/gui/widget.inc | $(BUILD_DIR)
 	$(NASM) $(NASM_FLAGS) $< -o $@
 
+$(TEST_LAYOUT_OBJ): tests/unit/test_layout.asm src/hal/linux_x86_64/defs.inc src/gui/widget.inc src/gui/layout.inc | $(BUILD_DIR)
+	$(NASM) $(NASM_FLAGS) $< -o $@
+
+$(TEST_GESTURE_OBJ): tests/unit/test_gesture.asm src/hal/linux_x86_64/defs.inc src/core/gesture.inc | $(BUILD_DIR)
+	$(NASM) $(NASM_FLAGS) $< -o $@
+
 $(TEST_SYSCALL_BIN): $(HAL_SYSCALL_OBJ) $(HAL_ERRNO_OBJ) $(TEST_SYSCALL_OBJ)
 	$(LD) $(LD_FLAGS) -o $@ $^
 
@@ -451,6 +475,12 @@ $(TEST_PHYSICS_BIN): $(HAL_SYSCALL_OBJ) $(CANVAS_PHYSICS_OBJ) $(TEST_PHYSICS_OBJ
 	$(LD) $(LD_FLAGS) -o $@ $^
 
 $(TEST_WIDGETS_BIN): $(HAL_SYSCALL_OBJ) $(CORE_MEMORY_OBJ) $(CANVAS_RASTERIZER_OBJ) $(CANVAS_SIMD_OBJ) $(CANVAS_TRUETYPE_OBJ) $(CANVAS_ROUNDED_OBJ) $(CANVAS_COMPOSITE_OBJ) $(CANVAS_CLIP_OBJ) $(CANVAS_PHYSICS_OBJ) $(GUI_WIDGET_OBJ) $(WIDGET_OBJS) $(TEST_WIDGETS_OBJ)
+	$(LD) $(LD_FLAGS) -o $@ $^
+
+$(TEST_LAYOUT_BIN): $(HAL_SYSCALL_OBJ) $(CORE_MEMORY_OBJ) $(CANVAS_RASTERIZER_OBJ) $(CANVAS_SIMD_OBJ) $(CANVAS_TRUETYPE_OBJ) $(CANVAS_ROUNDED_OBJ) $(CANVAS_COMPOSITE_OBJ) $(CANVAS_CLIP_OBJ) $(CANVAS_PHYSICS_OBJ) $(GUI_WIDGET_OBJ) $(WIDGET_OBJS) $(GUI_LAYOUT_OBJ) $(TEST_LAYOUT_OBJ)
+	$(LD) $(LD_FLAGS) -o $@ $^
+
+$(TEST_GESTURE_BIN): $(HAL_SYSCALL_OBJ) $(CORE_GESTURE_OBJ) $(TEST_GESTURE_OBJ)
 	$(LD) $(LD_FLAGS) -o $@ $^
 
 $(AURA_SHELL_BIN): $(HAL_SYSCALL_OBJ) $(HAL_PROCESS_OBJ) $(HAL_SIGNALS_OBJ) $(HAL_WAYLAND_OBJ) $(HAL_WAYLAND_INPUT_OBJ) $(CORE_MEMORY_OBJ) $(CORE_EVENT_OBJ) $(CORE_INPUT_OBJ) $(GUI_WINDOW_OBJ) $(SHELL_REPL_OBJ) $(SHELL_LEXER_OBJ) $(SHELL_PARSER_OBJ) $(SHELL_EXECUTOR_OBJ) $(SHELL_PIPELINE_OBJ) $(SHELL_VARIABLES_OBJ) $(SHELL_ALIAS_OBJ) $(SHELL_HISTORY_OBJ) $(SHELL_JOBS_OBJ) $(SHELL_BUILTINS_OBJ) $(CANVAS_RASTERIZER_OBJ) $(CANVAS_TEXT_OBJ) $(CANVAS_SIMD_OBJ) $(CANVAS_TRUETYPE_OBJ) $(CANVAS_PNG_OBJ) $(CANVAS_GRADIENT_OBJ) $(CANVAS_ROUNDED_OBJ) $(CANVAS_BLUR_OBJ) $(CANVAS_COMPOSITE_OBJ) $(CANVAS_LINE_OBJ) $(CANVAS_CLIP_OBJ) $(MAIN_OBJ)
