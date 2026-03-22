@@ -2,11 +2,18 @@
 %include "src/hal/linux_x86_64/defs.inc"
 %include "src/compositor/compositor.inc"
 
-extern hal_read
+extern hal_recvmsg
 extern registry_dispatch_display
 extern registry_dispatch_registry
 extern client_resource_find
 extern compositor_disconnect_client
+extern surface_dispatch_compositor
+extern surface_dispatch_surface
+extern shm_dispatch_shm
+extern shm_dispatch_shm_pool
+extern xdg_dispatch_wm_base
+extern xdg_dispatch_xdg_surface
+extern xdg_dispatch_xdg_toplevel
 
 section .text
 global proto_recv
@@ -378,6 +385,20 @@ proto_dispatch:
     je .as_display
     cmp r10d, RESOURCE_REGISTRY
     je .as_registry
+    cmp r10d, RESOURCE_COMPOSITOR
+    je .as_compositor
+    cmp r10d, RESOURCE_SURFACE
+    je .as_surface
+    cmp r10d, RESOURCE_SHM
+    je .as_shm
+    cmp r10d, RESOURCE_SHM_POOL
+    je .as_pool
+    cmp r10d, RESOURCE_XDG_WM_BASE
+    je .as_xdg_wm
+    cmp r10d, RESOURCE_XDG_SURFACE
+    je .as_xdg_surf
+    cmp r10d, RESOURCE_XDG_TOPLEVEL
+    je .as_xdg_top
 .out:
     pop r15
     pop r14
@@ -399,6 +420,62 @@ proto_dispatch:
     mov ecx, r15d
     call registry_dispatch_registry
     jmp .out
+.as_compositor:
+    mov rdi, rbx
+    mov esi, r12d
+    mov edx, r13d
+    mov rcx, r14
+    mov r8d, r15d
+    call surface_dispatch_compositor
+    jmp .out
+.as_surface:
+    mov rdi, rbx
+    mov esi, r12d
+    mov edx, r13d
+    mov rcx, r14
+    mov r8d, r15d
+    call surface_dispatch_surface
+    jmp .out
+.as_shm:
+    mov rdi, rbx
+    mov esi, r12d
+    mov edx, r13d
+    mov rcx, r14
+    mov r8d, r15d
+    call shm_dispatch_shm
+    jmp .out
+.as_pool:
+    mov rdi, rbx
+    mov esi, r12d
+    mov edx, r13d
+    mov rcx, r14
+    mov r8d, r15d
+    call shm_dispatch_shm_pool
+    jmp .out
+.as_xdg_wm:
+    mov rdi, rbx
+    mov esi, r12d
+    mov edx, r13d
+    mov rcx, r14
+    mov r8d, r15d
+    call xdg_dispatch_wm_base
+    jmp .out
+.as_xdg_surf:
+    mov rdi, rbx
+    mov esi, r12d
+    mov edx, r13d
+    mov rcx, r14
+    mov r8d, r15d
+    call xdg_dispatch_xdg_surface
+    jmp .out
+.as_xdg_top:
+    mov rdi, rbx
+    mov esi, r12d
+    mov edx, r13d
+    mov rcx, r14
+    mov r8d, r15d
+    call xdg_dispatch_xdg_toplevel
+    jmp .out
 
 ; proto_recv(client) -> rax: 0 ok, -1 disconnect/error
 %define EAGAIN_NEG           -11
@@ -416,20 +493,57 @@ proto_recv:
     mov eax, CLIENT_IO_BUF_CAP
     sub eax, r13d
     jbe .parse
-    movsx rdi, dword [rbx + CC_FD_OFF]
+    mov r14d, eax                ; max read
+    sub rsp, 384
+    lea rdi, [rsp]
+    mov ecx, 48
+    xor eax, eax
+    rep stosq                    ; zero cmsg + iov + msghdr tail
+
     mov rsi, [rbx + CC_RECV_BUF_OFF]
-    movsxd r13, r13d
-    add rsi, r13
-    mov edx, eax
-    call hal_read
+    movsxd rax, dword [rbx + CC_RECV_LEN_OFF]
+    add rsi, rax
+    mov [rsp + 256], rsi         ; iov_base
+    mov rax, r14
+    mov [rsp + 264], rax         ; iov_len
+
+    lea rax, [rsp + 256]
+    mov qword [rsp + 288], rax   ; msg_iov
+    mov dword [rsp + 296], 1     ; msg_iovlen
+    mov qword [rsp + 304], rsp   ; msg_control
+    mov dword [rsp + 312], 256   ; msg_controllen
+
+    movsx rdi, dword [rbx + CC_FD_OFF]
+    lea rsi, [rsp + 272]
+    xor edx, edx
+    call hal_recvmsg
     test rax, rax
-    jz .disc
-    js .read_neg
+    jz .disc_pop
+    js .read_neg_pop
     add dword [rbx + CC_RECV_LEN_OFF], eax
+
+    mov ecx, dword [rsp + 312]
+    cmp ecx, 20
+    jb .done_recv_pop
+    cmp dword [rsp + 8], SOL_SOCKET
+    jne .done_recv_pop
+    cmp dword [rsp + 12], SCM_RIGHTS
+    jne .done_recv_pop
+    mov eax, dword [rsp + 16]
+    mov dword [rbx + CC_PENDING_FD_OFF], eax
+
+.done_recv_pop:
+    add rsp, 384
     jmp .parse
-.read_neg:
+.read_neg_pop:
     cmp rax, EAGAIN_NEG
-    jne .disc
+    je .eagain_pop
+.disc_pop:
+    add rsp, 384
+    jmp .disc
+.eagain_pop:
+    add rsp, 384
+    jmp .parse
 .parse:
     xor r12d, r12d
 .msg:

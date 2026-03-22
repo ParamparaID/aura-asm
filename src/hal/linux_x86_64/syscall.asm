@@ -24,6 +24,9 @@ global hal_bind
 global hal_listen
 global hal_accept4
 global hal_unlink
+global hal_ftruncate
+global hal_memfd_create
+global hal_recvmsg
 
 ; syscall_6:
 ; Universal syscall macro for Linux x86_64.
@@ -150,4 +153,19 @@ hal_accept4:
 ; hal_unlink(path)
 hal_unlink:
     syscall_6 SYS_UNLINK, rdi, 0, 0, 0, 0, 0
+    ret
+
+; hal_ftruncate(fd, length)
+hal_ftruncate:
+    syscall_6 SYS_FTRUNCATE, rdi, rsi, 0, 0, 0, 0
+    ret
+
+; hal_memfd_create(name, flags) -> fd or negative errno
+hal_memfd_create:
+    syscall_6 SYS_MEMFD_CREATE, rdi, rsi, 0, 0, 0, 0
+    ret
+
+; hal_recvmsg(fd, msghdr_ptr) -> rax bytes or negative errno
+hal_recvmsg:
+    syscall_6 SYS_RECVMSG, rdi, rsi, 0, 0, 0, 0
     ret

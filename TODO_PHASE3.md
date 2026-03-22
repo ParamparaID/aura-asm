@@ -18,17 +18,18 @@
 - [x] Все тесты проходят
 
 ## STEP 31: Surface Management и буферы
-- [ ] `src/compositor/surface.asm` — wl_compositor.create_surface → Surface object
-- [ ] `src/compositor/surface.asm` — wl_surface: attach, damage, commit (double buffering: pending → current)
-- [ ] `src/compositor/surface.asm` — frame callback (wl_callback для vsync)
-- [ ] `src/compositor/shm.asm` — wl_shm: advertise formats, create_pool, create_buffer
-- [ ] `src/compositor/shm.asm` — mmap shared memory от клиента (fd passing через SCM_RIGHTS)
-- [ ] `src/compositor/xdg.asm` — xdg_wm_base: get_xdg_surface, ping/pong
-- [ ] `src/compositor/xdg.asm` — xdg_surface: get_toplevel, ack_configure
-- [ ] `src/compositor/xdg.asm` — xdg_toplevel: set_title, configure (width, height, states)
-- [ ] `src/compositor/compositor.asm` — композиция: рендер всех surfaces на экранный буфер (Z-order)
-- [ ] `tests/unit/test_surfaces.asm` — тест: создать surface, attach buffer, commit, проверить composite
-- [ ] Все тесты проходят
+- [x] `src/compositor/surface.asm` — wl_compositor.create_surface → Surface object
+- [x] `src/compositor/surface.asm` — wl_surface: attach, damage, commit (double buffering: pending → current)
+- [x] `src/compositor/surface.asm` — frame callback (wl_callback для vsync)
+- [x] `src/compositor/shm.asm` — wl_shm: advertise formats, create_pool, create_buffer
+- [x] `src/compositor/shm.asm` — mmap shared memory от клиента (fd passing через SCM_RIGHTS)
+- [x] `src/compositor/xdg.asm` — xdg_wm_base: get_xdg_surface, ping/pong
+- [x] `src/compositor/xdg.asm` — xdg_surface: get_toplevel, ack_configure
+- [x] `src/compositor/xdg.asm` — xdg_toplevel: set_title, configure (width, height, states)
+- [x] `src/compositor/compositor_render.asm` — композиция: рендер mapped surfaces на canvas (Z-order), frame callbacks
+- [x] `src/canvas/rasterizer.asm` — `canvas_draw_image_raw` (ARGB/XRGB, stride)
+- [x] `tests/unit/test_surfaces.asm` — тест: surface, SHM pool/buffer, XDG, composite, frame callback
+- [x] Все тесты проходят
 
 ## STEP 32: Input Routing и wl_seat
 - [ ] `src/compositor/seat.asm` — wl_seat: capabilities (keyboard, pointer, touch)
@@ -78,4 +79,4 @@
 
 ---
 
-**Прогресс Phase 3: 0/46 задач выполнено (0%)**
+**Прогресс Phase 3: STEP 30–31 по чеклисту выполнены; далее STEP 32**

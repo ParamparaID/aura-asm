@@ -7,6 +7,7 @@ extern hal_bind
 extern hal_listen
 extern hal_accept4
 extern hal_close
+extern hal_munmap
 extern hal_unlink
 extern eventloop_init
 extern eventloop_add_fd
@@ -39,6 +40,7 @@ global compositor_disconnect_client
 global client_resource_add
 global client_resource_find
 global compositor_service_round
+global client_resource_by_type_data
 
 ; find_env_value(envp, name, name_len) -> rax c-string or 0
 find_env_value:
@@ -525,6 +527,7 @@ compositor_listen_handler:
     mov dword [r13 + CC_SHM_ID_OFF], 0
     mov dword [r13 + CC_SEAT_ID_OFF], 0
     mov dword [r13 + CC_WM_BASE_ID_OFF], 0
+    mov dword [r13 + CC_PENDING_FD_OFF], -1
 
     mov eax, dword [compositor_next_client_id]
     inc dword [compositor_next_client_id]
@@ -614,6 +617,9 @@ compositor_disconnect_client:
     mov dword [r12 + CC_FD_OFF], -1
     mov dword [r12 + CC_ALIVE_OFF], 0
 
+    mov rdi, r12
+    call compositor_client_cleanup_pools
+
     mov r13, [rbx + CS_CLIENTS_OFF]
     mov r14d, dword [rbx + CS_CLIENT_COUNT_OFF]
     xor ecx, ecx
@@ -634,6 +640,71 @@ compositor_disconnect_client:
     pop r13
     pop r12
     pop rbx
+    ret
+
+; compositor_client_cleanup_pools(client) — munmap/close SHM pools, pending SCM fd
+compositor_client_cleanup_pools:
+    push rbx
+    push r12
+    push r13
+    push r14
+    mov r12, rdi
+
+    movsx rdi, dword [r12 + CC_PENDING_FD_OFF]
+    cmp rdi, 0
+    jl .no_pend
+    call hal_close
+.no_pend:
+    mov dword [r12 + CC_PENDING_FD_OFF], -1
+
+    xor r13d, r13d
+.pool_loop:
+    cmp r13d, dword [r12 + CC_RES_COUNT_OFF]
+    jae .done
+    mov rbx, [r12 + CC_RESOURCES_OFF + r13*8]
+    inc r13d
+    test rbx, rbx
+    jz .pool_loop
+    cmp dword [rbx + RES_TYPE_OFF], RESOURCE_SHM_POOL
+    jne .pool_loop
+    mov r14, [rbx + RES_DATA_OFF]
+    test r14, r14
+    jz .pool_loop
+    mov rdi, [r14 + POOL_DATA_OFF]
+    test rdi, rdi
+    jz .no_unmap
+    mov rsi, [r14 + POOL_SIZE_OFF]
+    call hal_munmap
+    mov qword [r14 + POOL_DATA_OFF], 0
+.no_unmap:
+    movsx rdi, dword [r14 + POOL_FD_OFF]
+    cmp rdi, 0
+    jl .pool_loop
+    call hal_close
+    mov dword [r14 + POOL_FD_OFF], -1
+    jmp .pool_loop
+.done:
+    pop r14
+    pop r13
+    pop r12
+    pop rbx
+    ret
+
+; client_resource_by_type_data(client, type) -> rax first Resource* or 0
+client_resource_by_type_data:
+    xor ecx, ecx
+.loop:
+    cmp ecx, dword [rdi + CC_RES_COUNT_OFF]
+    jae .none
+    mov rax, [rdi + CC_RESOURCES_OFF + rcx*8]
+    inc ecx
+    test rax, rax
+    jz .loop
+    cmp dword [rax + RES_TYPE_OFF], esi
+    jne .loop
+    ret
+.none:
+    xor eax, eax
     ret
 
 ; client_resource_add(client, id, type, data)

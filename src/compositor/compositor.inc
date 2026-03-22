@@ -35,8 +35,9 @@
 %define CC_SHM_ID_OFF              68
 %define CC_SEAT_ID_OFF             72
 %define CC_WM_BASE_ID_OFF          76
-%define CC_RESOURCES_OFF           80    ; 64 * qword
-%define CC_STRUCT_SIZE             (80 + 64*8)
+%define CC_PENDING_FD_OFF          80    ; dd: fd from SCM_RIGHTS for next create_pool, or -1
+%define CC_RESOURCES_OFF           84    ; 64 * qword
+%define CC_STRUCT_SIZE             (84 + 64*8)
 
 ; --- Resource ---
 %define RES_ID_OFF                 0
@@ -66,5 +67,60 @@
 %define CLIENT_IO_BUF_CAP          4096
 %define CLIENT_MAX_RESOURCES       64
 %define SERVER_MAX_CLIENTS         32
+
+; --- ShmPool ---
+%define POOL_ID_OFF                0
+%define POOL_CLIENT_OFF            8
+%define POOL_FD_OFF                16
+%define POOL_SIZE_OFF              24
+%define POOL_DATA_OFF              32
+%define POOL_STRUCT_SIZE           40
+
+; --- Buffer (wl_buffer / SHM) ---
+%define BUF_ID_OFF                 0
+%define BUF_POOL_OFF               8
+%define BUF_OFFSET_OFF             16
+%define BUF_WIDTH_OFF              20
+%define BUF_HEIGHT_OFF             24
+%define BUF_STRIDE_OFF             28
+%define BUF_FORMAT_OFF             32
+%define BUF_BUSY_OFF               36
+%define BUF_PIXELS_OFF             40
+%define BUF_STRUCT_SIZE            48
+
+; --- Surface ---
+%define SF_ID_OFF                  0
+%define SF_CLIENT_OFF              8
+%define SF_PENDING_BUF_OFF         16
+%define SF_PENDING_X_OFF           24
+%define SF_PENDING_Y_OFF           28
+%define SF_PENDING_DMG_OFF         32     ; x,y,w,h
+%define SF_PENDING_HAS_DMG_OFF     48
+%define SF_ATTACH_DIRTY_OFF        52    ; attach() since last commit
+%define SF_CURRENT_BUF_OFF         56
+%define SF_CURRENT_X_OFF           64
+%define SF_CURRENT_Y_OFF           68
+%define SF_PREV_BUF_ID_OFF         72     ; for wl_buffer.release after commit
+%define SF_SCREEN_X_OFF            76
+%define SF_SCREEN_Y_OFF            80
+%define SF_WIDTH_OFF               84
+%define SF_HEIGHT_OFF              88
+%define SF_MAPPED_OFF              92
+%define SF_FRAME_CB_OFF            96
+%define SF_XDG_SURF_ID_OFF         100
+%define SF_XDG_TOP_ID_OFF          104
+%define SF_TITLE_OFF               108
+%define SF_TITLE_LEN_OFF           236
+%define SF_APP_ID_OFF              240    ; resb 64
+%define SF_APP_ID_LEN_OFF          304
+%define SF_WORKSPACE_OFF           308
+%define SF_Z_ORDER_OFF             312
+%define SF_FLOATING_OFF            316
+%define SF_XDG_CONFIGURED_OFF      320
+%define SF_LAST_CFG_SERIAL_OFF     324
+%define SF_STRUCT_SIZE             328
+
+%define WL_SHM_FORMAT_ARGB8888     0
+%define WL_SHM_FORMAT_XRGB8888     1
 
 %endif

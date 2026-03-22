@@ -167,4 +167,9 @@
 %define STDOUT               1
 %define STDERR               2
 
+; --- socket cmsg / memfd ---
+%define SOL_SOCKET           1
+%define SCM_RIGHTS           1
+%define MFD_CLOEXEC          1
+
 %endif

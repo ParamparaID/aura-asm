@@ -51,6 +51,7 @@ global wl_shm_create_pool
 global wl_shm_pool_create_buffer
 global wl_surface_attach
 global wl_surface_damage
+global wl_surface_frame
 global wl_surface_commit
 global xdg_wm_base_get_xdg_surface
 global xdg_surface_get_toplevel
@@ -527,7 +528,7 @@ wl_surface_damage:
     mov r14d, r8d
     mov r15d, r9d
     mov edi, r11d
-    mov esi, 3
+    mov esi, 2
     mov edx, 24
     call wl_pack_opcode_size
     lea r8, [rel wl_tmp_buf]
@@ -540,6 +541,24 @@ wl_surface_damage:
     mov rdi, r10
     mov rsi, r8
     mov rdx, 24
+    jmp wl_send
+
+; wl_surface_frame(sock_fd, surface_id, callback_id)
+wl_surface_frame:
+    mov r10, rdi
+    mov r11d, esi
+    mov r12d, edx
+    mov edi, r11d
+    mov esi, 3
+    mov edx, 12
+    call wl_pack_opcode_size
+    lea r8, [rel wl_tmp_buf]
+    mov dword [r8 + 0], r11d
+    mov dword [r8 + 4], eax
+    mov dword [r8 + 8], r12d
+    mov rdi, r10
+    mov rsi, r8
+    mov rdx, 12
     jmp wl_send
 
 ; wl_surface_commit(sock_fd, surface_id)

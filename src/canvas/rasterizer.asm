@@ -33,6 +33,7 @@ global canvas_draw_rect
 global canvas_hline
 global canvas_vline
 global canvas_draw_image
+global canvas_draw_image_raw
 global canvas_draw_image_scaled
 
 ; canvas_init(width, height)
@@ -644,6 +645,182 @@ canvas_draw_image:
 .di_bad:
     mov eax, -1
 .di_out:
+    pop rbp
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    pop rbx
+    ret
+
+; canvas_draw_image_raw(canvas, src_pixels, dst_x, dst_y, width, height, src_stride)
+; rdi, rsi, edx, ecx, r8d, r9d, r10d = src_stride
+canvas_draw_image_raw:
+    push rbx
+    push r12
+    push r13
+    push r14
+    push r15
+    push rbp
+
+    test rdi, rdi
+    jz .raw_bad
+    test rsi, rsi
+    jz .raw_bad
+    test r8, r8
+    jle .raw_bad
+    test r9, r9
+    jle .raw_bad
+
+    mov rbx, rdi
+    mov r15, rsi
+    mov r13d, edx
+    mov r14d, ecx
+    mov r12d, r8d
+    mov ebp, r9d
+    mov r11d, r10d
+
+    xor edx, edx
+.raw_sy:
+    cmp edx, ebp
+    jae .raw_ok
+    xor ecx, ecx
+.raw_sx:
+    cmp ecx, r12d
+    jae .raw_ny
+
+    lea eax, [r13 + rcx]
+    cmp eax, 0
+    jl .raw_nx
+    cmp eax, dword [rbx + CV_WIDTH_OFF]
+    jge .raw_nx
+    lea eax, [r14 + rdx]
+    cmp eax, 0
+    jl .raw_nx
+    cmp eax, dword [rbx + CV_HEIGHT_OFF]
+    jge .raw_nx
+
+    mov eax, dword [rbx + CV_CLIP_W_OFF]
+    test eax, eax
+    jz .raw_nx
+    lea esi, [r13 + rcx]
+    lea eax, [r14 + rdx]
+    cmp esi, dword [rbx + CV_CLIP_X_OFF]
+    jl .raw_nx
+    cmp eax, dword [rbx + CV_CLIP_Y_OFF]
+    jl .raw_nx
+    mov edi, dword [rbx + CV_CLIP_X_OFF]
+    add edi, dword [rbx + CV_CLIP_W_OFF]
+    cmp esi, edi
+    jge .raw_nx
+    mov edi, dword [rbx + CV_CLIP_Y_OFF]
+    add edi, dword [rbx + CV_CLIP_H_OFF]
+    cmp eax, edi
+    jge .raw_nx
+
+    mov eax, edx
+    imul eax, r11d
+    cdqe
+    mov esi, ecx
+    shl esi, 2
+    movsxd rsi, esi
+    add rax, rsi
+    add rax, r15
+    mov r10d, dword [rax]
+
+    mov r8, qword [rbx + CV_BUFFER_OFF]
+    mov eax, r14d
+    add eax, edx
+    imul eax, dword [rbx + CV_STRIDE_OFF]
+    cdqe
+    lea r8, [r8 + rax]
+    lea rax, [r13 + rcx]
+    lea r8, [r8 + rax*4]
+
+    mov eax, r10d
+    shr eax, 24
+    test eax, eax
+    jz .raw_nx
+    cmp eax, 255
+    je .raw_opaque
+
+    push rcx
+    push rdx
+
+    mov r9d, eax
+    mov esi, 255
+    sub esi, r9d
+
+    mov edi, dword [r8]
+
+    mov eax, r10d
+    and eax, 0xFF
+    imul eax, r9d
+    mov ecx, edi
+    and ecx, 0xFF
+    imul ecx, esi
+    add eax, ecx
+    imul eax, 257
+    add eax, 257
+    shr eax, 16
+    push rax
+
+    mov eax, r10d
+    shr eax, 8
+    and eax, 0xFF
+    imul eax, r9d
+    mov ecx, edi
+    shr ecx, 8
+    and ecx, 0xFF
+    imul ecx, esi
+    add eax, ecx
+    imul eax, 257
+    add eax, 257
+    shr eax, 16
+    push rax
+
+    mov eax, r10d
+    shr eax, 16
+    and eax, 0xFF
+    imul eax, r9d
+    mov ecx, edi
+    shr ecx, 16
+    and ecx, 0xFF
+    imul ecx, esi
+    add eax, ecx
+    imul eax, 257
+    add eax, 257
+    shr eax, 16
+
+    pop rdx
+    pop rcx
+    shl eax, 16
+    shl edx, 8
+    or eax, edx
+    or eax, ecx
+    or eax, 0xFF000000
+    mov dword [r8], eax
+
+    pop rdx
+    pop rcx
+    jmp .raw_nx
+
+.raw_opaque:
+    mov dword [r8], r10d
+
+.raw_nx:
+    inc ecx
+    jmp .raw_sx
+.raw_ny:
+    inc edx
+    jmp .raw_sy
+
+.raw_ok:
+    xor eax, eax
+    jmp .raw_out
+.raw_bad:
+    mov eax, -1
+.raw_out:
     pop rbp
     pop r15
     pop r14
