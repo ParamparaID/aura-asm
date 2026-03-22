@@ -6,6 +6,7 @@ build/
 *.lst
 *.map
 aura-shell
+aura-widget-demo
 
 # Test binaries
 tests/unit/test_*

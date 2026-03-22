@@ -1,0 +1,7 @@
+[colors]
+bg = #282828
+fg = #ebdbb2
+accent = #83a598
+[window]
+border_width = 2
+corner_radius = 8

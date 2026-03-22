@@ -102,6 +102,12 @@ extern w_container_handle_input
 extern w_container_layout
 extern w_container_destroy
 
+extern w_terminal_render
+extern w_terminal_measure
+extern w_terminal_handle_input
+extern w_terminal_layout
+extern w_terminal_destroy
+
 section .bss
     widget_arena_ptr        resq 1
     widget_focused_ptr    resq 1
@@ -252,7 +258,21 @@ widget_init:
     je .stb
     cmp edi, WIDGET_SPLIT_PANE
     je .spt
+    cmp edi, WIDGET_TERMINAL
+    je .trm
     jmp .ctr
+.trm:
+    lea rax, [rel w_terminal_render]
+    mov [rsi + W_FN_RENDER_OFF], rax
+    lea rax, [rel w_terminal_handle_input]
+    mov [rsi + W_FN_HANDLE_OFF], rax
+    lea rax, [rel w_terminal_measure]
+    mov [rsi + W_FN_MEASURE_OFF], rax
+    lea rax, [rel w_terminal_layout]
+    mov [rsi + W_FN_LAYOUT_OFF], rax
+    lea rax, [rel w_terminal_destroy]
+    mov [rsi + W_FN_DESTROY_OFF], rax
+    ret
 .lbl:
     lea rax, [rel w_label_render]
     mov [rsi + W_FN_RENDER_OFF], rax

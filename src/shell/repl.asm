@@ -11,6 +11,8 @@ extern canvas_clear
 extern canvas_fill_rect
 extern canvas_draw_string
 extern window_present
+extern font_draw_string
+extern font_measure_string
 extern wayland_keycode_to_ascii
 extern font_char_width
 extern font_char_height
@@ -36,6 +38,9 @@ global repl_execute
 global repl_print
 global repl_render
 global repl_cursor_blink
+global repl_draw
+global repl_set_font
+global repl_set_colors
 
 %define HIST_MAX_LINES                  1000
 %define INPUT_BUF_CAP                   1024
@@ -77,7 +82,15 @@ global repl_cursor_blink
 %define R_PROMPT_LEN_OFF                (R_PROMPT_OFF + 32)
 ; internal state
 %define R_WRITE_COL_OFF                 (R_PROMPT_LEN_OFF + 8)
-%define R_STRUCT_SIZE                   (R_WRITE_COL_OFF + 8)
+%define R_FONT_PTR_OFF                  (R_WRITE_COL_OFF + 8)
+%define R_FONT_SIZE_OFF                 (R_FONT_PTR_OFF + 8)
+%define R_CELL_W_OFF                    (R_FONT_SIZE_OFF + 4)
+%define R_CELL_H_OFF                    (R_CELL_W_OFF + 4)
+%define R_COLOR_BG_OFF                  (R_CELL_H_OFF + 4)
+%define R_COLOR_FG_OFF                  (R_COLOR_BG_OFF + 4)
+%define R_COLOR_PROMPT_OFF              (R_COLOR_FG_OFF + 4)
+%define R_COLOR_CURSOR_OFF              (R_COLOR_PROMPT_OFF + 4)
+%define R_STRUCT_SIZE                   (R_COLOR_CURSOR_OFF + 4)
 
 section .data
     repl_prompt_default                 db "aura> "
@@ -252,17 +265,20 @@ repl_set_arena:
     xor eax, eax
     ret
 
-; repl_init(window_ptr)
+; repl_init(window_ptr, cell_w, cell_h) — cell_* 0 → bitmap font metrics
 ; rax = repl_ptr or 0
 repl_init:
     push rbx
     push r12
     push r13
     push r14
+    push r15
 
     test rdi, rdi
     jz .fail
     mov rbx, rdi
+    push rsi
+    push rdx
     lea r12, [rel repl_instance]
 
     ; zero full struct
@@ -274,24 +290,37 @@ repl_init:
     mov rdi, rbx
     call window_get_canvas
     test rax, rax
-    jz .fail
+    jz .fail_pop
     mov [r12 + R_CANVAS_PTR_OFF], rax
 
     mov r13, [rax + CANVAS_WIDTH_OFF]
     mov r14, [rax + CANVAS_HEIGHT_OFF]
 
-    mov rcx, [rel font_char_width]
-    test rcx, rcx
+    pop rax
+    pop rcx
+    test ecx, ecx
+    jnz .cw
+    mov ecx, [rel font_char_width]
+.cw:
+    test eax, eax
+    jnz .ch
+    mov eax, [rel font_char_height]
+.ch:
+    mov [r12 + R_CELL_W_OFF], ecx
+    mov [r12 + R_CELL_H_OFF], eax
+    mov r15d, ecx
+    test r15d, r15d
     jz .fail
     xor rdx, rdx
     mov rax, r13
+    mov rcx, r15
     div rcx
     cmp rax, 8
     jb .fail
     mov [r12 + R_SCREEN_COLS_OFF], rax
 
-    mov rcx, [rel font_char_height]
-    test rcx, rcx
+    mov ecx, [r12 + R_CELL_H_OFF]
+    test ecx, ecx
     jz .fail
     xor rdx, rdx
     mov rax, r14
@@ -316,6 +345,13 @@ repl_init:
     mov qword [r12 + R_CURSOR_VISIBLE_OFF], 1
     mov qword [r12 + R_SCROLL_OFFSET_OFF], 0
     mov qword [r12 + R_WRITE_COL_OFF], 0
+
+    mov qword [r12 + R_FONT_PTR_OFF], 0
+    mov dword [r12 + R_FONT_SIZE_OFF], 0
+    mov dword [r12 + R_COLOR_BG_OFF], COLOR_BG
+    mov dword [r12 + R_COLOR_FG_OFF], COLOR_FG
+    mov dword [r12 + R_COLOR_PROMPT_OFF], COLOR_PROMPT
+    mov dword [r12 + R_COLOR_CURSOR_OFF], COLOR_CURSOR
 
     lea rdi, [r12 + R_PROMPT_OFF]
     lea rsi, [rel repl_prompt_default]
@@ -354,9 +390,13 @@ repl_init:
 
     mov rax, r12
     jmp .ret
+.fail_pop:
+    pop rax
+    pop rax
 .fail:
     xor eax, eax
 .ret:
+    pop r15
     pop r14
     pop r13
     pop r12
@@ -724,145 +764,298 @@ repl_handle_key:
     pop rbx
     ret
 
-; repl_render(repl_ptr)
-repl_render:
+; repl_set_font(repl*, font*, size)
+repl_set_font:
+    test rdi, rdi
+    jz .r
+    mov [rdi + R_FONT_PTR_OFF], rsi
+    mov [rdi + R_FONT_SIZE_OFF], edx
+.r:
+    ret
+
+; repl_set_colors(repl*, bg, fg, prompt, cursor)
+repl_set_colors:
+    test rdi, rdi
+    jz .r
+    mov [rdi + R_COLOR_BG_OFF], esi
+    mov [rdi + R_COLOR_FG_OFF], edx
+    mov [rdi + R_COLOR_PROMPT_OFF], ecx
+    mov [rdi + R_COLOR_CURSOR_OFF], r8d
+.r:
+    ret
+
+; repl_draw(repl*, canvas*, abs_x, abs_y)
+repl_draw:
     push rbx
     push r12
     push r13
     push r14
     push r15
-
+    sub rsp, 16
     test rdi, rdi
     jz .ret
-    mov rbx, rdi
-    mov r12, [rbx + R_CANVAS_PTR_OFF]
-    test r12, r12
+    test rsi, rsi
     jz .ret
+    mov rbx, rdi
+    mov r12, rsi
+    mov [rsp + 8], ecx
+    mov [rsp + 12], r8d
 
-    ; clear background
+    cmp qword [rbx + R_FONT_PTR_OFF], 0
+    jne .maybe_tclear
     mov rdi, r12
-    mov rsi, COLOR_BG
+    mov rsi, [rbx + R_COLOR_BG_OFF]
+    call canvas_clear
+    jmp .draw_text
+.maybe_tclear:
+    cmp dword [rsp + 8], 0
+    jne .draw_text
+    cmp dword [rsp + 12], 0
+    jne .draw_text
+    mov rdi, r12
+    mov rsi, [rbx + R_COLOR_BG_OFF]
     call canvas_clear
 
-    ; history rows = screen_lines - 1
+.draw_text:
+    cmp qword [rbx + R_FONT_PTR_OFF], 0
+    je .bm_hist
+    jmp .tt_hist
+
+.tt_hist:
     mov r13, [rbx + R_SCREEN_LINES_OFF]
     cmp r13, 1
-    jbe .draw_input
+    jbe .tt_in
     dec r13
-
-    ; start_abs = max(0, line_count - history_rows - scroll_offset)
     mov r14, [rbx + R_LINE_COUNT_OFF]
     mov rax, [rbx + R_SCROLL_OFFSET_OFF]
     cmp r14, r13
-    jbe .start_zero
+    jbe .tza
     sub r14, r13
     cmp r14, rax
-    jbe .start_zero
+    jbe .tza
     sub r14, rax
-    jmp .start_ready
-.start_zero:
+    jmp .tra
+.tza:
     xor r14d, r14d
-.start_ready:
-    xor r15d, r15d                    ; row index
-
-.hist_loop:
+.tra:
+    xor r15d, r15d
+.thl:
     cmp r15, r13
-    jae .draw_input
+    jae .tt_in
     mov rdx, r14
     add rdx, r15
     cmp rdx, [rbx + R_LINE_COUNT_OFF]
-    jae .draw_input
-
+    jae .tt_in
     mov rdi, rbx
     mov rsi, rdx
     call repl_line_ptr
-    mov rcx, rax                      ; line_ptr
+    mov rcx, rax
     mov rdi, rbx
     mov rsi, rcx
     call repl_line_len
     test rax, rax
-    jz .next_hist
-
-    ; draw_string(canvas, x=0, y=row*font_h, line_ptr, len, fg, bg=0)
-    mov rsi, 0
-    mov rdx, r15
-    imul rdx, [rel font_char_height]
+    jz .tnx
     mov r8, rax
-    mov rcx, r14
-    add rcx, r15
+    mov rdi, rbx
+    mov rsi, r14
+    add rsi, r15
+    call repl_line_ptr
+    mov r9, rax
+    mov ecx, r15d
+    imul ecx, [rbx + R_CELL_H_OFF]
+    add ecx, [rsp + 12]
+    add ecx, [rbx + R_CELL_H_OFF]
+    sub ecx, 4
+    mov rdi, [rbx + R_FONT_PTR_OFF]
+    mov rsi, r12
+    mov edx, [rsp + 8]
+    sub rsp, 24
+    mov eax, [rbx + R_FONT_SIZE_OFF]
+    mov dword [rsp], eax
+    mov eax, [rbx + R_COLOR_FG_OFF]
+    mov [rsp + 8], eax
+    mov dword [rsp + 16], 0
+    call font_draw_string
+    add rsp, 24
+.tnx:
+    inc r15
+    jmp .thl
+
+.tt_in:
+    mov r15d, [rsp + 12]
+    mov eax, [rbx + R_SCREEN_LINES_OFF]
+    dec eax
+    imul eax, [rbx + R_CELL_H_OFF]
+    add r15d, eax
+    mov ecx, r15d
+    add ecx, [rbx + R_CELL_H_OFF]
+    sub ecx, 4
+    mov rdi, [rbx + R_FONT_PTR_OFF]
+    mov rsi, r12
+    mov edx, [rsp + 8]
+    lea r8, [rbx + R_PROMPT_OFF]
+    mov r9, [rbx + R_PROMPT_LEN_OFF]
+    sub rsp, 24
+    mov eax, [rbx + R_FONT_SIZE_OFF]
+    mov dword [rsp], eax
+    mov eax, [rbx + R_COLOR_PROMPT_OFF]
+    mov [rsp + 8], eax
+    mov dword [rsp + 16], 0
+    call font_draw_string
+    add rsp, 24
+    mov rax, [rbx + R_PROMPT_LEN_OFF]
+    imul eax, [rbx + R_CELL_W_OFF]
+    add eax, [rsp + 8]
+    mov ecx, r15d
+    add ecx, [rbx + R_CELL_H_OFF]
+    sub ecx, 4
+    mov rdi, [rbx + R_FONT_PTR_OFF]
+    mov rsi, r12
+    mov edx, eax
+    lea r8, [rbx + R_INPUT_BUF_OFF]
+    mov r9, [rbx + R_INPUT_LEN_OFF]
+    sub rsp, 24
+    mov eax, [rbx + R_FONT_SIZE_OFF]
+    mov dword [rsp], eax
+    mov eax, [rbx + R_COLOR_FG_OFF]
+    mov [rsp + 8], eax
+    mov dword [rsp + 16], 0
+    call font_draw_string
+    add rsp, 24
+    cmp qword [rbx + R_CURSOR_VISIBLE_OFF], 0
+    je .ret
+    mov rax, [rbx + R_PROMPT_LEN_OFF]
+    add rax, [rbx + R_INPUT_CURSOR_OFF]
+    imul eax, [rbx + R_CELL_W_OFF]
+    add eax, [rsp + 8]
+    mov rdi, r12
+    mov esi, eax
+    mov edx, r15d
+    mov ecx, 2
+    mov r8d, [rbx + R_CELL_H_OFF]
+    mov r9, [rbx + R_COLOR_CURSOR_OFF]
+    call canvas_fill_rect
+    jmp .ret
+
+.bm_hist:
+    mov r13, [rbx + R_SCREEN_LINES_OFF]
+    cmp r13, 1
+    jbe .bm_in
+    dec r13
+    mov r14, [rbx + R_LINE_COUNT_OFF]
+    mov rax, [rbx + R_SCROLL_OFFSET_OFF]
+    cmp r14, r13
+    jbe .sz
+    sub r14, r13
+    cmp r14, rax
+    jbe .sz
+    sub r14, rax
+    jmp .sr
+.sz:
+    xor r14d, r14d
+.sr:
+    xor r15d, r15d
+.hl:
+    cmp r15, r13
+    jae .bm_in
+    mov rdx, r14
+    add rdx, r15
+    cmp rdx, [rbx + R_LINE_COUNT_OFF]
+    jae .bm_in
+    mov rdi, rbx
+    mov rsi, rdx
+    call repl_line_ptr
+    mov rcx, rax
     mov rdi, rbx
     mov rsi, rcx
+    call repl_line_len
+    test rax, rax
+    jz .nx
+    mov rdi, rbx
+    mov rsi, r14
+    add rsi, r15
     call repl_line_ptr
     mov rcx, rax
     mov rdi, r12
-    mov rsi, 0
-    mov rdx, r15
-    imul rdx, [rel font_char_height]
-    mov r9, COLOR_FG
+    mov esi, [rsp + 8]
+    mov edx, r15d
+    imul edx, [rbx + R_CELL_H_OFF]
+    add edx, [rsp + 12]
+    mov r8, rax
+    mov r9, [rbx + R_COLOR_FG_OFF]
     sub rsp, 8
     mov qword [rsp], 0
     call canvas_draw_string
     add rsp, 8
-
-.next_hist:
+.nx:
     inc r15
-    jmp .hist_loop
+    jmp .hl
 
-.draw_input:
-    ; y = (screen_lines - 1) * font_char_height
+.bm_in:
     mov r15, [rbx + R_SCREEN_LINES_OFF]
     dec r15
-    imul r15, [rel font_char_height]
-
-    ; draw prompt
+    imul r15d, [rbx + R_CELL_H_OFF]
+    add r15d, [rsp + 12]
     mov rdi, r12
-    mov rsi, 0
-    mov rdx, r15
+    mov esi, [rsp + 8]
+    mov edx, r15d
     lea rcx, [rbx + R_PROMPT_OFF]
     mov r8, [rbx + R_PROMPT_LEN_OFF]
-    mov r9, COLOR_PROMPT
+    mov r9, [rbx + R_COLOR_PROMPT_OFF]
     sub rsp, 8
     mov qword [rsp], 0
     call canvas_draw_string
     add rsp, 8
-
-    ; draw current input
     mov rax, [rbx + R_PROMPT_LEN_OFF]
-    imul rax, [rel font_char_width]
+    imul eax, [rbx + R_CELL_W_OFF]
+    add eax, [rsp + 8]
     mov rdi, r12
-    mov rsi, rax
-    mov rdx, r15
+    mov esi, eax
+    mov edx, r15d
     lea rcx, [rbx + R_INPUT_BUF_OFF]
     mov r8, [rbx + R_INPUT_LEN_OFF]
-    mov r9, COLOR_FG
+    mov r9, [rbx + R_COLOR_FG_OFF]
     sub rsp, 8
     mov qword [rsp], 0
     call canvas_draw_string
     add rsp, 8
-
-    ; cursor
     cmp qword [rbx + R_CURSOR_VISIBLE_OFF], 0
-    je .present
+    je .ret
     mov rax, [rbx + R_PROMPT_LEN_OFF]
     add rax, [rbx + R_INPUT_CURSOR_OFF]
-    imul rax, [rel font_char_width]
+    imul eax, [rbx + R_CELL_W_OFF]
+    add eax, [rsp + 8]
     mov rdi, r12
-    mov rsi, rax
-    mov rdx, r15
+    mov esi, eax
+    mov edx, r15d
     mov rcx, 2
-    mov r8, [rel font_char_height]
-    mov r9, COLOR_CURSOR
+    mov r8d, [rbx + R_CELL_H_OFF]
+    mov r9, [rbx + R_COLOR_CURSOR_OFF]
     call canvas_fill_rect
 
-.present:
-    mov rdi, [rbx + R_WINDOW_PTR_OFF]
-    call window_present
-
 .ret:
+    add rsp, 16
     pop r15
     pop r14
     pop r13
     pop r12
+    pop rbx
+    ret
+
+; repl_render(repl_ptr)
+repl_render:
+    push rbx
+    test rdi, rdi
+    jz .out
+    mov rbx, rdi
+    mov rsi, [rbx + R_CANVAS_PTR_OFF]
+    xor ecx, ecx
+    xor r8d, r8d
+    mov rdi, rbx
+    call repl_draw
+    mov rdi, [rbx + R_WINDOW_PTR_OFF]
+    call window_present
+.out:
     pop rbx
     ret
 
@@ -874,7 +1067,5 @@ repl_cursor_blink:
     mov rax, [rdx + R_CURSOR_VISIBLE_OFF]
     xor rax, 1
     mov [rdx + R_CURSOR_VISIBLE_OFF], rax
-    mov rdi, rdx
-    call repl_render
 .ret:
     ret

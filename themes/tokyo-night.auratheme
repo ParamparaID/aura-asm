@@ -1,0 +1,9 @@
+[colors]
+bg = #1a1b26
+fg = #c0caf5
+accent = #7aa2f7
+[window]
+border_width = 2
+corner_radius = 12
+[fonts]
+main = fonts/LiberationMono-Regular.ttf 13

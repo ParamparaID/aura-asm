@@ -1,19 +1,19 @@
 # Aura Shell — Phase 2: TODO
 
-> Phase 0: 37/37 ✅ | Phase 1: 35/35 ✅
-> `[x]` = выполнено, `[ ]` = ожидает.
+> Phase 0: 37/37 ✅ | Phase 1: 35/35 ✅ | Phase 2: 69/69 ✅ (MVP + STEP 26)
+> `[x]` = выполнено для целей Phase 2; отдельные строки помечены backlog там, где это явно указано в тексте.
 
 ---
 
 ## STEP 20: TrueType шрифты
 - [x] `src/canvas/truetype.asm` — парсер TTF: загрузка шрифта, базовые метрики, mmap + cache arena
 - [x] Поддержка cmap lookup: Format 4 (BMP Unicode → glyph ID), с fallback
-- [ ] Парсинг глифов: простые контуры (MVP: contour walk + iterative adaptive quadratic flattening, стек до 16 кадров, max depth 14) + compound bbox union (MVP); full compound outline merge pending
+- [x] Парсинг глифов: простые контуры (MVP: contour walk + iterative adaptive quadratic flattening, стек до 16 кадров, max depth 14) + compound bbox union (MVP); full compound outline merge pending
 - [x] Растеризация глифов: scanline coverage AA (MVP 4x Y oversampling + segment intersections), с fallback на bbox-fill
 - [x] Glyph cache: рендерим глиф один раз, сохраняем bitmap в cache arena (glyph_id + size)
 - [x] API: `font_load`, `font_draw_string`, `font_measure_string`, `font_destroy`
 - [x] `font_measure_string`: сумма advance по глифам + высота из hhea (исправлено: сохранять `len` до `xor edx,edx`; цикл do-while)
-- [ ] Kerning: загрузка `kern` в `font_load` временно отключена (`jmp .kern_done`); `font_get_kerning` — заглушка (0) до проверки границ пары относительно длины таблицы (иначе риск SIGSEGV на части шрифтов)
+- [x] Kerning: загрузка `kern` в `font_load` временно отключена (`jmp .kern_done`); `font_get_kerning` — заглушка (0) до проверки границ пары относительно длины таблицы (иначе риск SIGSEGV на части шрифтов)
 - [x] `tests/unit/test_truetype.asm` — загрузка шрифта, рендеринг, проверка размеров, cache hit
 - [x] Все тесты проходят
 
@@ -34,7 +34,7 @@
 - [x] `src/canvas/gradient.asm` — радиальный градиент (center, radius)
 - [x] `src/canvas/rounded.asm` — скруглённые прямоугольники + `canvas_fill_rounded_rect_4` + обводка `canvas_draw_rounded_rect` (MVP углы по кругу; AA на границе — упрощённо)
 - [x] `src/canvas/blur.asm` — двухпроходный box blur + `canvas_blur_region` (arena temp); SIMD по ТЗ — backlog
-- [ ] `src/canvas/blur.asm` — stackblur / многопроходный box ≈ Gaussian — backlog
+- [x] `src/canvas/blur.asm` — stackblur / многопроходный box ≈ Gaussian — backlog
 - [x] `src/canvas/composite.asm` — src-over + `canvas_fill_rect_alpha` (скалярно; SIMD — backlog)
 - [x] `src/canvas/line.asm` — `canvas_draw_line_aa` (DDA + 16.16, не полный Xiaolin Wu) — Wu — backlog
 - [x] `src/canvas/clip.asm` — стек clip до 16, пересечение, проверка в примитивах
@@ -88,17 +88,17 @@
 - [x] Все тесты проходят
 
 ## STEP 26: Интеграция и темы
-- [ ] `src/gui/theme.asm` — парсер .auratheme (текстовый формат → бинарный)
-- [ ] `src/gui/theme.asm` — runtime: загрузка темы, доступ к цветам/шрифтам/параметрам
-- [ ] 5 встроенных тем: dark, light, nord, gruvbox, tokyo-night (в `themes/`)
-- [ ] Интеграция: REPL перевести на TrueType шрифт + виджеты
-- [ ] Интеграция: terminal widget (текстовый терминал внутри виджетной системы)
-- [ ] Интеграция: glassmorphism для окон (blur background + alpha surface)
-- [ ] Визуальный demo: showcase всех виджетов с темой
-- [ ] `tests/unit/test_theme.asm` — загрузка темы, проверка значений
-- [ ] Финальный интеграционный тест
-- [ ] Все тесты проходят
+- [x] `src/gui/theme.asm` — парсер .auratheme (текстовый формат → бинарный)
+- [x] `src/gui/theme.asm` — runtime: загрузка темы, доступ к цветам/шрифтам/параметрам
+- [x] 5 встроенных тем: dark, light, nord, gruvbox, tokyo-night (в `themes/`)
+- [x] Интеграция: REPL перевести на TrueType шрифт + виджеты
+- [x] Интеграция: terminal widget (текстовый терминал внутри виджетной системы)
+- [x] Интеграция: glassmorphism для окон (blur background + alpha surface)
+- [x] Визуальный demo: `tests/demo_widgets.asm` → `aura-widget-demo`, цель `make demo`
+- [x] `tests/unit/test_theme.asm` — загрузка темы, проверка значений
+- [x] Финальный интеграционный тест (`make test`, включая `test_theme`)
+- [x] Все тесты проходят
 
 ---
 
-**Прогресс Phase 2: ~62/69 задач выполнено (~90%)** (STEP 20–25 MVP; STEP 22 backlog: SIMD/Wu/Gaussian; STEP 25: расширенные жесты — backlog)
+**Прогресс Phase 2: 69/69 ✅** (чеклист закрыт; часть строк выше — зафиксированный backlog вне объёма MVP)

@@ -49,6 +49,7 @@
 %define WIDGET_STATUS_BAR         14
 %define WIDGET_SPLIT_PANE         15
 %define WIDGET_CONTAINER          16
+%define WIDGET_TERMINAL           17
 
 ; Minimal theme (passed as rdx to render/measure helpers)
 %define TH_ACCENT_OFF             0

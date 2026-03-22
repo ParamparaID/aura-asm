@@ -12,6 +12,7 @@ endif
 
 BUILD_DIR = build
 AURA_SHELL_BIN = aura-shell
+AURA_WIDGET_DEMO_BIN = aura-widget-demo
 TEST_SYSCALL_BIN = $(BUILD_DIR)/test_syscall
 TEST_MEMORY_BIN = $(BUILD_DIR)/test_memory
 TEST_THREADS_BIN = $(BUILD_DIR)/test_threads
@@ -33,6 +34,7 @@ TEST_PHYSICS_BIN = $(BUILD_DIR)/test_physics
 TEST_WIDGETS_BIN = $(BUILD_DIR)/test_widgets
 TEST_LAYOUT_BIN = $(BUILD_DIR)/test_layout
 TEST_GESTURE_BIN = $(BUILD_DIR)/test_gesture
+TEST_THEME_BIN = $(BUILD_DIR)/test_theme
 
 HAL_SYSCALL_OBJ = $(BUILD_DIR)/hal_syscall.o
 HAL_ERRNO_OBJ = $(BUILD_DIR)/hal_errno.o
@@ -50,6 +52,8 @@ CORE_INPUT_OBJ = $(BUILD_DIR)/core_input.o
 GUI_WINDOW_OBJ = $(BUILD_DIR)/gui_window.o
 GUI_WIDGET_OBJ = $(BUILD_DIR)/gui_widget.o
 GUI_LAYOUT_OBJ = $(BUILD_DIR)/gui_layout.o
+GUI_THEME_OBJ = $(BUILD_DIR)/gui_theme.o
+GUI_TERMINAL_OBJ = $(BUILD_DIR)/gui_terminal.o
 WIDGET_LABEL_OBJ = $(BUILD_DIR)/widget_label.o
 WIDGET_BUTTON_OBJ = $(BUILD_DIR)/widget_button.o
 WIDGET_TEXT_INPUT_OBJ = $(BUILD_DIR)/widget_text_input.o
@@ -78,6 +82,7 @@ SHELL_HISTORY_OBJ = $(BUILD_DIR)/shell_history.o
 SHELL_BUILTINS_OBJ = $(BUILD_DIR)/shell_builtins.o
 SHELL_JOBS_OBJ = $(BUILD_DIR)/shell_jobs.o
 MAIN_OBJ = $(BUILD_DIR)/main.o
+DEMO_WIDGETS_OBJ = $(BUILD_DIR)/demo_widgets.o
 CANVAS_RASTERIZER_OBJ = $(BUILD_DIR)/canvas_rasterizer.o
 CANVAS_TEXT_OBJ = $(BUILD_DIR)/canvas_text.o
 CANVAS_SIMD_OBJ = $(BUILD_DIR)/canvas_simd.o
@@ -111,17 +116,22 @@ TEST_PHYSICS_OBJ = $(BUILD_DIR)/test_physics.o
 TEST_WIDGETS_OBJ = $(BUILD_DIR)/test_widgets.o
 TEST_LAYOUT_OBJ = $(BUILD_DIR)/test_layout.o
 TEST_GESTURE_OBJ = $(BUILD_DIR)/test_gesture.o
+TEST_THEME_OBJ = $(BUILD_DIR)/test_theme.o
+WIDGET_TERMINAL_STUBS_OBJ = $(BUILD_DIR)/widget_terminal_stubs.o
 
-.PHONY: all test run clean
+.PHONY: all test run demo clean
 
 # Final binary
 all: $(AURA_SHELL_BIN)
 
 # Build and run unit tests
-test: test_syscall test_memory test_threads test_event test_ipc test_canvas test_lexer test_parser test_executor test_pipeline test_builtins test_jobs test_truetype test_png test_rendering test_physics test_widgets test_layout test_gesture
+test: test_syscall test_memory test_threads test_event test_ipc test_canvas test_lexer test_parser test_executor test_pipeline test_builtins test_jobs test_truetype test_png test_rendering test_physics test_widgets test_layout test_gesture test_theme
 
 run: $(AURA_SHELL_BIN)
 	./$(AURA_SHELL_BIN)
+
+demo: $(AURA_WIDGET_DEMO_BIN)
+	./$(AURA_WIDGET_DEMO_BIN)
 
 test_syscall: $(TEST_SYSCALL_BIN)
 	./$(TEST_SYSCALL_BIN)
@@ -186,6 +196,9 @@ test_layout: $(TEST_LAYOUT_BIN)
 test_gesture: $(TEST_GESTURE_BIN)
 	./$(TEST_GESTURE_BIN)
 
+test_theme: $(TEST_THEME_BIN)
+	./$(TEST_THEME_BIN)
+
 test_window_strict:
 	$(MAKE) WAYLAND_STRICT=1 test_window -B
 
@@ -235,6 +248,12 @@ $(GUI_WIDGET_OBJ): src/gui/widget.asm src/hal/linux_x86_64/defs.inc src/gui/widg
 	$(NASM) $(NASM_FLAGS) $< -o $@
 
 $(GUI_LAYOUT_OBJ): src/gui/layout.asm src/hal/linux_x86_64/defs.inc src/gui/widget.inc src/gui/layout.inc | $(BUILD_DIR)
+	$(NASM) $(NASM_FLAGS) $< -o $@
+
+$(GUI_THEME_OBJ): src/gui/theme.asm src/hal/linux_x86_64/defs.inc src/gui/theme.inc | $(BUILD_DIR)
+	$(NASM) $(NASM_FLAGS) $< -o $@
+
+$(GUI_TERMINAL_OBJ): src/gui/terminal.asm src/hal/linux_x86_64/defs.inc src/gui/widget.inc src/gui/theme.inc | $(BUILD_DIR)
 	$(NASM) $(NASM_FLAGS) $< -o $@
 
 $(CORE_GESTURE_OBJ): src/core/gesture.asm src/hal/linux_x86_64/defs.inc src/core/gesture.inc | $(BUILD_DIR)
@@ -319,6 +338,9 @@ $(SHELL_JOBS_OBJ): src/shell/jobs.asm src/hal/linux_x86_64/defs.inc | $(BUILD_DI
 	$(NASM) $(NASM_FLAGS) $< -o $@
 
 $(MAIN_OBJ): src/main.asm src/hal/linux_x86_64/defs.inc | $(BUILD_DIR)
+	$(NASM) $(NASM_FLAGS) $< -o $@
+
+$(DEMO_WIDGETS_OBJ): tests/demo_widgets.asm src/hal/linux_x86_64/defs.inc src/gui/widget.inc src/gui/theme.inc src/core/gesture.inc | $(BUILD_DIR)
 	$(NASM) $(NASM_FLAGS) $< -o $@
 
 $(CANVAS_RASTERIZER_OBJ): src/canvas/rasterizer.asm src/hal/linux_x86_64/defs.inc | $(BUILD_DIR)
@@ -420,6 +442,9 @@ $(TEST_LAYOUT_OBJ): tests/unit/test_layout.asm src/hal/linux_x86_64/defs.inc src
 $(TEST_GESTURE_OBJ): tests/unit/test_gesture.asm src/hal/linux_x86_64/defs.inc src/core/gesture.inc | $(BUILD_DIR)
 	$(NASM) $(NASM_FLAGS) $< -o $@
 
+$(TEST_THEME_OBJ): tests/unit/test_theme.asm src/hal/linux_x86_64/defs.inc src/gui/theme.inc | $(BUILD_DIR)
+	$(NASM) $(NASM_FLAGS) $< -o $@
+
 $(TEST_SYSCALL_BIN): $(HAL_SYSCALL_OBJ) $(HAL_ERRNO_OBJ) $(TEST_SYSCALL_OBJ)
 	$(LD) $(LD_FLAGS) -o $@ $^
 
@@ -474,17 +499,28 @@ $(TEST_RENDERING_BIN): $(HAL_SYSCALL_OBJ) $(CORE_MEMORY_OBJ) $(CANVAS_RASTERIZER
 $(TEST_PHYSICS_BIN): $(HAL_SYSCALL_OBJ) $(CANVAS_PHYSICS_OBJ) $(TEST_PHYSICS_OBJ)
 	$(LD) $(LD_FLAGS) -o $@ $^
 
-$(TEST_WIDGETS_BIN): $(HAL_SYSCALL_OBJ) $(CORE_MEMORY_OBJ) $(CANVAS_RASTERIZER_OBJ) $(CANVAS_SIMD_OBJ) $(CANVAS_TRUETYPE_OBJ) $(CANVAS_ROUNDED_OBJ) $(CANVAS_COMPOSITE_OBJ) $(CANVAS_CLIP_OBJ) $(CANVAS_PHYSICS_OBJ) $(GUI_WIDGET_OBJ) $(WIDGET_OBJS) $(TEST_WIDGETS_OBJ)
+$(WIDGET_TERMINAL_STUBS_OBJ): tests/unit/widget_terminal_stubs.asm src/gui/widget.inc | $(BUILD_DIR)
+	$(NASM) $(NASM_FLAGS) $< -o $@
+
+$(TEST_WIDGETS_BIN): $(HAL_SYSCALL_OBJ) $(CORE_MEMORY_OBJ) $(CANVAS_RASTERIZER_OBJ) $(CANVAS_SIMD_OBJ) $(CANVAS_TRUETYPE_OBJ) $(CANVAS_ROUNDED_OBJ) $(CANVAS_COMPOSITE_OBJ) $(CANVAS_CLIP_OBJ) $(CANVAS_PHYSICS_OBJ) $(GUI_WIDGET_OBJ) $(WIDGET_OBJS) $(WIDGET_TERMINAL_STUBS_OBJ) $(TEST_WIDGETS_OBJ)
 	$(LD) $(LD_FLAGS) -o $@ $^
 
-$(TEST_LAYOUT_BIN): $(HAL_SYSCALL_OBJ) $(CORE_MEMORY_OBJ) $(CANVAS_RASTERIZER_OBJ) $(CANVAS_SIMD_OBJ) $(CANVAS_TRUETYPE_OBJ) $(CANVAS_ROUNDED_OBJ) $(CANVAS_COMPOSITE_OBJ) $(CANVAS_CLIP_OBJ) $(CANVAS_PHYSICS_OBJ) $(GUI_WIDGET_OBJ) $(WIDGET_OBJS) $(GUI_LAYOUT_OBJ) $(TEST_LAYOUT_OBJ)
+$(TEST_LAYOUT_BIN): $(HAL_SYSCALL_OBJ) $(CORE_MEMORY_OBJ) $(CANVAS_RASTERIZER_OBJ) $(CANVAS_SIMD_OBJ) $(CANVAS_TRUETYPE_OBJ) $(CANVAS_ROUNDED_OBJ) $(CANVAS_COMPOSITE_OBJ) $(CANVAS_CLIP_OBJ) $(CANVAS_PHYSICS_OBJ) $(GUI_WIDGET_OBJ) $(WIDGET_OBJS) $(WIDGET_TERMINAL_STUBS_OBJ) $(GUI_LAYOUT_OBJ) $(TEST_LAYOUT_OBJ)
 	$(LD) $(LD_FLAGS) -o $@ $^
 
 $(TEST_GESTURE_BIN): $(HAL_SYSCALL_OBJ) $(CORE_GESTURE_OBJ) $(TEST_GESTURE_OBJ)
 	$(LD) $(LD_FLAGS) -o $@ $^
 
-$(AURA_SHELL_BIN): $(HAL_SYSCALL_OBJ) $(HAL_PROCESS_OBJ) $(HAL_SIGNALS_OBJ) $(HAL_WAYLAND_OBJ) $(HAL_WAYLAND_INPUT_OBJ) $(CORE_MEMORY_OBJ) $(CORE_EVENT_OBJ) $(CORE_INPUT_OBJ) $(GUI_WINDOW_OBJ) $(SHELL_REPL_OBJ) $(SHELL_LEXER_OBJ) $(SHELL_PARSER_OBJ) $(SHELL_EXECUTOR_OBJ) $(SHELL_PIPELINE_OBJ) $(SHELL_VARIABLES_OBJ) $(SHELL_ALIAS_OBJ) $(SHELL_HISTORY_OBJ) $(SHELL_JOBS_OBJ) $(SHELL_BUILTINS_OBJ) $(CANVAS_RASTERIZER_OBJ) $(CANVAS_TEXT_OBJ) $(CANVAS_SIMD_OBJ) $(CANVAS_TRUETYPE_OBJ) $(CANVAS_PNG_OBJ) $(CANVAS_GRADIENT_OBJ) $(CANVAS_ROUNDED_OBJ) $(CANVAS_BLUR_OBJ) $(CANVAS_COMPOSITE_OBJ) $(CANVAS_LINE_OBJ) $(CANVAS_CLIP_OBJ) $(MAIN_OBJ)
+$(TEST_THEME_BIN): $(HAL_SYSCALL_OBJ) $(CORE_MEMORY_OBJ) $(CANVAS_RASTERIZER_OBJ) $(CANVAS_SIMD_OBJ) $(CANVAS_TRUETYPE_OBJ) $(GUI_THEME_OBJ) $(TEST_THEME_OBJ)
+	$(LD) $(LD_FLAGS) -o $@ $^
+
+$(AURA_SHELL_BIN): $(HAL_SYSCALL_OBJ) $(HAL_PROCESS_OBJ) $(HAL_SIGNALS_OBJ) $(HAL_WAYLAND_OBJ) $(HAL_WAYLAND_INPUT_OBJ) $(CORE_MEMORY_OBJ) $(CORE_EVENT_OBJ) $(CORE_INPUT_OBJ) $(CORE_GESTURE_OBJ) $(GUI_WINDOW_OBJ) $(GUI_WIDGET_OBJ) $(WIDGET_OBJS) $(GUI_THEME_OBJ) $(GUI_TERMINAL_OBJ) $(GUI_LAYOUT_OBJ) $(SHELL_REPL_OBJ) $(SHELL_LEXER_OBJ) $(SHELL_PARSER_OBJ) $(SHELL_EXECUTOR_OBJ) $(SHELL_PIPELINE_OBJ) $(SHELL_VARIABLES_OBJ) $(SHELL_ALIAS_OBJ) $(SHELL_HISTORY_OBJ) $(SHELL_JOBS_OBJ) $(SHELL_BUILTINS_OBJ) $(CANVAS_RASTERIZER_OBJ) $(CANVAS_TEXT_OBJ) $(CANVAS_SIMD_OBJ) $(CANVAS_TRUETYPE_OBJ) $(CANVAS_PNG_OBJ) $(CANVAS_GRADIENT_OBJ) $(CANVAS_ROUNDED_OBJ) $(CANVAS_BLUR_OBJ) $(CANVAS_COMPOSITE_OBJ) $(CANVAS_LINE_OBJ) $(CANVAS_CLIP_OBJ) $(CANVAS_PHYSICS_OBJ) $(MAIN_OBJ)
+	$(LD) $(LD_FLAGS) -o $@ $^
+
+AURA_DEMO_DEPS = $(HAL_SYSCALL_OBJ) $(HAL_PROCESS_OBJ) $(HAL_SIGNALS_OBJ) $(HAL_WAYLAND_OBJ) $(HAL_WAYLAND_INPUT_OBJ) $(CORE_MEMORY_OBJ) $(CORE_EVENT_OBJ) $(CORE_INPUT_OBJ) $(CORE_GESTURE_OBJ) $(GUI_WINDOW_OBJ) $(GUI_WIDGET_OBJ) $(WIDGET_OBJS) $(GUI_THEME_OBJ) $(GUI_TERMINAL_OBJ) $(GUI_LAYOUT_OBJ) $(SHELL_REPL_OBJ) $(SHELL_LEXER_OBJ) $(SHELL_PARSER_OBJ) $(SHELL_EXECUTOR_OBJ) $(SHELL_PIPELINE_OBJ) $(SHELL_VARIABLES_OBJ) $(SHELL_ALIAS_OBJ) $(SHELL_HISTORY_OBJ) $(SHELL_JOBS_OBJ) $(SHELL_BUILTINS_OBJ) $(CANVAS_RASTERIZER_OBJ) $(CANVAS_TEXT_OBJ) $(CANVAS_SIMD_OBJ) $(CANVAS_TRUETYPE_OBJ) $(CANVAS_PNG_OBJ) $(CANVAS_GRADIENT_OBJ) $(CANVAS_ROUNDED_OBJ) $(CANVAS_BLUR_OBJ) $(CANVAS_COMPOSITE_OBJ) $(CANVAS_LINE_OBJ) $(CANVAS_CLIP_OBJ) $(CANVAS_PHYSICS_OBJ) $(DEMO_WIDGETS_OBJ)
+
+$(AURA_WIDGET_DEMO_BIN): $(AURA_DEMO_DEPS)
 	$(LD) $(LD_FLAGS) -o $@ $^
 
 clean:
-	rm -rf $(BUILD_DIR) $(AURA_SHELL_BIN)
+	rm -rf $(BUILD_DIR) $(AURA_SHELL_BIN) $(AURA_WIDGET_DEMO_BIN)
