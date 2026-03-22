@@ -40,6 +40,10 @@
 %define sys_connect          42
 %define sys_sendmsg          46
 %define sys_recvmsg          47
+%define sys_bind             49
+%define sys_listen           50
+%define sys_accept4          288
+%define sys_unlink           87
 
 ; Uppercase aliases for readability in code.
 %define SYS_READ             sys_read
@@ -75,6 +79,16 @@
 %define SYS_CONNECT          sys_connect
 %define SYS_SENDMSG          sys_sendmsg
 %define SYS_RECVMSG          sys_recvmsg
+%define SYS_BIND             sys_bind
+%define SYS_LISTEN           sys_listen
+%define SYS_ACCEPT4          sys_accept4
+%define SYS_UNLINK           sys_unlink
+
+; --- socket ---
+%define AF_UNIX              1
+%define SOCK_STREAM          1
+%define SOCK_NONBLOCK        0x800
+%define SOCK_CLOEXEC         0x80000
 
 ; --- open(2) flags ---
 %define O_RDONLY             0

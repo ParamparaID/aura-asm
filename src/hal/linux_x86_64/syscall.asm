@@ -19,6 +19,11 @@ global hal_mmap
 global hal_munmap
 global hal_exit
 global hal_clock_gettime
+global hal_socket
+global hal_bind
+global hal_listen
+global hal_accept4
+global hal_unlink
 
 ; syscall_6:
 ; Universal syscall macro for Linux x86_64.
@@ -120,4 +125,29 @@ hal_exit:
 ;   rax = 0 on success, or negative errno
 hal_clock_gettime:
     syscall_6 SYS_CLOCK_GETTIME, rdi, rsi, 0, 0, 0, 0
+    ret
+
+; hal_socket(domain, type, protocol)
+hal_socket:
+    syscall_6 SYS_SOCKET, rdi, rsi, rdx, 0, 0, 0
+    ret
+
+; hal_bind(fd, addr, addr_len)
+hal_bind:
+    syscall_6 SYS_BIND, rdi, rsi, rdx, 0, 0, 0
+    ret
+
+; hal_listen(fd, backlog)
+hal_listen:
+    syscall_6 SYS_LISTEN, rdi, rsi, 0, 0, 0, 0
+    ret
+
+; hal_accept4(fd, addr, addr_len, flags)
+hal_accept4:
+    syscall_6 SYS_ACCEPT4, rdi, rsi, rdx, r10, 0, 0
+    ret
+
+; hal_unlink(path)
+hal_unlink:
+    syscall_6 SYS_UNLINK, rdi, 0, 0, 0, 0, 0
     ret

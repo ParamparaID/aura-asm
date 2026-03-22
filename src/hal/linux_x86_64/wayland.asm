@@ -377,9 +377,13 @@ wl_registry_bind:
     inc eax
     mov dword [r8 + 12], eax        ; strlen incl NUL
 
+    ; Zero iface string field (wl_pack_opcode_size clobbers edx via shl edx,16)
     lea rdi, [r8 + 16]
     xor eax, eax
-    mov ecx, edx
+    mov ecx, r14d
+    inc ecx
+    add ecx, 3
+    and ecx, -4
     rep stosb
 
     lea rdi, [r8 + 16]
