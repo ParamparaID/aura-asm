@@ -15,7 +15,12 @@
 %define CS_NEXT_SERIAL_OFF         296
 %define CS_EVENT_LOOP_OFF          300  ; dq
 %define CS_ARENA_OFF               308  ; dq
-%define CS_STRUCT_SIZE             316
+%define CS_KEYBOARD_FOCUS_OFF      316  ; dq -> Surface* (keyboard focus)
+%define CS_POINTER_FOCUS_OFF       324  ; dq -> Surface* (pointer focus)
+%define CS_POINTER_FIX_X_OFF       332  ; dd wl_fixed last motion rel. to focused surf
+%define CS_POINTER_FIX_Y_OFF       336  ; dd
+%define CS_KEY_STATE_OFF           340  ; 32 bytes — pressed keys [0..255] evdev bitmask
+%define CS_STRUCT_SIZE             372
 
 ; --- ClientConnection ---
 %define CC_FD_OFF                  0
@@ -37,7 +42,10 @@
 %define CC_WM_BASE_ID_OFF          76
 %define CC_PENDING_FD_OFF          80    ; dd: fd from SCM_RIGHTS for next create_pool, or -1
 %define CC_RESOURCES_OFF           84    ; 64 * qword
-%define CC_STRUCT_SIZE             (84 + 64*8)
+%define CC_KEYBOARD_ID_OFF         596   ; dd wl_keyboard id (0 = none)
+%define CC_POINTER_ID_OFF          600   ; dd wl_pointer id
+%define CC_TOUCH_ID_OFF            604   ; dd wl_touch id
+%define CC_STRUCT_SIZE             608
 
 ; --- Resource ---
 %define RES_ID_OFF                 0

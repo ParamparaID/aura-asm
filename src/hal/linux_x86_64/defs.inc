@@ -44,6 +44,9 @@
 %define sys_listen           50
 %define sys_accept4          288
 %define sys_unlink           87
+%define sys_lseek            8
+%define sys_openat           257
+%define sys_getdents64       217
 
 ; Uppercase aliases for readability in code.
 %define SYS_READ             sys_read
@@ -83,6 +86,9 @@
 %define SYS_LISTEN           sys_listen
 %define SYS_ACCEPT4          sys_accept4
 %define SYS_UNLINK           sys_unlink
+%define SYS_LSEEK            sys_lseek
+%define SYS_OPENAT           sys_openat
+%define SYS_GETDENTS64       sys_getdents64
 
 ; --- socket ---
 %define AF_UNIX              1
@@ -97,6 +103,10 @@
 %define O_CREAT              64
 %define O_TRUNC              512
 %define O_APPEND             1024
+%define O_NONBLOCK           2048
+%define O_CLOEXEC            524288
+%define O_DIRECTORY          65536
+%define AT_FDCWD             -100
 
 ; --- mmap(2) protection flags ---
 %define PROT_READ            1
@@ -171,5 +181,31 @@
 %define SOL_SOCKET           1
 %define SCM_RIGHTS           1
 %define MFD_CLOEXEC          1
+
+; --- evdev / input.h (subset) ---
+%define EV_SYN               0
+%define EV_KEY               1
+%define EV_REL               2
+%define EV_ABS               3
+%define SYN_REPORT           0
+%define REL_X                0
+%define REL_Y                1
+%define REL_WHEEL            8
+%define ABS_MT_POSITION_X    53
+%define ABS_MT_POSITION_Y    54
+%define KEY_A                30
+%define KEY_Z                44
+%define KEY_Q                16
+%define KEY_ENTER            28
+%define KEY_LEFTMETA         125
+%define KEY_RIGHTMETA        126
+%define BTN_LEFT             0x110
+%define BTN_RIGHT            0x111
+%define BTN_MIDDLE           0x112
+
+; EVIOCGBIT(ev,len) — Linux input.h
+%define EVIOCGBIT_EV_KEY_64  0x80404521   ; _IOC(_IOC_READ,'E',0x21,64)
+%define EVIOCGBIT_0          0x80084520   ; EVIOCGBIT(0, sizeof(long))
+%define EVIOCGNAME_256       0x80FF4506   ; EVIOCGNAME(256)
 
 %endif

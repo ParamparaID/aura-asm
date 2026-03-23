@@ -350,6 +350,14 @@ compositor_server_init:
     mov dword [rbx + CS_CLIENT_CAP_OFF], SERVER_MAX_CLIENTS
     mov dword [rbx + CS_NEXT_GLOBAL_OFF], 6
     mov dword [rbx + CS_NEXT_SERIAL_OFF], 0
+    mov qword [rbx + CS_KEYBOARD_FOCUS_OFF], 0
+    mov qword [rbx + CS_POINTER_FOCUS_OFF], 0
+    mov dword [rbx + CS_POINTER_FIX_X_OFF], 0
+    mov dword [rbx + CS_POINTER_FIX_Y_OFF], 0
+    lea rdi, [rbx + CS_KEY_STATE_OFF]
+    mov ecx, 32
+    xor eax, eax
+    rep stosb
 
     mov rdi, r13
     movsx rsi, dword [rbx + CS_LISTEN_FD_OFF]
@@ -436,6 +444,7 @@ compositor_service_round:
     push rbx
     push r12
     push r13
+    push r14
     mov rbx, rdi
 
     movsxd rdi, dword [rbx + CS_LISTEN_FD_OFF]
@@ -447,11 +456,11 @@ compositor_service_round:
     test r12d, r12d
     jz .csr_out
     mov r13, [rbx + CS_CLIENTS_OFF]
-    xor ecx, ecx
+    xor r14d, r14d
 .csr_cli:
-    cmp ecx, r12d
+    cmp r14d, r12d
     jae .csr_out
-    mov rsi, [r13 + rcx*8]
+    mov rsi, [r13 + r14*8]
     test rsi, rsi
     jz .csr_next
     mov r8, rsi
@@ -460,9 +469,10 @@ compositor_service_round:
     mov rdx, r8
     call compositor_client_io_handler
 .csr_next:
-    inc ecx
+    inc r14d
     jmp .csr_cli
 .csr_out:
+    pop r14
     pop r13
     pop r12
     pop rbx
@@ -528,6 +538,9 @@ compositor_listen_handler:
     mov dword [r13 + CC_SEAT_ID_OFF], 0
     mov dword [r13 + CC_WM_BASE_ID_OFF], 0
     mov dword [r13 + CC_PENDING_FD_OFF], -1
+    mov dword [r13 + CC_KEYBOARD_ID_OFF], 0
+    mov dword [r13 + CC_POINTER_ID_OFF], 0
+    mov dword [r13 + CC_TOUCH_ID_OFF], 0
 
     mov eax, dword [compositor_next_client_id]
     inc dword [compositor_next_client_id]

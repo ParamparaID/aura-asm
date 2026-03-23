@@ -7,6 +7,7 @@
 extern hal_write
 extern hal_exit
 extern hal_clock_gettime
+extern hal_access
 extern global_envp
 extern arena_init
 extern arena_destroy
@@ -47,6 +48,9 @@ extern jobs_update_status
 %define BLINK_INTERVAL_NS               500000000
 
 section .rodata
+    env_wl_display      db "WAYLAND_DISPLAY", 0
+    env_wl_display_len  equ $ - env_wl_display - 1
+    path_dri_card0      db "/dev/dri/card0", 0
     app_title           db "Aura Shell", 0
     theme_name          db "tokyo-night", 0
     theme_name_len      equ 11
@@ -55,6 +59,8 @@ section .rodata
     init_fail_len       equ $ - init_fail_msg
 
 section .bss
+    global aura_run_mode
+aura_run_mode       resb 1
     main_arena_ptr      resq 1
     main_window_ptr     resq 1
     main_repl_ptr       resq 1
@@ -69,6 +75,63 @@ section .bss
 
 section .text
 global _start
+
+; aura_pick_run_mode() — 1=nested (WAYLAND_DISPLAY), 2=standalone DRM path exists, 3=headless
+aura_pick_run_mode:
+    push rbx
+    push r12
+    push r13
+    mov byte [rel aura_run_mode], 3
+    mov r12, [rel global_envp]
+    test r12, r12
+    jz .try_dri
+    xor r13d, r13d
+.env_outer:
+    mov rbx, [r12 + r13*8]
+    test rbx, rbx
+    jz .try_dri
+    xor ecx, ecx
+.env_cmp:
+    cmp ecx, env_wl_display_len
+    jae .env_match
+    mov al, [rbx + rcx]
+    mov dl, [rel env_wl_display + rcx]
+    cmp al, dl
+    jne .env_next
+    inc ecx
+    jmp .env_cmp
+.env_match:
+    cmp byte [rbx + env_wl_display_len], '='
+    jne .env_next
+    mov byte [rel aura_run_mode], 1
+    pop r13
+    pop r12
+    pop rbx
+    ret
+.env_next:
+    inc r13d
+    jmp .env_outer
+.try_dri:
+    lea rdi, [rel path_dri_card0]
+    mov esi, F_OK
+    call hal_access
+    test eax, eax
+    jnz .done
+    sub rsp, 16
+    mov rax, SYS_IOCTL
+    mov rdi, STDIN
+    mov rsi, TIOCGPGRP
+    lea rdx, [rsp + 8]
+    syscall
+    add rsp, 16
+    test rax, rax
+    js .done
+    mov byte [rel aura_run_mode], 2
+.done:
+    pop r13
+    pop r12
+    pop rbx
+    ret
 
 main_sleep_1ms:
     sub rsp, 16
@@ -92,6 +155,8 @@ _start:
     lea rax, [rsp + 8]
     lea rdx, [rax + rcx * 8 + 8]
     mov [rel global_envp], rdx
+
+    call aura_pick_run_mode
 
     mov rdi, 1048576
     call arena_init

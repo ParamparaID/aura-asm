@@ -10,7 +10,6 @@ global hal_execve
 global hal_waitpid
 global hal_dup2
 global hal_pipe
-global hal_access
 global hal_getcwd
 global hal_chdir
 global hal_getenv_raw
@@ -63,13 +62,6 @@ hal_dup2:
 ; Returns 0 or error
 hal_pipe:
     syscall_6 SYS_PIPE2, rdi, 0, 0, 0, 0, 0
-    ret
-
-; hal_access(path, mode)
-; rdi=path, rsi=mode
-; Returns 0 or error
-hal_access:
-    syscall_6 SYS_ACCESS, rdi, rsi, 0, 0, 0, 0
     ret
 
 ; hal_getcwd(buf, size)

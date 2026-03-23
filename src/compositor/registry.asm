@@ -6,6 +6,7 @@ extern proto_send_event
 extern proto_send_delete_id
 extern proto_send_global
 extern client_resource_add
+extern seat_on_bind
 
 section .rodata
     iface_wl_compositor db "wl_compositor", 0
@@ -243,6 +244,9 @@ registry_dispatch_registry:
     test rax, rax
     jz .out
     mov dword [rbx + CC_SEAT_ID_OFF], r12d
+    mov esi, r12d
+    mov rdi, rbx
+    call seat_on_bind
     jmp .out
 .bind_xdg:
     mov r12d, r8d

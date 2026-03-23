@@ -27,6 +27,9 @@ global hal_unlink
 global hal_ftruncate
 global hal_memfd_create
 global hal_recvmsg
+global hal_lseek
+global hal_openat
+global hal_access
 
 ; syscall_6:
 ; Universal syscall macro for Linux x86_64.
@@ -168,4 +171,20 @@ hal_memfd_create:
 ; hal_recvmsg(fd, msghdr_ptr) -> rax bytes or negative errno
 hal_recvmsg:
     syscall_6 SYS_RECVMSG, rdi, rsi, 0, 0, 0, 0
+    ret
+
+; hal_lseek(fd, offset, whence) -> rax new offset or negative errno
+hal_lseek:
+    syscall_6 SYS_LSEEK, rdi, rsi, rdx, 0, 0, 0
+    ret
+
+; hal_openat(dirfd, path, flags, mode) — mode in rcx (SysV 4th int arg)
+hal_openat:
+    mov r10, rcx
+    syscall_6 SYS_OPENAT, rdi, rsi, rdx, r10, 0, 0
+    ret
+
+; hal_access(path, mode)
+hal_access:
+    syscall_6 SYS_ACCESS, rdi, rsi, 0, 0, 0, 0
     ret

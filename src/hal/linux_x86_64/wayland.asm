@@ -47,6 +47,8 @@ global wl_display_get_registry
 global wl_display_sync
 global wl_registry_bind
 global wl_compositor_create_surface
+global wl_seat_get_pointer
+global wl_seat_get_keyboard
 global wl_shm_create_pool
 global wl_shm_pool_create_buffer
 global wl_surface_attach
@@ -419,10 +421,11 @@ wl_registry_bind:
     ret
 
 ; wl_compositor_create_surface(sock_fd, compositor_id, surface_id)
+; Uses ecx for surface_id — r12–r15 are callee-saved (SysV).
 wl_compositor_create_surface:
     mov r10, rdi
     mov r11d, esi
-    mov r12d, edx
+    mov ecx, edx
     mov edi, r11d
     mov esi, 0
     mov edx, 12
@@ -430,7 +433,43 @@ wl_compositor_create_surface:
     lea r8, [rel wl_tmp_buf]
     mov dword [r8 + 0], r11d
     mov dword [r8 + 4], eax
-    mov dword [r8 + 8], r12d
+    mov dword [r8 + 8], ecx
+    mov rdi, r10
+    mov rsi, r8
+    mov rdx, 12
+    jmp wl_send
+
+; wl_seat_get_pointer(sock_fd, seat_id, pointer_new_id)
+wl_seat_get_pointer:
+    mov r10, rdi
+    mov r11d, esi
+    mov ecx, edx
+    mov edi, r11d
+    xor esi, esi
+    mov edx, 12
+    call wl_pack_opcode_size
+    lea r8, [rel wl_tmp_buf]
+    mov dword [r8 + 0], r11d
+    mov dword [r8 + 4], eax
+    mov dword [r8 + 8], ecx
+    mov rdi, r10
+    mov rsi, r8
+    mov rdx, 12
+    jmp wl_send
+
+; wl_seat_get_keyboard(sock_fd, seat_id, keyboard_new_id)
+wl_seat_get_keyboard:
+    mov r10, rdi
+    mov r11d, esi
+    mov ecx, edx
+    mov edi, r11d
+    mov esi, 1
+    mov edx, 12
+    call wl_pack_opcode_size
+    lea r8, [rel wl_tmp_buf]
+    mov dword [r8 + 0], r11d
+    mov dword [r8 + 4], eax
+    mov dword [r8 + 8], ecx
     mov rdi, r10
     mov rsi, r8
     mov rdx, 12
@@ -438,6 +477,9 @@ wl_compositor_create_surface:
 
 ; wl_shm_create_pool(sock_fd, shm_id, pool_id, shm_fd, size)
 wl_shm_create_pool:
+    push r12
+    push r13
+    push r14
     mov r10, rdi
     mov r11d, esi
     mov r12d, edx
@@ -456,12 +498,20 @@ wl_shm_create_pool:
     mov rsi, r8
     mov rdx, 16
     mov ecx, r13d
-    jmp wl_send_fd
+    call wl_send_fd
+    pop r14
+    pop r13
+    pop r12
+    ret
 
 ; wl_shm_pool_create_buffer(sock_fd, pool_id, buffer_id, offset, w, h, stride, format)
 wl_shm_pool_create_buffer:
     push rbp
     mov rbp, rsp
+    push r12
+    push r13
+    push r14
+    push r15
 
     mov r10, rdi
     mov r11d, esi
@@ -494,11 +544,18 @@ wl_shm_pool_create_buffer:
     mov rdx, 32
     call wl_send
 
+    pop r15
+    pop r14
+    pop r13
+    pop r12
     pop rbp
     ret
 
 ; wl_surface_attach(sock_fd, surface_id, buffer_id, x, y)
 wl_surface_attach:
+    push r12
+    push r13
+    push r14
     mov r10, rdi
     mov r11d, esi
     mov r12d, edx
@@ -517,10 +574,18 @@ wl_surface_attach:
     mov rdi, r10
     mov rsi, r8
     mov rdx, 20
-    jmp wl_send
+    call wl_send
+    pop r14
+    pop r13
+    pop r12
+    ret
 
 ; wl_surface_damage(sock_fd, surface_id, x, y, w, h)
 wl_surface_damage:
+    push r12
+    push r13
+    push r14
+    push r15
     mov r10, rdi
     mov r11d, esi
     mov r12d, edx
@@ -541,13 +606,18 @@ wl_surface_damage:
     mov rdi, r10
     mov rsi, r8
     mov rdx, 24
-    jmp wl_send
+    call wl_send
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    ret
 
 ; wl_surface_frame(sock_fd, surface_id, callback_id)
 wl_surface_frame:
     mov r10, rdi
     mov r11d, esi
-    mov r12d, edx
+    mov ecx, edx
     mov edi, r11d
     mov esi, 3
     mov edx, 12
@@ -555,7 +625,7 @@ wl_surface_frame:
     lea r8, [rel wl_tmp_buf]
     mov dword [r8 + 0], r11d
     mov dword [r8 + 4], eax
-    mov dword [r8 + 8], r12d
+    mov dword [r8 + 8], ecx
     mov rdi, r10
     mov rsi, r8
     mov rdx, 12
@@ -579,6 +649,8 @@ wl_surface_commit:
 
 ; xdg_wm_base_get_xdg_surface(sock_fd, wm_base_id, xdg_surface_id, surface_id)
 xdg_wm_base_get_xdg_surface:
+    push r12
+    push r13
     mov r10, rdi
     mov r11d, esi
     mov r12d, edx
@@ -595,13 +667,16 @@ xdg_wm_base_get_xdg_surface:
     mov rdi, r10
     mov rsi, r8
     mov rdx, 16
-    jmp wl_send
+    call wl_send
+    pop r13
+    pop r12
+    ret
 
 ; xdg_surface_get_toplevel(sock_fd, xdg_surface_id, toplevel_id)
 xdg_surface_get_toplevel:
     mov r10, rdi
     mov r11d, esi
-    mov r12d, edx
+    mov ecx, edx
     mov edi, r11d
     mov esi, 1
     mov edx, 12
@@ -609,7 +684,7 @@ xdg_surface_get_toplevel:
     lea r8, [rel wl_tmp_buf]
     mov dword [r8 + 0], r11d
     mov dword [r8 + 4], eax
-    mov dword [r8 + 8], r12d
+    mov dword [r8 + 8], ecx
     mov rdi, r10
     mov rsi, r8
     mov rdx, 12
@@ -618,6 +693,10 @@ xdg_surface_get_toplevel:
 ; xdg_toplevel_set_title(sock_fd, toplevel_id, title_ptr, title_len)
 xdg_toplevel_set_title:
     push rbx
+    push r12
+    push r13
+    push r14
+    push r15
     mov r10, rdi
     mov r11d, esi
     mov rbx, rdx
@@ -661,6 +740,10 @@ xdg_toplevel_set_title:
     mov rsi, r8
     mov edx, r15d
     call wl_send
+    pop r15
+    pop r14
+    pop r13
+    pop r12
     pop rbx
     ret
 
@@ -668,7 +751,7 @@ xdg_toplevel_set_title:
 xdg_wm_base_pong:
     mov r10, rdi
     mov r11d, esi
-    mov r12d, edx
+    mov ecx, edx
     mov edi, r11d
     mov esi, XDG_WM_BASE_PONG
     mov edx, 12
@@ -676,7 +759,7 @@ xdg_wm_base_pong:
     lea r8, [rel wl_tmp_buf]
     mov dword [r8 + 0], r11d
     mov dword [r8 + 4], eax
-    mov dword [r8 + 8], r12d
+    mov dword [r8 + 8], ecx
     mov rdi, r10
     mov rsi, r8
     mov rdx, 12
@@ -686,7 +769,7 @@ xdg_wm_base_pong:
 xdg_surface_ack_configure:
     mov r10, rdi
     mov r11d, esi
-    mov r12d, edx
+    mov ecx, edx
     mov edi, r11d
     mov esi, XDG_SURFACE_ACK_CFG
     mov edx, 12
@@ -694,7 +777,7 @@ xdg_surface_ack_configure:
     lea r8, [rel wl_tmp_buf]
     mov dword [r8 + 0], r11d
     mov dword [r8 + 4], eax
-    mov dword [r8 + 8], r12d
+    mov dword [r8 + 8], ecx
     mov rdi, r10
     mov rsi, r8
     mov rdx, 12

@@ -32,16 +32,16 @@
 - [x] Все тесты проходят
 
 ## STEP 32: Input Routing и wl_seat
-- [ ] `src/compositor/seat.asm` — wl_seat: capabilities (keyboard, pointer, touch)
-- [ ] `src/compositor/keyboard.asm` — wl_keyboard: keymap, enter, leave, key, modifiers
-- [ ] `src/compositor/pointer.asm` — wl_pointer: enter, leave, motion, button, axis
-- [ ] `src/compositor/touch_server.asm` — wl_touch: down, up, motion, frame
-- [ ] `src/hal/linux_x86_64/libinput.asm` — чтение событий из /dev/input/* (evdev)
-- [ ] `src/hal/linux_x86_64/drm.asm` — DRM/KMS: modesetting, получение framebuffer, page flip
-- [ ] Focus management: определение focused surface, отправка enter/leave
-- [ ] Keyboard focus follows pointer (или click-to-focus, configurable)
-- [ ] `tests/unit/test_input_routing.asm` — тест: два клиента, pointer enter/leave при перемещении
-- [ ] Все тесты проходят
+- [x] `src/compositor/seat.asm` — wl_seat: capabilities (keyboard, pointer, touch)
+- [x] `src/compositor/keyboard.asm` — wl_keyboard: keymap, enter, leave, key, modifiers
+- [x] `src/compositor/pointer.asm` — wl_pointer: enter, leave, motion, button, axis
+- [x] `src/compositor/touch_server.asm` — wl_touch: down, up, motion, frame
+- [x] `src/hal/linux_x86_64/libinput.asm` — чтение событий из /dev/input/* (evdev)
+- [x] `src/hal/linux_x86_64/drm.asm` — DRM/KMS: modesetting, получение framebuffer, page flip
+- [x] Focus management: определение focused surface, отправка enter/leave
+- [x] Keyboard focus follows pointer (или click-to-focus, configurable)
+- [x] `tests/unit/test_input_routing.asm` — тест: два клиента, pointer enter/leave при перемещении
+- [x] Все тесты проходят
 
 ## STEP 33: Window Manager (тайловый + плавающий)
 - [ ] `src/compositor/wm.asm` — window manager state: список окон, Z-order, focus stack
@@ -79,4 +79,4 @@
 
 ---
 
-**Прогресс Phase 3: STEP 30–31 по чеклисту выполнены; далее STEP 32**
+**Прогресс Phase 3: STEP 30–32 по чеклисту выполнены; далее STEP 33**
