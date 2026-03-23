@@ -17,19 +17,19 @@
 - [x] Все тесты проходят
 
 ## STEP 41: Panel UI и навигация
-- [ ] `src/fm/panel.asm` — структура Panel: path, entries, sort_order, selected, scroll, filter
-- [ ] `src/fm/panel.asm` — загрузка директории через VFS, сортировка (name, size, date, ext), фильтрация
-- [ ] `src/gui/widgets/file_panel.asm` — виджет файловой панели (использует Table/List виджеты)
-- [ ] Отображение: иконка типа + имя + размер + дата + permissions
-- [ ] Двухпанельный режим: SplitPane с двумя file_panel
-- [ ] Однопанельный режим: один file_panel + breadcrumb навигация
-- [ ] Навигация: Enter → открыть директорию/файл, Backspace → parent, Tab → переключить панель
-- [ ] Touch: tap → select, double-tap → open, long press → Context Bloom, swipe → scroll (inertia)
-- [ ] Drag & Drop между панелями (touch drag файлов)
-- [ ] Массовый выбор: Shift+click (range), Ctrl+click (toggle), touch long press → selection mode
-- [ ] Переключение режимов: хоткей или кнопка
-- [ ] `tests/unit/test_panel.asm` — тесты: загрузка, сортировка, навигация, выделение
-- [ ] Все тесты проходят
+- [x] `src/fm/panel.asm` — структура Panel: path, entries, sort_order, selected, scroll, filter
+- [x] `src/fm/panel.asm` — загрузка директории через VFS, сортировка (name, size, date, ext), фильтрация
+- [x] `src/gui/widgets/file_panel.asm` — виджет файловой панели (использует Table/List виджеты)
+- [x] Отображение: иконка типа + имя + размер + дата + permissions
+- [x] Двухпанельный режим: SplitPane с двумя file_panel
+- [x] Однопанельный режим: один file_panel + breadcrumb навигация
+- [x] Навигация: Enter → открыть директорию/файл, Backspace → parent, Tab → переключить панель
+- [x] Touch: tap → select, double-tap → open, long press → Context Bloom, swipe → scroll (inertia)
+- [x] Drag & Drop между панелями (touch drag файлов)
+- [x] Массовый выбор: Shift+click (range), Ctrl+click (toggle), touch long press → selection mode
+- [x] Переключение режимов: хоткей или кнопка
+- [x] `tests/unit/test_panel.asm` — тесты: загрузка, сортировка, навигация, выделение
+- [x] Все тесты проходят
 
 ## STEP 42: Просмотрщик и архивация
 - [ ] `src/fm/viewer.asm` — текстовый просмотрщик: прокрутка, поиск, подсветка синтаксиса (MVP: ключевые слова для .asm/.c/.py/.sh/.js)
@@ -64,4 +64,4 @@
 
 ---
 
-**Прогресс Phase 4: 9/38 задач выполнено (23%)**
+**Прогресс Phase 4: 22/38 задач выполнено (58%)**

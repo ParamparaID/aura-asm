@@ -52,6 +52,33 @@
 ### Статус
 ✅ Завершён
 
+---
+
+## STEP 41: Panel UI и навигация — 2026-03-23
+
+### Что сделано
+- Добавлен `src/fm/panel.inc` с layout-константами `Panel` и сортировками `SORT_NAME/SORT_SIZE/SORT_DATE/SORT_EXT`.
+- Добавлен `src/fm/panel.asm`: `panel_init`, `panel_load`, `panel_navigate`, `panel_go_parent`, `panel_go_path`, `panel_sort`, `panel_toggle_mark`, `panel_mark_range`, `panel_mark_all`, `panel_unmark_all`, `panel_get_marked`, `panel_toggle_hidden`, `panel_set_filter`.
+- Реализована загрузка директории через VFS и фильтрация/hidden-toggle в `panel_load`.
+- Реализован массовый выбор и получение списка отмеченных путей для последующих файловых операций.
+- Добавлен `src/gui/widgets/file_panel.asm`: кастомный виджет панели файлов с отрисовкой header/rows/status и обработкой key/touch/mouse событий.
+- Добавлен `src/fm/fm_main.asm`: контейнер `FileManager` (single/dual mode), базовая интеграция `SplitPane`, переключение активной панели по Tab, обработка hotkeys (F5/F8/Ctrl+O в MVP-виде).
+- Обновлён `Makefile`: сборка `fm_panel`, `fm_main`, `widget_file_panel`, цель `test_panel`, включение в общий `test`.
+- Добавлен `tests/unit/test_panel.asm`: smoke-покрытие для загрузки, сортировки, mark-операций и render-пути `file_panel`.
+
+### Результаты тестов
+- `wsl make test_panel -B`: PASSED (`ALL TESTS PASSED`).
+- `wsl make test`: PASSED (полный regression suite, включая `test_panel`).
+
+### Проблемы и решения
+- Проблема: новые UI-объекты FM ломали линковку существующих widget-тестов через общий `WIDGET_OBJS`.
+- Решение: `widget_file_panel.o` вынесен в отдельную зависимость там, где реально нужен (`test_panel`, `aura-shell`), без изменения старых unit-link цепочек.
+- Проблема: падения в helper-функциях панели из-за порчи регистров в path/join и marked-list.
+- Решение: переписаны критичные участки (`panel_join_path`, `panel_get_marked`) с безопасным сохранением аргументов и явной адресацией.
+
+### Статус
+✅ Завершён
+
 ## STEP 05: AuraCanvas — базовый растеризатор — 2026-03-20
 
 ### Что сделано
