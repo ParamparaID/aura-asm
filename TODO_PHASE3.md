@@ -55,15 +55,15 @@
 - [x] Все тесты проходят
 
 ## STEP 34: Hub и виртуальные рабочие столы
-- [ ] `src/compositor/hub.asm` — Hub (домашний экран): widget cards, свободная компоновка
-- [ ] `src/compositor/hub.asm` — living widgets на Hub: clock, system monitor, quick actions
-- [ ] `src/compositor/workspaces.asm` — виртуальные рабочие столы (Module Spaces): до 10 штук
-- [ ] `src/compositor/workspaces.asm` — переключение: по номеру (Super+1..0), свайпом, через Overview
-- [ ] `src/compositor/workspaces.asm` — перемещение окон между рабочими столами
-- [ ] `src/compositor/transitions.asm` — fly-in/fly-out анимации при переключении (spring-based)
-- [ ] `src/compositor/overview.asm` — Overview mode (Exposé): миниатюры всех окон, three-finger swipe up
-- [ ] `tests/unit/test_workspaces.asm` — тест: переключение, перемещение окон, возврат в Hub
-- [ ] Все тесты проходят
+- [x] `src/compositor/hub.asm` — Hub (домашний экран): widget cards, свободная компоновка
+- [x] `src/compositor/hub.asm` — living widgets на Hub: clock, system monitor, quick actions
+- [x] `src/compositor/workspaces.asm` — виртуальные рабочие столы (Module Spaces): до 10 штук
+- [x] `src/compositor/workspaces.asm` — переключение: по номеру (Super+1..0), свайпом, через Overview
+- [x] `src/compositor/workspaces.asm` — перемещение окон между рабочими столами
+- [x] `src/compositor/transitions.asm` — fly-in/fly-out анимации при переключении (spring-based)
+- [x] `src/compositor/overview.asm` — Overview mode (Exposé): миниатюры всех окон, three-finger swipe up
+- [x] `tests/unit/test_workspaces.asm` — тест: переключение, перемещение окон, возврат в Hub
+- [x] Все тесты проходят
 
 ## STEP 35: Декорации и финальная интеграция
 - [ ] `src/compositor/decorations.asm` — server-side decorations: title bar, кнопки close/minimize/maximize

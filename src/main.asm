@@ -3,6 +3,8 @@
 %include "src/gui/widget.inc"
 %include "src/gui/theme.inc"
 %include "src/core/gesture.inc"
+%include "src/compositor/workspaces.inc"
+%include "src/canvas/canvas.inc"
 
 extern hal_write
 extern hal_exit
@@ -25,11 +27,13 @@ extern repl_handle_key
 extern repl_set_font
 extern repl_set_colors
 extern repl_cursor_blink
+extern theme_load
 extern theme_load_builtin
 extern theme_destroy
 extern font_measure_string
 extern gesture_init
 extern gesture_process_event
+extern gesture_get_data
 extern gesture_reset
 extern anim_scheduler_init
 extern anim_scheduler_tick
@@ -43,13 +47,31 @@ extern widget_focus
 extern widget_set_dirty
 extern terminal_widget_init
 extern jobs_update_status
+extern workspaces_init
+extern workspaces_switch_relative
+extern workspaces_get_manager
+extern hub_init
+extern hub_get_global
+extern hub_render
+extern hub_handle_input
+extern hub_toggle
+extern overview_enter
+extern overview_render
+extern overview_handle_input
+extern overview_exit
 
 %define KEY_PRESSED                     1
 %define BLINK_INTERVAL_NS               500000000
+%define EDGE_GESTURE_PX_DEFAULT         56
+%define BOTTOM_EDGE_PX_DEFAULT          72
+%define MAIN_VIEW_W_DEFAULT             1024
+%define MAIN_VIEW_H_DEFAULT             768
 
 section .rodata
     env_wl_display      db "WAYLAND_DISPLAY", 0
     env_wl_display_len  equ $ - env_wl_display - 1
+    env_theme_file      db "AURA_THEME_FILE", 0
+    env_theme_file_len  equ $ - env_theme_file - 1
     path_dri_card0      db "/dev/dri/card0", 0
     app_title           db "Aura Shell", 0
     theme_name          db "tokyo-night", 0
@@ -71,7 +93,12 @@ aura_run_mode       resb 1
     ts_now              resq 2
     ts_last_blink       resq 2
     gesture_rec         resb GR_STRUCT_SIZE
+    gesture_data        resb 64
     anim_sched          resb 1200
+    ws_mgr_ptr          resq 1
+    hub_ptr             resq 1
+    theme_file_ptr      resq 1
+    theme_file_len      resd 1
 
 section .text
 global _start
@@ -150,6 +177,126 @@ timespec_to_ns:
     add rax, [rdi + 8]
     ret
 
+; cstr_len(rdi=c-string) -> eax len
+cstr_len:
+    xor eax, eax
+.cl:
+    cmp byte [rdi + rax], 0
+    je .out
+    inc eax
+    jmp .cl
+.out:
+    ret
+
+; aura_find_env_value(name_ptr, name_len) -> rax value_ptr or 0
+aura_find_env_value:
+    push rbx
+    push r12
+    push r13
+    mov r12, rdi
+    mov r13d, esi
+    mov rbx, [rel global_envp]
+    test rbx, rbx
+    jz .none
+    xor ecx, ecx
+.env_loop:
+    mov rax, [rbx + rcx*8]
+    test rax, rax
+    jz .none
+    xor edx, edx
+.cmp_loop:
+    cmp edx, r13d
+    jae .check_eq
+    mov r8b, [rax + rdx]
+    mov r9b, [r12 + rdx]
+    cmp r8b, r9b
+    jne .next
+    inc edx
+    jmp .cmp_loop
+.check_eq:
+    cmp byte [rax + r13], '='
+    jne .next
+    lea rax, [rax + r13 + 1]
+    jmp .out
+.next:
+    inc ecx
+    jmp .env_loop
+.none:
+    xor eax, eax
+.out:
+    pop r13
+    pop r12
+    pop rbx
+    ret
+
+; main_apply_theme(theme*) -> eax 1/0
+main_apply_theme:
+    test rdi, rdi
+    jz .fail
+    mov [rel main_theme_ptr], rdi
+
+    mov rax, [rel main_repl_ptr]
+    test rax, rax
+    jz .hub
+    mov r10, rdi
+    mov rdi, rax
+    mov rsi, [r10 + T_FONT_MAIN_OFF]
+    mov edx, [r10 + T_FONT_MAIN_SIZE_OFF]
+    call repl_set_font
+    mov rdi, [rel main_repl_ptr]
+    mov esi, [r10 + T_BG_OFF]
+    mov edx, [r10 + T_FG_OFF]
+    mov ecx, [r10 + T_ACCENT_OFF]
+    mov r8d, [r10 + T_ACCENT_OFF]
+    call repl_set_colors
+
+.hub:
+    mov rdi, [rel main_theme_ptr]
+    call hub_init
+    mov [rel hub_ptr], rax
+    mov eax, 1
+    ret
+.fail:
+    xor eax, eax
+    ret
+
+; main_reload_theme() -> eax 1/0
+main_reload_theme:
+    push rbx
+    ; drop current resources before replacing theme object
+    mov rdi, [rel main_theme_ptr]
+    test rdi, rdi
+    jz .load
+    call theme_destroy
+
+.load:
+    mov rbx, [rel theme_file_ptr]
+    test rbx, rbx
+    jz .builtin
+    mov rdi, rbx
+    mov esi, [rel theme_file_len]
+    call theme_load
+    test rax, rax
+    jnz .apply
+
+.builtin:
+    lea rdi, [rel theme_name]
+    mov esi, theme_name_len
+    call theme_load_builtin
+    test rax, rax
+    jz .fail
+
+.apply:
+    mov rdi, rax
+    call main_apply_theme
+    jmp .out
+
+.fail:
+    xor eax, eax
+.out:
+    pop rbx
+    ret
+
 _start:
     mov rcx, [rsp]
     lea rax, [rsp + 8]
@@ -157,6 +304,17 @@ _start:
     mov [rel global_envp], rdx
 
     call aura_pick_run_mode
+
+    lea rdi, [rel env_theme_file]
+    mov esi, env_theme_file_len
+    call aura_find_env_value
+    mov [rel theme_file_ptr], rax
+    test rax, rax
+    jz .no_theme_file
+    mov rdi, rax
+    call cstr_len
+    mov [rel theme_file_len], eax
+.no_theme_file:
 
     mov rdi, 1048576
     call arena_init
@@ -178,17 +336,19 @@ _start:
     jz .fail_cleanup_ws
     mov [rel main_window_ptr], rax
 
-    lea rdi, [rel theme_name]
-    mov esi, theme_name_len
-    call theme_load_builtin
-    test rax, rax
+    call main_reload_theme
+    test eax, eax
     jz .fail_cleanup_ws
-    mov [rel main_theme_ptr], rax
 
-    mov rdi, [rax + T_FONT_MAIN_OFF]
+    mov edi, 4
+    call workspaces_init
+    mov [rel ws_mgr_ptr], rax
+
+    mov r10, [rel main_theme_ptr]
+    mov rdi, [r10 + T_FONT_MAIN_OFF]
     lea rsi, [rel measure_ch]
     mov edx, 1
-    mov ecx, [rax + T_FONT_MAIN_SIZE_OFF]
+    mov ecx, [r10 + T_FONT_MAIN_SIZE_OFF]
     call font_measure_string
     mov r8d, eax
     mov r9d, edx
@@ -266,6 +426,23 @@ _start:
     lea rdi, [rel gesture_rec]
     lea rsi, [rel event_tmp]
     call gesture_process_event
+    mov r10d, eax
+
+    mov rdi, [rel hub_ptr]
+    lea rsi, [rel event_tmp]
+    call hub_handle_input
+
+    mov rdi, [rel ws_mgr_ptr]
+    lea rsi, [rel event_tmp]
+    call overview_handle_input
+
+    test r10d, r10d
+    jz .dispatch_widgets
+    mov edi, r10d
+    lea rsi, [rel event_tmp]
+    call main_handle_gesture
+
+.dispatch_widgets:
 
     mov rdi, [rel root_widget]
     lea rsi, [rel event_tmp]
@@ -305,8 +482,17 @@ _start:
 
     mov rdi, [rel main_window_ptr]
     call window_get_canvas
-    mov rsi, rax
+    mov r11, rax
+    mov rdi, [rel ws_mgr_ptr]
+    xor esi, esi
+    mov rdx, r11
+    call overview_render
+    mov rdi, [rel hub_ptr]
+    mov rsi, r11
+    mov rdx, [rel main_theme_ptr]
+    call hub_render
     mov rdi, [rel root_widget]
+    mov rsi, r11
     mov rdx, [rel main_theme_ptr]
     xor ecx, ecx
     xor r8d, r8d
@@ -352,3 +538,140 @@ _start:
     call hal_write
     mov rdi, 1
     call hal_exit
+
+; main_handle_gesture(gesture_id, event_ptr)
+main_handle_gesture:
+    push rbx
+    push r12
+    push r13
+    push r14
+    push r15
+    mov ebx, edi
+    mov r12, rsi
+    mov rdi, [rel ws_mgr_ptr]
+    test rdi, rdi
+    jz .out
+
+    lea r13, [rel gesture_rec]
+    mov rdi, r13
+    lea rsi, [rel gesture_data]
+    call gesture_get_data
+
+    mov eax, [rel gesture_data + GD_DELTA_X_OFF]
+    mov r10d, eax                        ; delta_x
+    mov eax, [rel gesture_data + GD_DELTA_Y_OFF]
+    mov r11d, eax                        ; delta_y
+    mov r8d, [r12 + INPUT_EVENT_MOUSE_X_OFF]
+    mov r9d, [r12 + INPUT_EVENT_MOUSE_Y_OFF]
+    mov eax, r8d
+    sub eax, r10d
+    mov ecx, eax                         ; start_x ~= end_x - delta_x
+    mov eax, r9d
+    sub eax, r11d
+    mov edx, eax                         ; start_y ~= end_y - delta_y
+
+    mov rax, [rel main_theme_ptr]
+    test rax, rax
+    jz .theme_fallback
+    mov esi, [rax + T_GESTURE_EDGE_PX_OFF]
+    mov edi, [rax + T_GESTURE_BOTTOM_PX_OFF]
+    test esi, esi
+    jle .theme_fallback
+    test edi, edi
+    jle .theme_fallback
+    jmp .theme_ok
+.theme_fallback:
+    mov esi, EDGE_GESTURE_PX_DEFAULT
+    mov edi, BOTTOM_EDGE_PX_DEFAULT
+.theme_ok:
+    ; Dynamic viewport size (current canvas), fallback to defaults.
+    mov r14d, MAIN_VIEW_W_DEFAULT
+    mov r15d, MAIN_VIEW_H_DEFAULT
+    mov rdi, [rel main_window_ptr]
+    test rdi, rdi
+    jz .view_ok
+    call window_get_canvas
+    test rax, rax
+    jz .view_ok
+    mov r14d, [rax + CV_WIDTH_OFF]
+    mov r15d, [rax + CV_HEIGHT_OFF]
+    test r14d, r14d
+    jg .vw_ok
+    mov r14d, MAIN_VIEW_W_DEFAULT
+.vw_ok:
+    test r15d, r15d
+    jg .view_ok
+    mov r15d, MAIN_VIEW_H_DEFAULT
+.view_ok:
+
+    cmp ebx, GESTURE_SWIPE_LEFT
+    jne .sw_right_generic
+    ; Edge swipe horizontal: switch workspace (from right edge to left)
+    mov eax, r14d
+    sub eax, esi
+    cmp ecx, eax
+    jl .out
+    mov rdi, [rel ws_mgr_ptr]
+    mov esi, 1
+    call workspaces_switch_relative
+    jmp .out
+.sw_right_generic:
+    cmp ebx, GESTURE_SWIPE_RIGHT
+    jne .sw_up
+    ; Edge swipe left->right:
+    ; - in Hub: back
+    ; - otherwise: previous workspace
+    cmp ecx, esi
+    jg .out
+    mov rdi, [rel ws_mgr_ptr]
+    cmp dword [rdi + WSM_HUB_MODE_OFF], 0
+    je .sw_right_ws
+    call hub_toggle
+    jmp .out
+.sw_right_ws:
+    mov esi, -1
+    call workspaces_switch_relative
+    jmp .out
+.sw_up:
+    cmp ebx, GESTURE_SWIPE_UP
+    jne .three_up
+    ; Bottom-edge swipe up toggles Hub
+    mov eax, r15d
+    sub eax, edi
+    cmp edx, eax
+    jl .out
+    mov rdi, [rel ws_mgr_ptr]
+    call hub_toggle
+    jmp .out
+.three_up:
+    cmp ebx, GESTURE_THREE_FINGER_UP
+    jne .two_sw
+    mov rdi, [rel ws_mgr_ptr]
+    xor rsi, rsi
+    call overview_enter
+    jmp .out
+.two_sw:
+    cmp ebx, GESTURE_TWO_FINGER_SWIPE
+    jne .three_down
+    mov eax, r10d
+    test eax, eax
+    jge .two_right
+    mov rdi, [rel ws_mgr_ptr]
+    mov esi, 1
+    call workspaces_switch_relative
+    jmp .out
+.two_right:
+    mov rdi, [rel ws_mgr_ptr]
+    mov esi, -1
+    call workspaces_switch_relative
+.three_down:
+    cmp ebx, GESTURE_THREE_FINGER_DOWN
+    jne .out
+    call main_reload_theme
+.out:
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    pop rbx
+    ret

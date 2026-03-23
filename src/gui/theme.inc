@@ -26,10 +26,13 @@
 %define T_SPRING_DAMP_OFF       88
 %define T_TRANSITION_MS_OFF     92
 
-%define T_LOADED_OFF            96
-%define T_MMAP_PTR_OFF          104
-%define T_MMAP_LEN_OFF          112
-%define THEME_STRUCT_SIZE       120
+%define T_GESTURE_EDGE_PX_OFF   96
+%define T_GESTURE_BOTTOM_PX_OFF 100
+
+%define T_LOADED_OFF            104
+%define T_MMAP_PTR_OFF          112
+%define T_MMAP_LEN_OFF          120
+%define THEME_STRUCT_SIZE       128
 
 %define THSEC_NONE                0
 %define THSEC_COLORS              1

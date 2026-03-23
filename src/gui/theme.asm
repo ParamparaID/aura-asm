@@ -26,6 +26,10 @@ section .rodata
     k_main              db "main", 0
     k_spring            db "spring_stiffness", 0
     k_spring_len        equ 16
+    k_gesture_edge      db "gesture_edge_px", 0
+    k_gesture_edge_len  equ 15
+    k_gesture_bottom    db "gesture_bottom_edge_px", 0
+    k_gesture_bottom_len equ 22
 
     preset_dark:
         dd 0xFF7AA2F7, 0xFF1A1B26, 0xFF24283B, 0xFFC0CAF5, 0xFF565F89
@@ -174,6 +178,8 @@ theme_apply_preset:
     mov [r10 + T_SPRING_DAMP_OFF], eax
     mov eax, [rdi + 8]
     mov [r10 + T_TRANSITION_MS_OFF], eax
+    mov dword [r10 + T_GESTURE_EDGE_PX_OFF], 56
+    mov dword [r10 + T_GESTURE_BOTTOM_PX_OFF], 72
     ret
 
 ; theme_load_builtin(name, len) -> rax theme* or 0
@@ -630,14 +636,40 @@ theme_apply_kv:
     lea rsi, [rel k_spring]
     mov edx, k_spring_len
     cmp r12d, edx
+    jne .anim_edge
+    call theme_memeq
+    test eax, eax
+    jz .anim_edge
+    mov rdi, r13
+    call theme_parse_dec
+    imul eax, 65536
+    mov [rel theme_active + T_SPRING_STIFF_OFF], eax
+    jmp .ret
+.anim_edge:
+    mov rdi, rbx
+    lea rsi, [rel k_gesture_edge]
+    mov edx, k_gesture_edge_len
+    cmp r12d, edx
+    jne .anim_bottom
+    call theme_memeq
+    test eax, eax
+    jz .anim_bottom
+    mov rdi, r13
+    call theme_parse_dec
+    mov [rel theme_active + T_GESTURE_EDGE_PX_OFF], eax
+    jmp .ret
+.anim_bottom:
+    mov rdi, rbx
+    lea rsi, [rel k_gesture_bottom]
+    mov edx, k_gesture_bottom_len
+    cmp r12d, edx
     jne .ret
     call theme_memeq
     test eax, eax
     jz .ret
     mov rdi, r13
     call theme_parse_dec
-    imul eax, 65536
-    mov [rel theme_active + T_SPRING_STIFF_OFF], eax
+    mov [rel theme_active + T_GESTURE_BOTTOM_PX_OFF], eax
 .ret:
     pop r14
     pop r13

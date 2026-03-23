@@ -162,6 +162,12 @@ gesture_process_event:
     mov [r13 + GT_LAST_TIME_OFF], rax
     mov [rbx + GR_LAST_EVENT_TIME_OFF], rax
 
+    ; Multi-touch shortcuts for Phase 3 navigation gestures.
+    cmp dword [rbx + GR_ACTIVE_TOUCHES_OFF], 2
+    je .move_two
+    cmp dword [rbx + GR_ACTIVE_TOUCHES_OFF], 3
+    je .move_three
+
     cmp dword [rbx + GR_ACTIVE_TOUCHES_OFF], 1
     jne .none
     mov eax, [r13 + GT_CUR_X_OFF]
@@ -209,6 +215,50 @@ gesture_process_event:
     jmp .ret
 .movedone:
     jmp .none
+
+.move_two:
+    mov eax, [r13 + GT_CUR_X_OFF]
+    sub eax, [r13 + GT_START_X_OFF]
+    mov r14d, eax
+    mov eax, r14d
+    cdqe
+    mov rdi, rax
+    neg rax
+    cmovs rax, rdi
+    cmp eax, [rbx + GR_SWIPE_MIN_DISTANCE_OFF]
+    jl .none
+    mov dword [rbx + GR_RECOGNIZED_GESTURE_OFF], GESTURE_TWO_FINGER_SWIPE
+    lea rdi, [rbx + GR_GESTURE_DATA_OFF]
+    mov [rdi + GD_DELTA_X_OFF], r14d
+    mov dword [rdi + GD_DELTA_Y_OFF], 0
+    mov dword [rdi + GD_DURATION_MS_OFF], 0
+    mov eax, GESTURE_TWO_FINGER_SWIPE
+    jmp .ret
+
+.move_three:
+    mov eax, [r13 + GT_CUR_Y_OFF]
+    sub eax, [r13 + GT_START_Y_OFF]
+    mov r15d, eax
+    mov eax, r15d
+    cdqe
+    mov rdi, rax
+    neg rax
+    cmovs rax, rdi
+    cmp eax, [rbx + GR_SWIPE_MIN_DISTANCE_OFF]
+    jl .none
+    lea rdi, [rbx + GR_GESTURE_DATA_OFF]
+    mov dword [rdi + GD_DELTA_X_OFF], 0
+    mov [rdi + GD_DELTA_Y_OFF], r15d
+    mov dword [rdi + GD_DURATION_MS_OFF], 0
+    cmp r15d, 0
+    jg .three_down
+    mov dword [rbx + GR_RECOGNIZED_GESTURE_OFF], GESTURE_THREE_FINGER_UP
+    mov eax, GESTURE_THREE_FINGER_UP
+    jmp .ret
+.three_down:
+    mov dword [rbx + GR_RECOGNIZED_GESTURE_OFF], GESTURE_THREE_FINGER_DOWN
+    mov eax, GESTURE_THREE_FINGER_DOWN
+    jmp .ret
 
 .up:
     mov esi, [r12 + INPUT_EVENT_TOUCH_ID_OFF]

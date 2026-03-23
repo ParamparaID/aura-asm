@@ -884,3 +884,34 @@ Phase 2 завершена. Phase 3: STEP 30–33 (server, registry, surfaces, S
 
 ### Статус
 ✅ Завершён
+
+## STEP 34: Hub и виртуальные рабочие столы — 2026-03-23
+
+### Что сделано
+- Добавлен `src/compositor/workspaces.inc` с layout-константами `Workspace`, `WorkspaceManager`, `Hub` и `Overview` (включая debug-layout для тестов).
+- Добавлен `src/compositor/workspaces.asm`: `workspaces_init`, `workspaces_switch`, `workspaces_switch_relative`, `workspaces_move_surface`, `workspaces_get_active`, `workspaces_get_surfaces`, `workspaces_render` (spring slide transition между `prev/active`).
+- Добавлен `src/compositor/hub.asm`: `hub_init`, `hub_render`, `hub_handle_input`, `hub_toggle`; реализованы clock card, scroll по touch drag, preview-strip рабочих столов и tap-switch.
+- Добавлен `src/compositor/overview.asm`: `overview_enter`, `overview_render`, `overview_handle_input`, `overview_exit` с grid-миниатюрами, blur backdrop, tap-focus / close-action; добавлены `overview_debug_get_count` и `overview_debug_get_item` для unit-тестов.
+- Добавлен `src/compositor/transitions.asm` с API `transition_slide_in/out`, `transition_scale_in/out`, callback helpers.
+- Обновлён `src/core/gesture.asm`: добавлены распознавания `GESTURE_TWO_FINGER_SWIPE`, `GESTURE_THREE_FINGER_UP`, `GESTURE_THREE_FINGER_DOWN`.
+- Обновлён `src/main.asm`: интегрирован gesture-dispatch для переключения workspace / вызова Overview / toggle Hub; в render-loop добавлена отрисовка overview/hub поверх основного UI.
+- Добавлен `tests/unit/test_workspaces.asm` (init, switch+transitioning, move surface, hub toggle, overview grid).
+- Обновлён `Makefile`: новые compositor-объекты (`workspaces/hub/overview/transitions`), цель `test_workspaces`, включение в общий `test`, линковка в `aura-shell`.
+- Обновлён `TODO_PHASE3.md`: STEP 34 отмечен как выполненный.
+
+### Результаты тестов
+- `wsl make test_workspaces -B`: PASSED (`ALL TESTS PASSED`).
+- `wsl make test -B`: PASSED (полный regression suite, включая `test_workspaces`).
+
+### Проблемы и решения
+- Проблема: новый `hub.asm` использовал clip API, но в линковке `test_workspaces` отсутствовал `canvas_clip.o`.
+- Решение: в `Makefile` для `TEST_WORKSPACES_BIN` добавлен `$(CANVAS_CLIP_OBJ)`.
+- Проблема: в `gesture.asm` ранее отсутствовало распознавание multi-touch жестов из ТЗ STEP 34.
+- Решение: добавлены fast-path ветки для `two-finger swipe` и `three-finger up/down` в обработчике `INPUT_TOUCH_MOVE`.
+
+### Метрики
+- Размер бинарника `build/test_workspaces`: **104304** байт.
+- Новые файлы STEP 34: **6** (`workspaces.inc`, `workspaces.asm`, `hub.asm`, `overview.asm`, `transitions.asm`, `test_workspaces.asm`).
+
+### Статус
+✅ Завершён
