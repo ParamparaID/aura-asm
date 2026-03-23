@@ -44,15 +44,15 @@
 - [x] Все тесты проходят
 
 ## STEP 33: Window Manager (тайловый + плавающий)
-- [ ] `src/compositor/wm.asm` — window manager state: список окон, Z-order, focus stack
-- [ ] `src/compositor/tiling.asm` — тайловый режим: binary split, master/stack layout
-- [ ] `src/compositor/tiling.asm` — операции: split horizontal/vertical, resize, swap, move
-- [ ] `src/compositor/floating.asm` — плавающий режим: drag, resize, snap-to-edge
-- [ ] `src/compositor/floating.asm` — snap: к краям экрана, к другим окнам, половина/четверть экрана
-- [ ] Переключение тайловый ↔ плавающий (per-window и глобально)
-- [ ] Хоткеи: Super+Enter (новый терминал), Super+Q (закрыть), Super+H/V (split), Super+Arrows (focus)
-- [ ] `tests/unit/test_wm.asm` — тест: добавить 3 окна, проверить tiling layout, переключить в float
-- [ ] Все тесты проходят
+- [x] `src/compositor/wm.asm` — window manager state: список окон, Z-order, focus stack
+- [x] `src/compositor/tiling.asm` — тайловый режим: binary split, master/stack layout
+- [x] `src/compositor/tiling.asm` — операции: split horizontal/vertical, resize, swap, move
+- [x] `src/compositor/floating.asm` — плавающий режим: drag, resize, snap-to-edge
+- [x] `src/compositor/floating.asm` — snap: к краям экрана, к другим окнам, половина/четверть экрана
+- [x] Переключение тайловый ↔ плавающий (per-window и глобально)
+- [x] Хоткеи: Super+Enter (новый терминал), Super+Q (закрыть), Super+H/V (split), Super+Arrows (focus)
+- [x] `tests/unit/test_wm.asm` — тест: добавить 3 окна, проверить tiling layout, переключить в float
+- [x] Все тесты проходят
 
 ## STEP 34: Hub и виртуальные рабочие столы
 - [ ] `src/compositor/hub.asm` — Hub (домашний экран): widget cards, свободная компоновка
@@ -79,4 +79,4 @@
 
 ---
 
-**Прогресс Phase 3: STEP 30–32 по чеклисту выполнены; далее STEP 33**
+**Прогресс Phase 3: STEP 30–33 по чеклисту выполнены; далее STEP 34**

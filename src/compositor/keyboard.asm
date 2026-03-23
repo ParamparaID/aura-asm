@@ -9,6 +9,7 @@ extern hal_lseek
 extern proto_send_event
 extern proto_send_fd
 extern compositor_bump_serial
+extern wm_handle_hotkey
 
 section .rodata
     memfd_xkb db "xkb", 0
@@ -215,18 +216,14 @@ keyboard_handle_key:
 
     cmp r13d, WL_KEYBOARD_KEY_STATE_PRESSED
     jne .forward
-    cmp r12d, KEY_ENTER
-    jne .hk_q
     mov rdi, rbx
     call compositor_meta_down
     test al, al
-    jnz .hotkey
-.hk_q:
-    cmp r12d, KEY_Q
-    jne .forward
+    jz .forward
     mov rdi, rbx
-    call compositor_meta_down
-    test al, al
+    mov esi, r12d
+    call wm_handle_hotkey
+    test eax, eax
     jnz .hotkey
 .forward:
 

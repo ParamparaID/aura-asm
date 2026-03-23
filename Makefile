@@ -36,6 +36,7 @@ TEST_LAYOUT_BIN = $(BUILD_DIR)/test_layout
 TEST_GESTURE_BIN = $(BUILD_DIR)/test_gesture
 TEST_THEME_BIN = $(BUILD_DIR)/test_theme
 TEST_COMPOSITOR_BIN = $(BUILD_DIR)/test_compositor_server
+TEST_WM_BIN = $(BUILD_DIR)/test_wm
 
 HAL_SYSCALL_OBJ = $(BUILD_DIR)/hal_syscall.o
 HAL_ERRNO_OBJ = $(BUILD_DIR)/hal_errno.o
@@ -119,6 +120,7 @@ TEST_LAYOUT_OBJ = $(BUILD_DIR)/test_layout.o
 TEST_GESTURE_OBJ = $(BUILD_DIR)/test_gesture.o
 TEST_THEME_OBJ = $(BUILD_DIR)/test_theme.o
 TEST_COMPOSITOR_OBJ = $(BUILD_DIR)/test_compositor_server.o
+TEST_WM_OBJ = $(BUILD_DIR)/test_wm.o
 COMPOSITOR_SERVER_OBJ = $(BUILD_DIR)/compositor_server.o
 COMPOSITOR_PROTOCOL_OBJ = $(BUILD_DIR)/compositor_protocol.o
 COMPOSITOR_REGISTRY_OBJ = $(BUILD_DIR)/compositor_registry.o
@@ -130,9 +132,13 @@ COMPOSITOR_SEAT_OBJ = $(BUILD_DIR)/compositor_seat.o
 COMPOSITOR_KEYBOARD_OBJ = $(BUILD_DIR)/compositor_keyboard.o
 COMPOSITOR_POINTER_OBJ = $(BUILD_DIR)/compositor_pointer.o
 COMPOSITOR_TOUCH_SERVER_OBJ = $(BUILD_DIR)/compositor_touch_server.o
+COMPOSITOR_WM_OBJ = $(BUILD_DIR)/compositor_wm.o
+COMPOSITOR_TILING_OBJ = $(BUILD_DIR)/compositor_tiling.o
+COMPOSITOR_FLOATING_OBJ = $(BUILD_DIR)/compositor_floating.o
 HAL_LIBINPUT_OBJ = $(BUILD_DIR)/hal_libinput.o
 HAL_DRM_OBJ = $(BUILD_DIR)/hal_drm.o
-COMPOSITOR_INPUT_OBJS = $(COMPOSITOR_SEAT_OBJ) $(COMPOSITOR_KEYBOARD_OBJ) $(COMPOSITOR_POINTER_OBJ) $(COMPOSITOR_TOUCH_SERVER_OBJ)
+COMPOSITOR_WM_OBJS = $(COMPOSITOR_WM_OBJ) $(COMPOSITOR_TILING_OBJ) $(COMPOSITOR_FLOATING_OBJ)
+COMPOSITOR_INPUT_OBJS = $(COMPOSITOR_SEAT_OBJ) $(COMPOSITOR_KEYBOARD_OBJ) $(COMPOSITOR_POINTER_OBJ) $(COMPOSITOR_TOUCH_SERVER_OBJ) $(COMPOSITOR_WM_OBJS)
 TEST_SURFACES_OBJ = $(BUILD_DIR)/test_surfaces.o
 TEST_SURFACES_BIN = $(BUILD_DIR)/test_surfaces
 TEST_INPUT_ROUTING_OBJ = $(BUILD_DIR)/test_input_routing.o
@@ -145,7 +151,7 @@ WIDGET_TERMINAL_STUBS_OBJ = $(BUILD_DIR)/widget_terminal_stubs.o
 all: $(AURA_SHELL_BIN)
 
 # Build and run unit tests
-test: test_syscall test_memory test_threads test_event test_ipc test_canvas test_lexer test_parser test_executor test_pipeline test_builtins test_jobs test_truetype test_png test_rendering test_physics test_widgets test_layout test_gesture test_theme test_compositor_server test_surfaces test_input_routing
+test: test_syscall test_memory test_threads test_event test_ipc test_canvas test_lexer test_parser test_executor test_pipeline test_builtins test_jobs test_truetype test_png test_rendering test_physics test_widgets test_layout test_gesture test_theme test_compositor_server test_surfaces test_input_routing test_wm
 
 run: $(AURA_SHELL_BIN)
 	./$(AURA_SHELL_BIN)
@@ -227,6 +233,9 @@ test_surfaces: $(TEST_SURFACES_BIN)
 
 test_input_routing: $(TEST_INPUT_ROUTING_BIN)
 	./$(TEST_INPUT_ROUTING_BIN)
+
+test_wm: $(TEST_WM_BIN)
+	./$(TEST_WM_BIN)
 
 test_window_strict:
 	$(MAKE) WAYLAND_STRICT=1 test_window -B
@@ -507,6 +516,15 @@ $(COMPOSITOR_POINTER_OBJ): src/compositor/pointer.asm src/hal/linux_x86_64/defs.
 $(COMPOSITOR_TOUCH_SERVER_OBJ): src/compositor/touch_server.asm src/hal/linux_x86_64/defs.inc src/compositor/compositor.inc | $(BUILD_DIR)
 	$(NASM) $(NASM_FLAGS) $< -o $@
 
+$(COMPOSITOR_WM_OBJ): src/compositor/wm.asm src/compositor/wm.inc src/compositor/compositor.inc | $(BUILD_DIR)
+	$(NASM) $(NASM_FLAGS) $< -o $@
+
+$(COMPOSITOR_TILING_OBJ): src/compositor/tiling.asm src/compositor/wm.inc src/compositor/compositor.inc | $(BUILD_DIR)
+	$(NASM) $(NASM_FLAGS) $< -o $@
+
+$(COMPOSITOR_FLOATING_OBJ): src/compositor/floating.asm src/compositor/wm.inc src/compositor/compositor.inc | $(BUILD_DIR)
+	$(NASM) $(NASM_FLAGS) $< -o $@
+
 $(HAL_LIBINPUT_OBJ): src/hal/linux_x86_64/libinput.asm src/hal/linux_x86_64/defs.inc | $(BUILD_DIR)
 	$(NASM) $(NASM_FLAGS) $< -o $@
 
@@ -597,7 +615,13 @@ $(TEST_SURFACES_BIN): $(HAL_SYSCALL_OBJ) $(HAL_ERRNO_OBJ) $(CORE_MEMORY_OBJ) $(C
 $(TEST_INPUT_ROUTING_OBJ): tests/unit/test_input_routing.asm src/hal/linux_x86_64/defs.inc src/compositor/compositor.inc | $(BUILD_DIR)
 	$(NASM) $(NASM_FLAGS) $< -o $@
 
+$(TEST_WM_OBJ): tests/unit/test_wm.asm src/hal/linux_x86_64/defs.inc src/compositor/compositor.inc src/compositor/wm.inc | $(BUILD_DIR)
+	$(NASM) $(NASM_FLAGS) $< -o $@
+
 $(TEST_INPUT_ROUTING_BIN): $(HAL_SYSCALL_OBJ) $(HAL_ERRNO_OBJ) $(CORE_MEMORY_OBJ) $(CORE_EVENT_OBJ) $(HAL_WAYLAND_OBJ) $(COMPOSITOR_PROTOCOL_OBJ) $(COMPOSITOR_REGISTRY_OBJ) $(COMPOSITOR_SERVER_OBJ) $(COMPOSITOR_SURFACE_OBJ) $(COMPOSITOR_SHM_OBJ) $(COMPOSITOR_XDG_OBJ) $(COMPOSITOR_INPUT_OBJS) $(TEST_INPUT_ROUTING_OBJ)
+	$(LD) $(LD_FLAGS) -o $@ $^
+
+$(TEST_WM_BIN): $(HAL_SYSCALL_OBJ) $(COMPOSITOR_WM_OBJS) $(TEST_WM_OBJ)
 	$(LD) $(LD_FLAGS) -o $@ $^
 
 $(AURA_SHELL_BIN): $(HAL_SYSCALL_OBJ) $(HAL_PROCESS_OBJ) $(HAL_SIGNALS_OBJ) $(HAL_WAYLAND_OBJ) $(HAL_WAYLAND_INPUT_OBJ) $(HAL_LIBINPUT_OBJ) $(HAL_DRM_OBJ) $(CORE_MEMORY_OBJ) $(CORE_EVENT_OBJ) $(CORE_INPUT_OBJ) $(CORE_GESTURE_OBJ) $(GUI_WINDOW_OBJ) $(GUI_WIDGET_OBJ) $(WIDGET_OBJS) $(GUI_THEME_OBJ) $(GUI_TERMINAL_OBJ) $(GUI_LAYOUT_OBJ) $(SHELL_REPL_OBJ) $(SHELL_LEXER_OBJ) $(SHELL_PARSER_OBJ) $(SHELL_EXECUTOR_OBJ) $(SHELL_PIPELINE_OBJ) $(SHELL_VARIABLES_OBJ) $(SHELL_ALIAS_OBJ) $(SHELL_HISTORY_OBJ) $(SHELL_JOBS_OBJ) $(SHELL_BUILTINS_OBJ) $(CANVAS_RASTERIZER_OBJ) $(CANVAS_TEXT_OBJ) $(CANVAS_SIMD_OBJ) $(CANVAS_TRUETYPE_OBJ) $(CANVAS_PNG_OBJ) $(CANVAS_GRADIENT_OBJ) $(CANVAS_ROUNDED_OBJ) $(CANVAS_BLUR_OBJ) $(CANVAS_COMPOSITE_OBJ) $(CANVAS_LINE_OBJ) $(CANVAS_CLIP_OBJ) $(CANVAS_PHYSICS_OBJ) $(COMPOSITOR_PROTOCOL_OBJ) $(COMPOSITOR_REGISTRY_OBJ) $(COMPOSITOR_SERVER_OBJ) $(COMPOSITOR_SURFACE_OBJ) $(COMPOSITOR_SHM_OBJ) $(COMPOSITOR_XDG_OBJ) $(COMPOSITOR_RENDER_OBJ) $(COMPOSITOR_INPUT_OBJS) $(MAIN_OBJ)
