@@ -47,6 +47,21 @@
 %define sys_lseek            8
 %define sys_openat           257
 %define sys_getdents64       217
+%define sys_newfstatat       262
+%define sys_rename           82
+%define sys_renameat2        316
+%define sys_unlinkat         263
+%define sys_rmdir            84
+%define sys_mkdir            83
+%define sys_symlink          88
+%define sys_readlink         89
+%define sys_chmod            90
+%define sys_chown            92
+%define sys_utimensat        280
+%define sys_fchmodat         268
+%define sys_fchownat         260
+%define sys_symlinkat        266
+%define sys_readlinkat       267
 
 ; Uppercase aliases for readability in code.
 %define SYS_READ             sys_read
@@ -89,6 +104,21 @@
 %define SYS_LSEEK            sys_lseek
 %define SYS_OPENAT           sys_openat
 %define SYS_GETDENTS64       sys_getdents64
+%define SYS_NEWFSTATAT       sys_newfstatat
+%define SYS_RENAME           sys_rename
+%define SYS_RENAMEAT2        sys_renameat2
+%define SYS_UNLINKAT         sys_unlinkat
+%define SYS_RMDIR            sys_rmdir
+%define SYS_MKDIR            sys_mkdir
+%define SYS_SYMLINK          sys_symlink
+%define SYS_READLINK         sys_readlink
+%define SYS_CHMOD            sys_chmod
+%define SYS_CHOWN            sys_chown
+%define SYS_UTIMENSAT        sys_utimensat
+%define SYS_FCHMODAT         sys_fchmodat
+%define SYS_FCHOWNAT         sys_fchownat
+%define SYS_SYMLINKAT        sys_symlinkat
+%define SYS_READLINKAT       sys_readlinkat
 
 ; --- socket ---
 %define AF_UNIX              1
@@ -107,6 +137,8 @@
 %define O_CLOEXEC            524288
 %define O_DIRECTORY          65536
 %define AT_FDCWD             -100
+%define AT_REMOVEDIR         0x200
+%define AT_SYMLINK_NOFOLLOW  0x100
 
 ; --- mmap(2) protection flags ---
 %define PROT_READ            1
@@ -176,6 +208,21 @@
 %define STDIN                0
 %define STDOUT               1
 %define STDERR               2
+
+; --- dirent/stat types ---
+%define DT_UNKNOWN           0
+%define DT_FIFO              1
+%define DT_CHR               2
+%define DT_DIR               4
+%define DT_BLK               6
+%define DT_REG               8
+%define DT_LNK               10
+%define DT_SOCK              12
+
+%define S_IFMT               0xF000
+%define S_IFDIR              0x4000
+%define S_IFREG              0x8000
+%define S_IFLNK              0xA000
 
 ; --- socket cmsg / memfd ---
 %define SOL_SOCKET           1

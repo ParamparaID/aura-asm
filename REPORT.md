@@ -963,3 +963,34 @@ Phase 2 завершена. Phase 3: STEP 30–33 (server, registry, surfaces, S
 
 ### Готовность к Phase 4
 Phase 3 завершена. Готов к Phase 4 (File Manager).
+
+---
+
+## STEP 40: VFS и файловые операции — 2026-03-23
+
+### Что сделано
+- Добавлен `src/hal/linux_x86_64/fs.asm` с HAL-обёртками: `hal_getdents64`, `hal_newfstatat`, `hal_stat`, `hal_lstat`, `hal_rename`, `hal_unlinkat`, `hal_rmdir`, `hal_mkdir`, `hal_symlink`, `hal_readlink`, `hal_chmod`, `hal_chown`, `hal_utimensat`.
+- Расширен `src/hal/linux_x86_64/defs.inc`: syscall-константы для FS, `AT_REMOVEDIR`, `AT_SYMLINK_NOFOLLOW`, `DT_*`, `S_IF*`.
+- Добавлен `src/fm/vfs.inc`: ABI-константы для `VfsProvider`, `DirEntry`, compare-результатов и `struct stat`.
+- Добавлен `src/fm/vfs.asm`: реестр провайдеров, выбор провайдера по схеме URI, dispatch API (`vfs_open_dir/read_entries/stat/read_file/write_file/mkdir/rmdir/unlink/rename/copy`), `vfs_init`.
+- Добавлен `src/fm/vfs_local.asm`: Local FS provider (`open_dir/read_entry/close_dir/stat/read/write/mkdir/rmdir/unlink/rename/copy`) через Linux syscall-слой.
+- Добавлен `src/fm/operations.asm`: высокоуровневые операции `op_copy`, `op_move`, `op_delete`, `op_calc_dir_size`, `op_compare_dirs`, плюс async-обвязки.
+- Добавлен `src/fm/search.asm`: `search_by_name` с `*`/`?` glob и рекурсивным обходом, а также базовые реализации `search_by_content` и `search_by_criteria`.
+- Добавлен `tests/unit/test_vfs.asm`: покрытие readdir/stat/copy file/copy dir recursive/delete recursive/search by name/compare dirs.
+- Обновлён `Makefile`: сборка `src/fm/*`, `src/hal/linux_x86_64/fs.asm`, новая цель `test_vfs`, интеграция в `test`.
+- Добавлен `TODO_PHASE4.md` в репозиторий и отмечено завершение STEP 40.
+
+### Результаты тестов
+- `wsl make test_vfs -B`: PASSED (`ALL TESTS PASSED`).
+- `wsl make test`: PASSED (полный regression suite, включая `test_vfs`).
+
+### Проблемы и решения
+- Проблема: неверная передача аргументов при VFS-dispatch ломала `stat/read/write` и часть операций.
+- Решение: исправлена упаковка `(path, path_len, ...)` и передача аргументов во всех `vfs_*` wrappers.
+- Проблема: `rmdir` вызывался через `unlinkat(..., flags=0)`, что давало `EISDIR`.
+- Решение: поправлен `hal_unlinkat`/`hal_rmdir` (корректный `AT_REMOVEDIR`).
+- Проблема: рекурсивный `search_by_name` падал из-за порчи счётчика и неверного join-path state.
+- Решение: стабилизированы регистры и рекурсия, исправлено хранение счётчика результатов.
+
+### Статус
+✅ Завершён
