@@ -59,6 +59,10 @@ extern overview_enter
 extern overview_render
 extern overview_handle_input
 extern overview_exit
+extern cursor_init
+extern cursor_get_global
+extern cursor_update_pos
+extern cursor_render
 
 %define KEY_PRESSED                     1
 %define BLINK_INTERVAL_NS               500000000
@@ -66,6 +70,10 @@ extern overview_exit
 %define BOTTOM_EDGE_PX_DEFAULT          72
 %define MAIN_VIEW_W_DEFAULT             1024
 %define MAIN_VIEW_H_DEFAULT             768
+%define INPUT_EVENT_TYPE_OFF            0
+%define INPUT_MOUSE_MOVE                2
+%define INPUT_EVENT_MOUSE_X_OFF         28
+%define INPUT_EVENT_MOUSE_Y_OFF         32
 
 section .rodata
     env_wl_display      db "WAYLAND_DISPLAY", 0
@@ -97,6 +105,7 @@ aura_run_mode       resb 1
     anim_sched          resb 1200
     ws_mgr_ptr          resq 1
     hub_ptr             resq 1
+    cursor_ptr          resq 1
     theme_file_ptr      resq 1
     theme_file_len      resd 1
 
@@ -400,6 +409,9 @@ _start:
     mov rsi, [rel term_widget]
     call widget_add_child
 
+    call cursor_init
+    mov [rel cursor_ptr], rax
+
     mov rdi, [rel term_widget]
     call widget_focus
 
@@ -443,6 +455,13 @@ _start:
     call main_handle_gesture
 
 .dispatch_widgets:
+    cmp dword [rel event_tmp + INPUT_EVENT_TYPE_OFF], INPUT_MOUSE_MOVE
+    jne .widgets_only
+    mov rdi, [rel cursor_ptr]
+    mov esi, [rel event_tmp + INPUT_EVENT_MOUSE_X_OFF]
+    mov edx, [rel event_tmp + INPUT_EVENT_MOUSE_Y_OFF]
+    call cursor_update_pos
+.widgets_only:
 
     mov rdi, [rel root_widget]
     lea rsi, [rel event_tmp]
@@ -497,6 +516,9 @@ _start:
     xor ecx, ecx
     xor r8d, r8d
     call widget_render
+    mov rdi, [rel cursor_ptr]
+    mov rsi, r11
+    call cursor_render
 
     mov rdi, [rel main_window_ptr]
     call window_present

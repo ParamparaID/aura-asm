@@ -5,6 +5,8 @@
 extern proto_send_event
 extern compositor_bump_serial
 extern keyboard_set_focus
+extern cursor_get_global
+extern cursor_update_pos
 
 section .bss
     ph_scratch resq 32
@@ -138,6 +140,11 @@ pointer_handle_motion:
     mov rbx, rdi
     mov r12d, esi
     mov r13d, edx
+    call cursor_get_global
+    mov rdi, rax
+    mov esi, r12d
+    mov edx, r13d
+    call cursor_update_pos
 
     mov rdi, rbx
     mov esi, r12d

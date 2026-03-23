@@ -7,6 +7,7 @@ extern proto_send_delete_id
 extern proto_send_global
 extern client_resource_add
 extern seat_on_bind
+extern output_on_bind
 
 section .rodata
     iface_wl_compositor db "wl_compositor", 0
@@ -24,6 +25,9 @@ section .text
 global registry_dispatch_display
 global registry_dispatch_registry
 global compositor_bump_serial
+
+%define OUTPUT_DEFAULT_W  1280
+%define OUTPUT_DEFAULT_H  720
 
 compositor_bump_serial:
     mov rax, [rdi + CC_SERVER_OFF]
@@ -266,6 +270,13 @@ registry_dispatch_registry:
     xor ecx, ecx
     mov rdi, rbx
     call client_resource_add
+    test rax, rax
+    jz .out
+    mov rdi, rbx
+    mov esi, r12d
+    mov edx, OUTPUT_DEFAULT_W
+    mov ecx, OUTPUT_DEFAULT_H
+    call output_on_bind
 .out:
     pop r15
     pop r14

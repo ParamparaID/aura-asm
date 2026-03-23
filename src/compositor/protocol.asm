@@ -15,6 +15,7 @@ extern xdg_dispatch_wm_base
 extern xdg_dispatch_xdg_surface
 extern xdg_dispatch_xdg_toplevel
 extern seat_dispatch_seat
+extern output_dispatch_output
 
 section .text
 global proto_recv
@@ -402,6 +403,8 @@ proto_dispatch:
     je .as_xdg_top
     cmp r10d, RESOURCE_SEAT
     je .as_seat
+    cmp r10d, RESOURCE_OUTPUT
+    je .as_output
 .out:
     pop r15
     pop r14
@@ -486,6 +489,14 @@ proto_dispatch:
     mov rcx, r14
     mov r8d, r15d
     call seat_dispatch_seat
+    jmp .out
+.as_output:
+    mov rdi, rbx
+    mov esi, r12d
+    mov edx, r13d
+    mov rcx, r14
+    mov r8d, r15d
+    call output_dispatch_output
     jmp .out
 
 ; proto_recv(client) -> rax: 0 ok, -1 disconnect/error

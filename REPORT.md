@@ -915,3 +915,51 @@ Phase 2 завершена. Phase 3: STEP 30–33 (server, registry, surfaces, S
 
 ### Статус
 ✅ Завершён
+
+---
+
+## STEP 35: Декорации и финальная интеграция — 2026-03-23
+
+### Что сделано
+- Добавлен `src/compositor/decorations.asm`: SSD-декорации (title bar, border, кнопки close/maximize/minimize), 44x44 hit-targets, `decoration_hit_test`, `decoration_handle_input`, helper `decoration_render_surface`.
+- Добавлен `src/compositor/cursor.asm`: встроенный MVP-курсор (default arrow), API `cursor_init/cursor_set_shape/cursor_update_pos/cursor_render`, global cursor state.
+- Добавлен `src/compositor/output.asm`: `wl_output` bind-инициализация с `geometry/mode/scale/done`, плюс безопасный output-dispatch stub.
+- Обновлён `src/compositor/compositor_render.asm`: интеграция SSD перед draw buffer и отрисовка курсора последним (правильный render order).
+- Обновлён `src/compositor/registry.asm`: при `wl_registry.bind` для `wl_output` теперь сразу отправляются output events.
+- Обновлён `src/compositor/protocol.asm`: добавлен dispatch ветки для `RESOURCE_OUTPUT`.
+- Обновлён `src/compositor/pointer.asm`: pointer motion обновляет compositor-cursor позицию.
+- Обновлён `src/main.asm`: инициализация курсора и его отрисовка поверх UI; позиция курсора обновляется по `INPUT_MOUSE_MOVE`.
+- Добавлен `tests/unit/test_decorations.asm`: render/hit-test/cursor/integration flow для compositor path.
+- Обновлён `Makefile`: подключены `decorations/cursor/output`, добавлена цель `test_decorations`, обновлены линковки test/build targets.
+- Обновлён `TODO_PHASE3.md`: STEP 35 отмечен выполненным.
+- XWayland и dirty-rect оставлены как дальнейшие TODO (в рамках MVP шага использован full redraw fallback).
+
+### Результаты тестов
+- `wsl make test_decorations -B`: PASSED (`ALL TESTS PASSED`).
+- `wsl make test_surfaces test_workspaces aura-shell -B`: PASSED.
+
+### Статус
+✅ Завершён
+
+## Phase 3 — ИТОГО
+
+### Статистика
+- Новые `.asm` файлы: **27**
+- Новые строки кода: **9735**
+- Размер бинарника `aura-shell`: **286200** байт
+- Тесты Phase 3: **6 passed, 0 failed**
+
+### Возможности
+- Wayland compositor (server-side protocol)
+- Surface management + SHM buffers
+- Input routing (keyboard/pointer/touch) к клиентам
+- Тайловый + плавающий оконный менеджер
+- Hub (домашний экран) с виджетами
+- Виртуальные рабочие столы с animated transitions
+- Overview (Exposé)
+- Server-side decorations с glassmorphism (MVP)
+- DRM/KMS (standalone mode, MVP)
+- Nested mode (запуск внутри другого compositor)
+
+### Готовность к Phase 4
+Phase 3 завершена. Готов к Phase 4 (File Manager).

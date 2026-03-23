@@ -8,6 +8,8 @@ extern proto_send_event
 extern proto_send_delete_id
 extern compositor_bump_serial
 extern proto_flush
+extern decoration_render_surface
+extern cursor_render_global
 
 section .bss
     cr_saved_server   resq 1
@@ -121,8 +123,23 @@ compositor_render:
     mov rsi, [rdi + BUF_PIXELS_OFF]
     test rsi, rsi
     jz .dr
+    push rdi
     push rcx
     push r15
+    mov rdi, r15
+    mov rsi, r12
+    xor edx, edx
+    xor ecx, ecx
+    mov rax, [rbx + CS_KEYBOARD_FOCUS_OFF]
+    cmp rax, r15
+    jne .no_focus
+    mov ecx, 1
+.no_focus:
+    call decoration_render_surface
+    pop r15
+    pop rcx
+    pop rdi
+    mov rsi, [rdi + BUF_PIXELS_OFF]
     mov r8d, dword [rdi + BUF_WIDTH_OFF]
     mov r9d, dword [rdi + BUF_HEIGHT_OFF]
     mov r10d, dword [rdi + BUF_STRIDE_OFF]
@@ -130,11 +147,12 @@ compositor_render:
     mov ecx, dword [r15 + SF_SCREEN_Y_OFF]
     mov rdi, r12
     call canvas_draw_image_raw
-    pop r15
-    pop rcx
     jmp .dr
 
 .frames:
+    mov rdi, r12
+    call cursor_render_global
+
     mov rdi, rbx
     call compositor_send_frame_callbacks
 
