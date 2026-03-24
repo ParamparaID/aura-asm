@@ -79,6 +79,31 @@
 ### Статус
 ✅ Завершён
 
+## STEP 42: Просмотрщик и архивация — 2026-03-23
+
+### Что сделано
+- Добавлен `src/fm/viewer.inc` с layout-константами `Viewer` и типами синтаксиса (`SYNTAX_*`).
+- Добавлен `src/fm/viewer.asm`: `viewer_open` (чтение файла в mmap-буфер), индексация строк, авто-определение синтаксиса по расширению, `viewer_search` (substring), `viewer_handle_input` (scroll/next-hit/hex-toggle/close), `viewer_render` (MVP-отрисовка).
+- Добавлен `src/fm/archive.asm` с базовыми функциями архивов: `parse_octal`, `tar_list`, `tar_extract`, `tar_extract_all`, `tar_create`, `targz_open`, `zip_list`, `zip_extract`, `zip_create` (stored MVP).
+- Добавлен `src/fm/vfs_archive.asm`: провайдер `VFS_ARCHIVE` для URI-схем `tar://` и `zip://`, чтение списка записей архива через VFS API (`open_dir/read_entry/close_dir`).
+- Обновлён `src/fm/vfs.asm`: регистрация архивного провайдера в `vfs_init`, распознавание `zip://` в `vfs_get_provider`.
+- Добавлены тесты: `tests/unit/test_viewer.asm` и `tests/unit/test_archive.asm`.
+- Обновлён `Makefile`: новые объекты `fm_viewer`, `fm_archive`, `fm_vfs_archive`; цели `test_viewer`, `test_archive`; включение новых тестов в общий `test`.
+
+### Результаты тестов
+- `wsl make test_viewer -B`: PASSED.
+- `wsl make test_archive -B`: PASSED.
+- `wsl make test -B`: PASSED (включая новые `test_viewer`, `test_archive`).
+
+### Проблемы и решения
+- Проблема: в новых архивных/просмотрных модулях были ошибки адресации x86_64 (`invalid effective address`) и порча caller-saved регистров.
+- Решение: исправлена адресация через промежуточные регистры и стабилизировано сохранение критичных значений между syscall-вызовами.
+- Проблема: линковка `test_vfs`/`test_panel` после добавления `archive.asm` требовала `deflate_inflate`.
+- Решение: добавлен `$(CANVAS_PNG_OBJ)` в соответствующие link-цепочки `Makefile`.
+
+### Статус
+✅ Завершён
+
 ## STEP 05: AuraCanvas — базовый растеризатор — 2026-03-20
 
 ### Что сделано

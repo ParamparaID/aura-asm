@@ -2,6 +2,7 @@
 %include "src/fm/vfs.inc"
 
 extern local_provider_get
+extern archive_provider_get
 
 section .bss
     vfs_providers            resq VFS_MAX_PROVIDERS
@@ -37,6 +38,12 @@ vfs_init:
     xor eax, eax
     mov dword [rel vfs_provider_count], eax
     call local_provider_get
+    test rax, rax
+    jz .ok
+    mov rdi, rax
+    call vfs_register_provider
+.ok_local:
+    call archive_provider_get
     test rax, rax
     jz .ok
     mov rdi, rax
@@ -87,12 +94,29 @@ vfs_get_provider:
     jmp .search
 .chk_tar:
     cmp r12d, 6
-    jb .search
+    jb .chk_zip
     cmp byte [rbx + 0], 't'
-    jne .search
+    jne .chk_zip
     cmp byte [rbx + 1], 'a'
-    jne .search
+    jne .chk_zip
     cmp byte [rbx + 2], 'r'
+    jne .chk_zip
+    cmp byte [rbx + 3], ':'
+    jne .chk_zip
+    cmp byte [rbx + 4], '/'
+    jne .chk_zip
+    cmp byte [rbx + 5], '/'
+    jne .chk_zip
+    mov edx, VFS_ARCHIVE
+    jmp .search
+.chk_zip:
+    cmp r12d, 6
+    jb .search
+    cmp byte [rbx + 0], 'z'
+    jne .search
+    cmp byte [rbx + 1], 'i'
+    jne .search
+    cmp byte [rbx + 2], 'p'
     jne .search
     cmp byte [rbx + 3], ':'
     jne .search
@@ -209,6 +233,7 @@ vfs_read_entries:
     lea rdi, [r13 + rax]
     lea rsi, [rsp]
     mov ecx, DIR_ENTRY_SIZE
+    cld
     rep movsb
     inc ebx
     jmp .next

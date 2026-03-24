@@ -32,16 +32,16 @@
 - [x] Все тесты проходят
 
 ## STEP 42: Просмотрщик и архивация
-- [ ] `src/fm/viewer.asm` — текстовый просмотрщик: прокрутка, поиск, подсветка синтаксиса (MVP: ключевые слова для .asm/.c/.py/.sh/.js)
-- [ ] `src/fm/viewer.asm` — hex-режим: 16 байт на строку, ASCII справа
-- [ ] `src/fm/archive.asm` — tar парсер: чтение заголовков (ustar формат), listing, извлечение
-- [ ] `src/fm/archive.asm` — tar.gz: gunzip (DEFLATE из PNG-модуля!) → tar парсер
-- [ ] `src/fm/archive.asm` — zip парсер: чтение central directory, listing, извлечение (DEFLATE)
-- [ ] `src/fm/archive.asm` — создание tar/tar.gz/zip архивов
-- [ ] VFS-интеграция: просмотр архива как директории (монтирование в VFS)
-- [ ] `tests/unit/test_viewer.asm` — тесты просмотрщика
-- [ ] `tests/unit/test_archive.asm` — тесты: создание tar, чтение, извлечение, zip listing
-- [ ] Все тесты проходят
+- [x] `src/fm/viewer.asm` — текстовый просмотрщик: прокрутка, поиск, подсветка синтаксиса (MVP: ключевые слова для .asm/.c/.py/.sh/.js)
+- [x] `src/fm/viewer.asm` — hex-режим: 16 байт на строку, ASCII справа
+- [x] `src/fm/archive.asm` — tar парсер: чтение заголовков (ustar формат), listing, извлечение
+- [x] `src/fm/archive.asm` — tar.gz: gunzip (DEFLATE из PNG-модуля!) → tar парсер
+- [x] `src/fm/archive.asm` — zip парсер: чтение central directory, listing, извлечение (DEFLATE)
+- [x] `src/fm/archive.asm` — создание tar/tar.gz/zip архивов
+- [x] VFS-интеграция: просмотр архива как директории (монтирование в VFS)
+- [x] `tests/unit/test_viewer.asm` — тесты просмотрщика
+- [x] `tests/unit/test_archive.asm` — тесты: создание tar, чтение, извлечение, zip listing
+- [x] Все тесты проходят
 
 ## STEP 43: SSH/SFTP клиент
 - [ ] `src/fm/ssh.asm` — TCP сокет: connect, send, recv
@@ -64,4 +64,4 @@
 
 ---
 
-**Прогресс Phase 4: 22/38 задач выполнено (58%)**
+**Прогресс Phase 4: 32/47 задач выполнено (68%)**

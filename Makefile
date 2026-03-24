@@ -41,6 +41,8 @@ TEST_WORKSPACES_BIN = $(BUILD_DIR)/test_workspaces
 TEST_DECORATIONS_BIN = $(BUILD_DIR)/test_decorations
 TEST_VFS_BIN = $(BUILD_DIR)/test_vfs
 TEST_PANEL_BIN = $(BUILD_DIR)/test_panel
+TEST_VIEWER_BIN = $(BUILD_DIR)/test_viewer
+TEST_ARCHIVE_BIN = $(BUILD_DIR)/test_archive
 
 HAL_SYSCALL_OBJ = $(BUILD_DIR)/hal_syscall.o
 HAL_ERRNO_OBJ = $(BUILD_DIR)/hal_errno.o
@@ -164,9 +166,14 @@ FM_OPERATIONS_OBJ = $(BUILD_DIR)/fm_operations.o
 FM_SEARCH_OBJ = $(BUILD_DIR)/fm_search.o
 FM_PANEL_OBJ = $(BUILD_DIR)/fm_panel.o
 FM_MAIN_OBJ = $(BUILD_DIR)/fm_main.o
-FM_CORE_OBJS = $(FM_VFS_OBJ) $(FM_VFS_LOCAL_OBJ) $(FM_OPERATIONS_OBJ) $(FM_SEARCH_OBJ) $(FM_PANEL_OBJ)
+FM_VIEWER_OBJ = $(BUILD_DIR)/fm_viewer.o
+FM_ARCHIVE_OBJ = $(BUILD_DIR)/fm_archive.o
+FM_VFS_ARCHIVE_OBJ = $(BUILD_DIR)/fm_vfs_archive.o
+FM_CORE_OBJS = $(FM_VFS_OBJ) $(FM_VFS_LOCAL_OBJ) $(FM_OPERATIONS_OBJ) $(FM_SEARCH_OBJ) $(FM_PANEL_OBJ) $(FM_ARCHIVE_OBJ) $(FM_VFS_ARCHIVE_OBJ)
 FM_UI_OBJS = $(FM_MAIN_OBJ)
 FM_OBJS = $(FM_CORE_OBJS)
+TEST_VIEWER_OBJ = $(BUILD_DIR)/test_viewer.o
+TEST_ARCHIVE_OBJ = $(BUILD_DIR)/test_archive.o
 TEST_SURFACES_OBJ = $(BUILD_DIR)/test_surfaces.o
 TEST_SURFACES_BIN = $(BUILD_DIR)/test_surfaces
 TEST_INPUT_ROUTING_OBJ = $(BUILD_DIR)/test_input_routing.o
@@ -179,7 +186,7 @@ WIDGET_TERMINAL_STUBS_OBJ = $(BUILD_DIR)/widget_terminal_stubs.o
 all: $(AURA_SHELL_BIN)
 
 # Build and run unit tests
-test: test_syscall test_memory test_threads test_event test_ipc test_canvas test_lexer test_parser test_executor test_pipeline test_builtins test_jobs test_truetype test_png test_rendering test_physics test_widgets test_layout test_gesture test_theme test_compositor_server test_surfaces test_input_routing test_wm test_workspaces test_decorations test_vfs test_panel
+test: test_syscall test_memory test_threads test_event test_ipc test_canvas test_lexer test_parser test_executor test_pipeline test_builtins test_jobs test_truetype test_png test_rendering test_physics test_widgets test_layout test_gesture test_theme test_compositor_server test_surfaces test_input_routing test_wm test_workspaces test_decorations test_vfs test_panel test_viewer test_archive
 
 run: $(AURA_SHELL_BIN)
 	./$(AURA_SHELL_BIN)
@@ -276,6 +283,12 @@ test_vfs: $(TEST_VFS_BIN)
 
 test_panel: $(TEST_PANEL_BIN)
 	./$(TEST_PANEL_BIN)
+
+test_viewer: $(TEST_VIEWER_BIN)
+	./$(TEST_VIEWER_BIN)
+
+test_archive: $(TEST_ARCHIVE_BIN)
+	./$(TEST_ARCHIVE_BIN)
 
 test_nested_smoke: $(AURA_SHELL_BIN)
 	bash tools/test_nested_smoke.sh
@@ -616,6 +629,15 @@ $(FM_PANEL_OBJ): src/fm/panel.asm src/fm/panel.inc src/fm/vfs.inc src/hal/linux_
 $(FM_MAIN_OBJ): src/fm/fm_main.asm src/fm/panel.inc src/gui/widget.inc src/hal/linux_x86_64/defs.inc | $(BUILD_DIR)
 	$(NASM) $(NASM_FLAGS) $< -o $@
 
+$(FM_VIEWER_OBJ): src/fm/viewer.asm src/fm/viewer.inc src/gui/widget.inc src/hal/linux_x86_64/defs.inc | $(BUILD_DIR)
+	$(NASM) $(NASM_FLAGS) $< -o $@
+
+$(FM_ARCHIVE_OBJ): src/fm/archive.asm src/fm/vfs.inc src/hal/linux_x86_64/defs.inc | $(BUILD_DIR)
+	$(NASM) $(NASM_FLAGS) $< -o $@
+
+$(FM_VFS_ARCHIVE_OBJ): src/fm/vfs_archive.asm src/fm/vfs.inc src/hal/linux_x86_64/defs.inc | $(BUILD_DIR)
+	$(NASM) $(NASM_FLAGS) $< -o $@
+
 $(HAL_LIBINPUT_OBJ): src/hal/linux_x86_64/libinput.asm src/hal/linux_x86_64/defs.inc | $(BUILD_DIR)
 	$(NASM) $(NASM_FLAGS) $< -o $@
 
@@ -721,6 +743,12 @@ $(TEST_VFS_OBJ): tests/unit/test_vfs.asm src/hal/linux_x86_64/defs.inc src/fm/vf
 $(TEST_PANEL_OBJ): tests/unit/test_panel.asm src/hal/linux_x86_64/defs.inc src/gui/widget.inc src/fm/panel.inc | $(BUILD_DIR)
 	$(NASM) $(NASM_FLAGS) $< -o $@
 
+$(TEST_VIEWER_OBJ): tests/unit/test_viewer.asm src/hal/linux_x86_64/defs.inc src/gui/widget.inc src/fm/viewer.inc | $(BUILD_DIR)
+	$(NASM) $(NASM_FLAGS) $< -o $@
+
+$(TEST_ARCHIVE_OBJ): tests/unit/test_archive.asm src/hal/linux_x86_64/defs.inc src/fm/vfs.inc | $(BUILD_DIR)
+	$(NASM) $(NASM_FLAGS) $< -o $@
+
 $(TEST_INPUT_ROUTING_BIN): $(HAL_SYSCALL_OBJ) $(HAL_ERRNO_OBJ) $(CORE_MEMORY_OBJ) $(CORE_EVENT_OBJ) $(HAL_WAYLAND_OBJ) $(COMPOSITOR_PROTOCOL_OBJ) $(COMPOSITOR_REGISTRY_OBJ) $(COMPOSITOR_SERVER_OBJ) $(COMPOSITOR_SURFACE_OBJ) $(COMPOSITOR_SHM_OBJ) $(COMPOSITOR_XDG_OBJ) $(COMPOSITOR_INPUT_OBJS) $(CANVAS_RASTERIZER_OBJ) $(CANVAS_SIMD_OBJ) $(TEST_INPUT_ROUTING_OBJ)
 	$(LD) $(LD_FLAGS) -o $@ $^
 
@@ -733,10 +761,16 @@ $(TEST_WORKSPACES_BIN): $(HAL_SYSCALL_OBJ) $(HAL_ERRNO_OBJ) $(CORE_MEMORY_OBJ) $
 $(TEST_DECORATIONS_BIN): $(HAL_SYSCALL_OBJ) $(HAL_ERRNO_OBJ) $(CORE_MEMORY_OBJ) $(CORE_EVENT_OBJ) $(HAL_WAYLAND_OBJ) $(COMPOSITOR_PROTOCOL_OBJ) $(COMPOSITOR_REGISTRY_OBJ) $(COMPOSITOR_SERVER_OBJ) $(COMPOSITOR_SURFACE_OBJ) $(COMPOSITOR_SHM_OBJ) $(COMPOSITOR_XDG_OBJ) $(COMPOSITOR_RENDER_OBJ) $(COMPOSITOR_RENDER_AUX_OBJS) $(COMPOSITOR_INPUT_OBJS) $(CANVAS_RASTERIZER_OBJ) $(CANVAS_TEXT_OBJ) $(CANVAS_SIMD_OBJ) $(TEST_DECORATIONS_OBJ)
 	$(LD) $(LD_FLAGS) -o $@ $^
 
-$(TEST_VFS_BIN): $(HAL_SYSCALL_OBJ) $(HAL_ERRNO_OBJ) $(HAL_FS_OBJ) $(CORE_MEMORY_OBJ) $(CORE_THREADS_OBJ) $(FM_CORE_OBJS) $(TEST_VFS_OBJ)
+$(TEST_VFS_BIN): $(HAL_SYSCALL_OBJ) $(HAL_ERRNO_OBJ) $(HAL_FS_OBJ) $(CORE_MEMORY_OBJ) $(CORE_THREADS_OBJ) $(CANVAS_PNG_OBJ) $(FM_CORE_OBJS) $(TEST_VFS_OBJ)
 	$(LD) $(LD_FLAGS) -o $@ $^
 
-$(TEST_PANEL_BIN): $(HAL_SYSCALL_OBJ) $(HAL_ERRNO_OBJ) $(HAL_FS_OBJ) $(CORE_MEMORY_OBJ) $(CORE_EVENT_OBJ) $(CANVAS_RASTERIZER_OBJ) $(CANVAS_TEXT_OBJ) $(CANVAS_SIMD_OBJ) $(CANVAS_TRUETYPE_OBJ) $(CANVAS_ROUNDED_OBJ) $(CANVAS_COMPOSITE_OBJ) $(CANVAS_CLIP_OBJ) $(CANVAS_PHYSICS_OBJ) $(GUI_WIDGET_OBJ) $(WIDGET_OBJS) $(WIDGET_FILE_PANEL_OBJ) $(WIDGET_TERMINAL_STUBS_OBJ) $(FM_CORE_OBJS) $(FM_UI_OBJS) $(TEST_PANEL_OBJ)
+$(TEST_PANEL_BIN): $(HAL_SYSCALL_OBJ) $(HAL_ERRNO_OBJ) $(HAL_FS_OBJ) $(CORE_MEMORY_OBJ) $(CORE_EVENT_OBJ) $(CANVAS_RASTERIZER_OBJ) $(CANVAS_TEXT_OBJ) $(CANVAS_SIMD_OBJ) $(CANVAS_TRUETYPE_OBJ) $(CANVAS_PNG_OBJ) $(CANVAS_ROUNDED_OBJ) $(CANVAS_COMPOSITE_OBJ) $(CANVAS_CLIP_OBJ) $(CANVAS_PHYSICS_OBJ) $(GUI_WIDGET_OBJ) $(WIDGET_OBJS) $(WIDGET_FILE_PANEL_OBJ) $(WIDGET_TERMINAL_STUBS_OBJ) $(FM_CORE_OBJS) $(FM_UI_OBJS) $(TEST_PANEL_OBJ)
+	$(LD) $(LD_FLAGS) -o $@ $^
+
+$(TEST_VIEWER_BIN): $(HAL_SYSCALL_OBJ) $(HAL_ERRNO_OBJ) $(HAL_FS_OBJ) $(CORE_MEMORY_OBJ) $(CANVAS_RASTERIZER_OBJ) $(CANVAS_TEXT_OBJ) $(CANVAS_SIMD_OBJ) $(FM_VIEWER_OBJ) $(TEST_VIEWER_OBJ)
+	$(LD) $(LD_FLAGS) -o $@ $^
+
+$(TEST_ARCHIVE_BIN): $(HAL_SYSCALL_OBJ) $(HAL_ERRNO_OBJ) $(HAL_FS_OBJ) $(CORE_MEMORY_OBJ) $(CANVAS_PNG_OBJ) $(FM_VFS_OBJ) $(FM_VFS_LOCAL_OBJ) $(FM_ARCHIVE_OBJ) $(FM_VFS_ARCHIVE_OBJ) $(TEST_ARCHIVE_OBJ)
 	$(LD) $(LD_FLAGS) -o $@ $^
 
 $(AURA_SHELL_BIN): $(HAL_SYSCALL_OBJ) $(HAL_PROCESS_OBJ) $(HAL_SIGNALS_OBJ) $(HAL_FS_OBJ) $(HAL_WAYLAND_OBJ) $(HAL_WAYLAND_INPUT_OBJ) $(HAL_LIBINPUT_OBJ) $(HAL_DRM_OBJ) $(CORE_MEMORY_OBJ) $(CORE_EVENT_OBJ) $(CORE_INPUT_OBJ) $(CORE_GESTURE_OBJ) $(GUI_WINDOW_OBJ) $(GUI_WIDGET_OBJ) $(WIDGET_OBJS) $(WIDGET_FILE_PANEL_OBJ) $(GUI_THEME_OBJ) $(GUI_TERMINAL_OBJ) $(GUI_LAYOUT_OBJ) $(SHELL_REPL_OBJ) $(SHELL_LEXER_OBJ) $(SHELL_PARSER_OBJ) $(SHELL_EXECUTOR_OBJ) $(SHELL_PIPELINE_OBJ) $(SHELL_VARIABLES_OBJ) $(SHELL_ALIAS_OBJ) $(SHELL_HISTORY_OBJ) $(SHELL_JOBS_OBJ) $(SHELL_BUILTINS_OBJ) $(CANVAS_RASTERIZER_OBJ) $(CANVAS_TEXT_OBJ) $(CANVAS_SIMD_OBJ) $(CANVAS_TRUETYPE_OBJ) $(CANVAS_PNG_OBJ) $(CANVAS_GRADIENT_OBJ) $(CANVAS_ROUNDED_OBJ) $(CANVAS_BLUR_OBJ) $(CANVAS_COMPOSITE_OBJ) $(CANVAS_LINE_OBJ) $(CANVAS_CLIP_OBJ) $(CANVAS_PHYSICS_OBJ) $(COMPOSITOR_PROTOCOL_OBJ) $(COMPOSITOR_REGISTRY_OBJ) $(COMPOSITOR_SERVER_OBJ) $(COMPOSITOR_SURFACE_OBJ) $(COMPOSITOR_SHM_OBJ) $(COMPOSITOR_XDG_OBJ) $(COMPOSITOR_RENDER_OBJ) $(COMPOSITOR_RENDER_AUX_OBJS) $(COMPOSITOR_INPUT_OBJS) $(COMPOSITOR_SPACES_OBJS) $(FM_CORE_OBJS) $(FM_UI_OBJS) $(MAIN_OBJ)
