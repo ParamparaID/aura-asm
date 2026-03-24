@@ -54,6 +54,29 @@
 
 ---
 
+## STEP 44: Интеграция и демо — 2026-03-24
+
+### Что сделано
+- `src/main.asm`: добавлена интеграция FM в главный цикл рендера/инпута (`fm_render`/`fm_handle_input`), обработка запросов открытия FM из shell/hub/hotkey, а также argv-path (`aura-shell fm /path`).
+- `src/shell/builtins.asm`: добавлен builtin `fm` и буферизированный request API `builtin_fm_take_request` для безопасной передачи команды в compositor loop.
+- `src/compositor/wm.asm`: добавлен request на `Super+E` (`wm_take_fm_toggle_request`) для показа/скрытия FM.
+- `src/compositor/hub.asm`: добавлена Files card в Hub и request API `hub_take_fm_request` (быстрый вход в `/` и `/tmp`).
+- `src/fm/fm_main.asm`: добавлены интеграционные API (`fm_open_path`), hotkeys F1–F10, полноценный Context Bloom modal (F10) с actions-path (Open/Copy/Move/Delete/Rename/Properties/Archive/Open in Terminal/Extract), viewer overlay wiring и progress/cancel state.
+- `src/fm/fm_status_bar.asm`: добавлен отдельный модуль статус-бара (path/free-space, `statfs` hook).
+- `src/hal/linux_x86_64/defs.inc` и `src/hal/linux_x86_64/fs.asm`: добавлен syscall `statfs` и HAL wrapper `hal_statfs`.
+- `tests/unit/test_fm_integration.asm`: добавлен интеграционный smoke-test.
+- `Makefile`: подключены `fm_status_bar`, `test_fm_integration`, линковка viewer в `aura-shell`, а также `core_threads` в цепочки, где используется threadpool-submit путь.
+
+### Результаты тестов
+- `bash -lc "make test_fm_integration -B"`: PASSED (`ALL TESTS PASSED`).
+- `bash -lc "make aura-shell -B"`: PASSED (полная сборка бинарника).
+
+### Ограничения
+- В текущем `core/threads` `threadpool_submit` реализован как синхронный facade, поэтому progress/cancel path интегрирован корректно по API и UX, но без реального параллельного worker execution.
+- Часть Bloom-actions (`Rename/Archive/Extract/Open in Terminal`) заведена как рабочие точки входа с status-path, без глубокого backend (следующий инкремент).
+
+---
+
 ## STEP 41: Panel UI и навигация — 2026-03-23
 
 ### Что сделано

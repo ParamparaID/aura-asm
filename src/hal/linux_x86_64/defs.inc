@@ -62,6 +62,7 @@
 %define sys_fchownat         260
 %define sys_symlinkat        266
 %define sys_readlinkat       267
+%define sys_statfs           137
 
 ; Uppercase aliases for readability in code.
 %define SYS_READ             sys_read
@@ -119,6 +120,7 @@
 %define SYS_FCHOWNAT         sys_fchownat
 %define SYS_SYMLINKAT        sys_symlinkat
 %define SYS_READLINKAT       sys_readlinkat
+%define SYS_STATFS          sys_statfs
 
 ; --- socket ---
 %define AF_UNIX              1

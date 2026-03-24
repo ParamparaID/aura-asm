@@ -99,6 +99,10 @@ op_copy:
     mov r13d, edx                       ; recursive
     mov r14, rcx                        ; progress_cb
     mov r15, r8                         ; cancel_flag*
+    test r14, r14
+    jz .stat_src
+    mov edi, 5
+    call r14
 
     ; cancel check
     test r15, r15
@@ -232,6 +236,11 @@ op_copy:
     test eax, eax
     js .copy_file_fail
     xor eax, eax
+    test r14, r14
+    jz .copy_file_done
+    mov edi, 100
+    call r14
+.copy_file_done:
     add rsp, 65552
     jmp .out
 .copy_file_fail:

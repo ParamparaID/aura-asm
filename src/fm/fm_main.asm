@@ -9,6 +9,7 @@ extern panel_navigate
 extern panel_go_parent
 extern panel_load
 extern panel_go_path
+extern panel_toggle_mark
 extern file_panel_create
 extern font_draw_string
 extern canvas_fill_rect_alpha
@@ -20,10 +21,19 @@ extern widget_render
 extern widget_handle_input
 extern widget_arena_alloc
 extern op_copy
+extern op_move
 extern op_delete
 extern vfs_mkdir
 extern vfs_path_len
 extern vfs_sftp_connect
+extern viewer_open
+extern viewer_close
+extern viewer_render
+extern viewer_handle_input
+extern fm_status_bar_render
+extern threadpool_init
+extern threadpool_submit
+extern op_copy_async
 
 %define FM_DUAL_PANEL              1
 %define FM_SINGLE_PANEL            2
@@ -51,7 +61,16 @@ extern vfs_sftp_connect
 %define FM_CONN_URI_OFF            (FM_CONN_STATUS_OFF + 128)
 %define FM_REMOTE_CONNECTED_OFF    (FM_CONN_URI_OFF + 256)
 %define FM_REMOTE_HOST_OFF         (FM_REMOTE_CONNECTED_OFF + 4)
-%define FM_STRUCT_SIZE             (FM_REMOTE_HOST_OFF + 128)
+%define FM_STATUS_PATH_OFF         (FM_REMOTE_HOST_OFF + 128)
+%define FM_STATUS_SUMMARY_OFF      (FM_STATUS_PATH_OFF + 256)
+%define FM_STATUS_FREE_OFF         (FM_STATUS_SUMMARY_OFF + 128)
+%define FM_PROGRESS_ACTIVE_OFF     (FM_STATUS_FREE_OFF + 64)
+%define FM_PROGRESS_PERCENT_OFF    (FM_PROGRESS_ACTIVE_OFF + 4)
+%define FM_PROGRESS_CANCEL_OFF     (FM_PROGRESS_PERCENT_OFF + 4)
+%define FM_PROGRESS_TITLE_OFF      (FM_PROGRESS_CANCEL_OFF + 4)
+%define FM_BLOOM_ACTIVE_OFF        (FM_PROGRESS_TITLE_OFF + 128)
+%define FM_BLOOM_SELECTED_OFF      (FM_BLOOM_ACTIVE_OFF + 4)
+%define FM_STRUCT_SIZE             (FM_BLOOM_SELECTED_OFF + 4)
 
 %define FM_STATUS_NEUTRAL          0
 %define FM_STATUS_OK               1
@@ -67,6 +86,16 @@ extern vfs_sftp_connect
 %define KEY_BACKSPACE              14
 %define KEY_UP                     103
 %define KEY_DOWN                   108
+%define KEY_F1                     59
+%define KEY_F2                     60
+%define KEY_F3                     61
+%define KEY_F4                     62
+%define KEY_F5                     63
+%define KEY_F6                     64
+%define KEY_F7                     65
+%define KEY_F8                     66
+%define KEY_F9                     67
+%define KEY_F10                    68
 %define MOD_CTRL                   0x02
 
 ; split pane private data (shared with split_pane.asm)
@@ -100,6 +129,20 @@ section .rodata
     fm_sftp_uri_colon              db ":",0
     fm_sftp_uri_home               db "/home/",0
     fm_sftp_uri_tmp                db "/tmp",0
+    fm_progress_copy               db "Copying...",0
+    fm_progress_delete             db "Deleting...",0
+    fm_bloom_title                 db "Context Bloom",0
+    fm_bloom_0                     db "Open",0
+    fm_bloom_1                     db "Copy",0
+    fm_bloom_2                     db "Move",0
+    fm_bloom_3                     db "Delete",0
+    fm_bloom_4                     db "Rename",0
+    fm_bloom_5                     db "Properties",0
+    fm_bloom_6                     db "Archive",0
+    fm_bloom_7                     db "Open in Terminal",0
+    fm_bloom_8                     db "Extract Here",0
+    fm_bloom_9                     db "Extract To...",0
+    fm_status_todo                 db "Action is queued for Phase 5 polish",0
 
 section .bss
     fm_pool                        resb FM_STRUCT_SIZE * FM_MAX_INSTANCES
@@ -110,6 +153,9 @@ section .bss
     fm_conn_hist_users             resb 64 * FM_CONN_HISTORY_MAX
     fm_conn_hist_count             resd 1
     fm_conn_hist_sel               resd 1
+    fm_threadpool_ptr              resq 1
+    fm_async_task                  resq 8
+    fm_progress_owner              resq 1
 
 section .text
 global fm_init
@@ -118,6 +164,7 @@ global fm_handle_input
 global fm_copy_selected
 global fm_delete_selected
 global fm_mkdir
+global fm_open_path
 
 fm_cstr_len:
     xor eax, eax
@@ -542,7 +589,7 @@ fm_append_dec:
     jz .ok
 .cp_l:
     cmp rbx, r11
-    jae .fail
+    jae .adec_fail
     dec ecx
     mov al, [rsp + rcx]
     mov [rbx], al
@@ -554,10 +601,19 @@ fm_append_dec:
     add rsp, 16
     pop rbx
     ret
-.fail:
+.adec_fail:
     xor eax, eax
     add rsp, 16
     pop rbx
+    ret
+
+fm_progress_cb:
+    ; (percent edi)
+    mov rax, [rel fm_progress_owner]
+    test rax, rax
+    jz .out
+    mov [rax + FM_PROGRESS_PERCENT_OFF], edi
+.out:
     ret
 
 fm_connect_open:
@@ -1323,7 +1379,59 @@ fm_render:
     mov rdi, rbx
     mov rsi, r12
     mov rdx, r13
+    call fm_status_bar_render
+
+    cmp dword [rbx + FM_VIEWER_ACTIVE_OFF], 0
+    je .dialogs
+    mov rdi, [rbx + FM_VIEWER_OFF]
+    test rdi, rdi
+    jz .dialogs
+    mov rsi, r12
+    mov rdx, r13
+    call viewer_render
+.dialogs:
+    cmp dword [rbx + FM_PROGRESS_ACTIVE_OFF], 0
+    je .dlg_conn
+    mov rdi, [r13 + TH_FONT_OFF]
+    test rdi, rdi
+    jz .dlg_conn
+    mov rsi, r12
+    mov edx, 250
+    mov ecx, 280
+    mov r8, fm_conn_title
+    mov r9d, 7
+    mov eax, 0xFFE7EDF7
+    call fm_draw_text
+    mov eax, [rbx + FM_PROGRESS_PERCENT_OFF]
+    cmp eax, 100
+    jle .pct_ok
+    mov eax, 100
+.pct_ok:
+    mov ecx, eax
+    imul ecx, 3
+    mov rdi, r12
+    mov esi, 250
+    mov edx, 308
+    mov r8d, 20
+    mov r9d, 0xFF2B3341
+    mov ecx, 300
+    call canvas_fill_rect_alpha
+    mov rdi, r12
+    mov esi, 250
+    mov edx, 308
+    mov ecx, ecx
+    mov r8d, 20
+    mov r9d, 0xFF5C9CFF
+    call canvas_fill_rect_alpha
+.dlg_conn:
+    mov rdi, rbx
+    mov rsi, r12
+    mov rdx, r13
     call fm_render_connect_dialog
+    mov rdi, rbx
+    mov rsi, r12
+    mov rdx, r13
+    call fm_render_bloom_dialog
     mov rdi, rbx
     mov rsi, r12
     mov rdx, r13
@@ -1335,17 +1443,495 @@ fm_render:
     ret
 
 fm_copy_selected:
-    ; stub until operation dialog/progress glue is added
+    ; copy marked files from active panel to passive panel path
+    push rbx
+    sub rsp, (VFS_MAX_PATH * 64) + VFS_MAX_PATH + 16
+    mov rbx, rdi
+    mov rdi, [rbx + FM_ACTIVE_PANEL_OFF]
+    lea rsi, [rbx + FM_TMP_PATHS_OFF]
+    lea rdx, [rbx + FM_TMP_COUNT_OFF]
+    call panel_get_marked
+    mov ecx, [rbx + FM_TMP_COUNT_OFF]
+    cmp ecx, 0
+    jg .have
+    mov rdi, [rbx + FM_ACTIVE_PANEL_OFF]
+    mov eax, [rdi + P_SELECTED_IDX_OFF]
+    mov esi, eax
+    call panel_toggle_mark
+    mov rdi, [rbx + FM_ACTIVE_PANEL_OFF]
+    lea rsi, [rbx + FM_TMP_PATHS_OFF]
+    lea rdx, [rbx + FM_TMP_COUNT_OFF]
+    call panel_get_marked
+    mov ecx, [rbx + FM_TMP_COUNT_OFF]
+    cmp ecx, 0
+    jle .fail
+.have:
+    mov rax, [rbx + FM_LEFT_PANEL_OFF]
+    mov rdx, [rbx + FM_RIGHT_PANEL_OFF]
+    cmp [rbx + FM_ACTIVE_PANEL_OFF], rax
+    jne .dst_left
+    mov rdi, rdx
+    jmp .dst_ok
+.dst_left:
+    mov rdi, rax
+.dst_ok:
+    test rdi, rdi
+    jz .fail
+    ; first item only for MVP integration
+    lea rsi, [rbx + FM_TMP_PATHS_OFF]
+    lea rdi, [rsp]
+    lea rcx, [rdi]
+    mov rdx, rsi
+.src_find_name:
+    mov al, [rdx]
+    test al, al
+    jz .name_start
+    inc rdx
+    jmp .src_find_name
+.name_start:
+    mov r8, rdx
+    ; build dst path = passive_panel.path + "/" + basename
+    mov rdi, [rbx + FM_LEFT_PANEL_OFF]
+    mov rax, [rbx + FM_ACTIVE_PANEL_OFF]
+    cmp rax, [rbx + FM_LEFT_PANEL_OFF]
+    jne .use_right
+    mov rdi, [rbx + FM_RIGHT_PANEL_OFF]
+.use_right:
+    lea rsi, [rdi + P_PATH_OFF]
+    mov edx, [rdi + P_PATH_LEN_OFF]
+    mov rdi, rsp
+    xor ecx, ecx
+.cp_base:
+    cmp ecx, edx
+    jae .after_base
+    mov al, [rsi + rcx]
+    mov [rdi + rcx], al
+    inc ecx
+    jmp .cp_base
+.after_base:
+    cmp ecx, 0
+    je .add_sl
+    cmp byte [rdi + rcx - 1], '/'
+    je .copy_name
+.add_sl:
+    mov byte [rdi + rcx], '/'
+    inc ecx
+.copy_name:
+    mov r9, r8
+    inc r9
+.cp_name:
+    mov al, [r9]
+    mov [rdi + rcx], al
+    inc rcx
+    inc r9
+    test al, al
+    jnz .cp_name
+    ; do copy via threadpool facade (sync today, async-ready API)
+    mov [rel fm_progress_owner], rbx
+    cmp qword [rel fm_threadpool_ptr], 0
+    jne .have_tp
+    mov rdi, 1
+    mov rsi, 8
+    call threadpool_init
+    mov [rel fm_threadpool_ptr], rax
+.have_tp:
+    cmp qword [rel fm_threadpool_ptr], 0
+    jne .submit_tp
+    lea rdi, [rbx + FM_TMP_PATHS_OFF]
+    mov rsi, rsp
+    mov edx, 1
+    mov rcx, fm_progress_cb
+    lea r8, [rbx + FM_PROGRESS_CANCEL_OFF]
+    call op_copy
+    jmp .after_copy
+.submit_tp:
+    lea rax, [rbx + FM_TMP_PATHS_OFF]
+    mov [rel fm_async_task + 0], rax
+    mov [rel fm_async_task + 8], rsp
+    mov dword [rel fm_async_task + 16], 1
+    mov qword [rel fm_async_task + 24], fm_progress_cb
+    lea rax, [rbx + FM_PROGRESS_CANCEL_OFF]
+    mov [rel fm_async_task + 32], rax
+    mov rdi, [rel fm_threadpool_ptr]
+    mov rsi, op_copy_async
+    lea rdx, [rel fm_async_task]
+    call threadpool_submit
+.after_copy:
+    mov rdi, [rbx + FM_LEFT_PANEL_OFF]
+    call panel_load
+    mov rdi, [rbx + FM_RIGHT_PANEL_OFF]
+    test rdi, rdi
+    jz .ok
+    call panel_load
+.ok:
+    xor eax, eax
+    add rsp, (VFS_MAX_PATH * 64) + VFS_MAX_PATH + 16
+    pop rbx
+    ret
+.fail:
     mov eax, -1
+    add rsp, (VFS_MAX_PATH * 64) + VFS_MAX_PATH + 16
+    pop rbx
     ret
 
 fm_delete_selected:
+    push rbx
+    mov rbx, rdi
+    mov rdi, [rbx + FM_ACTIVE_PANEL_OFF]
+    lea rsi, [rbx + FM_TMP_PATHS_OFF]
+    lea rdx, [rbx + FM_TMP_COUNT_OFF]
+    call panel_get_marked
+    mov ecx, [rbx + FM_TMP_COUNT_OFF]
+    cmp ecx, 0
+    jg .have
+    mov rdi, [rbx + FM_ACTIVE_PANEL_OFF]
+    mov eax, [rdi + P_SELECTED_IDX_OFF]
+    mov esi, eax
+    call panel_toggle_mark
+    mov rdi, [rbx + FM_ACTIVE_PANEL_OFF]
+    lea rsi, [rbx + FM_TMP_PATHS_OFF]
+    lea rdx, [rbx + FM_TMP_COUNT_OFF]
+    call panel_get_marked
+    mov ecx, [rbx + FM_TMP_COUNT_OFF]
+    cmp ecx, 0
+    jle .fail
+.have:
+    lea rdi, [rbx + FM_TMP_PATHS_OFF]
+    mov esi, 1
+    call op_delete
+    mov rdi, [rbx + FM_ACTIVE_PANEL_OFF]
+    call panel_load
+    xor eax, eax
+    pop rbx
+    ret
+.fail:
     mov eax, -1
+    pop rbx
     ret
 
 fm_mkdir:
-    ; dialog-driven mkdir is implemented in next step
+    ; quick mkdir with timestamp-free default name
+    push rbx
+    mov rbx, rdi
+    mov rdi, [rbx + FM_ACTIVE_PANEL_OFF]
+    lea rsi, [rdi + P_PATH_OFF]
+    mov edx, [rdi + P_PATH_LEN_OFF]
+    lea rcx, [rel fm_conn_mask_buf]
+    xor eax, eax
+.cp:
+    cmp eax, edx
+    jae .mk_name
+    mov bl, [rsi + rax]
+    mov [rcx + rax], bl
+    inc eax
+    jmp .cp
+.mk_name:
+    cmp eax, 0
+    je .slash
+    cmp byte [rcx + rax - 1], '/'
+    je .nm
+.slash:
+    mov byte [rcx + rax], '/'
+    inc eax
+.nm:
+    mov byte [rcx + rax], 'n'
+    mov byte [rcx + rax + 1], 'e'
+    mov byte [rcx + rax + 2], 'w'
+    mov byte [rcx + rax + 3], '_'
+    mov byte [rcx + rax + 4], 'd'
+    mov byte [rcx + rax + 5], 'i'
+    mov byte [rcx + rax + 6], 'r'
+    mov byte [rcx + rax + 7], 0
+    lea rdi, [rel fm_conn_mask_buf]
+    call vfs_path_len
+    mov esi, eax
+    mov edx, 0o755
+    lea rdi, [rel fm_conn_mask_buf]
+    call vfs_mkdir
+    mov rdi, [rbx + FM_ACTIVE_PANEL_OFF]
+    call panel_load
+    xor eax, eax
+    pop rbx
+    ret
+
+fm_open_path:
+    ; (fm rdi, path rsi, path_len edx) -> eax 0/-1
+    mov rax, [rdi + FM_ACTIVE_PANEL_OFF]
+    test rax, rax
+    jz .fail
+    mov rdi, rax
+    call panel_go_path
+    ret
+.fail:
     mov eax, -1
+    ret
+
+fm_open_viewer_selected:
+    ; (fm rdi) -> eax 0/-1
+    push rbx
+    mov rbx, rdi
+    mov rdi, [rbx + FM_ACTIVE_PANEL_OFF]
+    test rdi, rdi
+    jz .fail
+    mov eax, [rdi + P_SELECTED_IDX_OFF]
+    cmp eax, 0
+    jl .fail
+    cmp eax, [rdi + P_ENTRY_COUNT_OFF]
+    jge .fail
+    imul eax, DIR_ENTRY_SIZE
+    lea rcx, [rdi + P_ENTRIES_BUF_OFF + rax]
+    cmp dword [rcx + DE_TYPE_OFF], DT_DIR
+    je .fail
+    ; build absolute path into FM_CONN_URI_OFF buffer
+    lea rsi, [rdi + P_PATH_OFF]
+    mov edx, [rdi + P_PATH_LEN_OFF]
+    lea r8, [rbx + FM_CONN_URI_OFF]
+    xor eax, eax
+.cpb:
+    cmp eax, edx
+    jae .slash
+    mov bl, [rsi + rax]
+    mov [r8 + rax], bl
+    inc eax
+    jmp .cpb
+.slash:
+    cmp eax, 0
+    je .adds
+    cmp byte [r8 + rax - 1], '/'
+    je .name
+.adds:
+    mov byte [r8 + rax], '/'
+    inc eax
+.name:
+    lea rsi, [rcx + DE_NAME_OFF]
+    xor edx, edx
+.cpn:
+    mov bl, [rsi + rdx]
+    mov [r8 + rax], bl
+    inc rax
+    inc rdx
+    test bl, bl
+    jnz .cpn
+    lea rdi, [rbx + FM_CONN_URI_OFF]
+    call vfs_path_len
+    mov esi, eax
+    lea rdi, [rbx + FM_CONN_URI_OFF]
+    call viewer_open
+    test rax, rax
+    jz .fail
+    mov [rbx + FM_VIEWER_OFF], rax
+    mov dword [rbx + FM_VIEWER_ACTIVE_OFF], 1
+    xor eax, eax
+    pop rbx
+    ret
+.fail:
+    mov eax, -1
+    pop rbx
+    ret
+
+fm_bloom_get_label:
+    ; (idx edi) -> rax cstr
+    cmp edi, 0
+    je .i0
+    cmp edi, 1
+    je .i1
+    cmp edi, 2
+    je .i2
+    cmp edi, 3
+    je .i3
+    cmp edi, 4
+    je .i4
+    cmp edi, 5
+    je .i5
+    cmp edi, 6
+    je .i6
+    cmp edi, 7
+    je .i7
+    cmp edi, 8
+    je .i8
+    mov rax, fm_bloom_9
+    ret
+.i0: mov rax, fm_bloom_0
+    ret
+.i1: mov rax, fm_bloom_1
+    ret
+.i2: mov rax, fm_bloom_2
+    ret
+.i3: mov rax, fm_bloom_3
+    ret
+.i4: mov rax, fm_bloom_4
+    ret
+.i5: mov rax, fm_bloom_5
+    ret
+.i6: mov rax, fm_bloom_6
+    ret
+.i7: mov rax, fm_bloom_7
+    ret
+.i8: mov rax, fm_bloom_8
+    ret
+
+fm_render_bloom_dialog:
+    ; (fm rdi, canvas rsi, theme rdx)
+    push rbx
+    push r12
+    push r13
+    push r14
+    mov rbx, rdi
+    mov r12, rsi
+    mov r13, rdx
+    cmp dword [rbx + FM_BLOOM_ACTIVE_OFF], 0
+    je .out
+    mov rdi, r12
+    xor esi, esi
+    xor edx, edx
+    mov ecx, 800
+    mov r8d, 600
+    mov r9d, 0x90000000
+    call canvas_fill_rect_alpha
+    mov eax, 0xFF1C2230
+    push rax
+    mov rdi, r12
+    mov esi, 220
+    mov edx, 130
+    mov ecx, 360
+    mov r8d, 340
+    mov r9d, 10
+    call canvas_fill_rounded_rect
+    add rsp, 8
+    mov r14, [r13 + TH_FONT_OFF]
+    test r14, r14
+    jz .out
+    mov rdi, fm_bloom_title
+    call fm_cstr_len
+    mov r9d, eax
+    mov rdi, r14
+    mov rsi, r12
+    mov edx, 240
+    mov ecx, 152
+    mov r8, fm_bloom_title
+    mov eax, 0xFFE7EDF7
+    call fm_draw_text
+    xor r10d, r10d
+.items:
+    cmp r10d, 10
+    jge .out
+    mov eax, [rbx + FM_BLOOM_SELECTED_OFF]
+    cmp eax, r10d
+    jne .norm
+    mov eax, 0xFF2E3D55
+    push rax
+    mov rdi, r12
+    mov esi, 238
+    mov edx, r10d
+    imul edx, 28
+    add edx, 170
+    mov ecx, 324
+    mov r8d, 24
+    mov r9d, 6
+    call canvas_fill_rounded_rect
+    add rsp, 8
+.norm:
+    mov edi, r10d
+    call fm_bloom_get_label
+    mov r8, rax
+    mov rdi, r8
+    call fm_cstr_len
+    mov r9d, eax
+    mov rdi, r14
+    mov rsi, r12
+    mov edx, 248
+    mov eax, r10d
+    imul eax, 28
+    add eax, 186
+    mov ecx, eax
+    mov eax, 0xFFD4DCE8
+    call fm_draw_text
+    inc r10d
+    jmp .items
+.out:
+    pop r14
+    pop r13
+    pop r12
+    pop rbx
+    ret
+
+fm_bloom_apply:
+    ; (fm rdi) -> eax 0/-1
+    push rbx
+    mov rbx, rdi
+    mov eax, [rbx + FM_BLOOM_SELECTED_OFF]
+    cmp eax, 0
+    je .open
+    cmp eax, 1
+    je .copy
+    cmp eax, 2
+    je .move
+    cmp eax, 3
+    je .del
+    cmp eax, 5
+    je .props
+    ; todo actions
+    mov rdi, rbx
+    mov rsi, fm_status_todo
+    call fm_set_status
+    xor eax, eax
+    pop rbx
+    ret
+.open:
+    mov rdi, [rbx + FM_ACTIVE_PANEL_OFF]
+    mov esi, [rdi + P_SELECTED_IDX_OFF]
+    call panel_navigate
+    test eax, eax
+    jnz .viewer_try
+    mov rdi, rbx
+    call fm_open_viewer_selected
+.viewer_try:
+    xor eax, eax
+    pop rbx
+    ret
+.copy:
+    mov dword [rbx + FM_PROGRESS_ACTIVE_OFF], 1
+    mov dword [rbx + FM_PROGRESS_PERCENT_OFF], 5
+    mov dword [rbx + FM_PROGRESS_CANCEL_OFF], 0
+    mov rdi, fm_progress_copy
+    lea rsi, [rbx + FM_PROGRESS_TITLE_OFF]
+    mov edx, 128
+    call fm_copy_cstr
+    mov rdi, rbx
+    call fm_copy_selected
+    mov dword [rbx + FM_PROGRESS_PERCENT_OFF], 100
+    mov dword [rbx + FM_PROGRESS_ACTIVE_OFF], 0
+    xor eax, eax
+    pop rbx
+    ret
+.move:
+    mov rdi, rbx
+    mov rsi, fm_status_todo
+    call fm_set_status
+    xor eax, eax
+    pop rbx
+    ret
+.del:
+    mov dword [rbx + FM_PROGRESS_ACTIVE_OFF], 1
+    mov dword [rbx + FM_PROGRESS_PERCENT_OFF], 5
+    mov dword [rbx + FM_PROGRESS_CANCEL_OFF], 0
+    mov rdi, fm_progress_delete
+    lea rsi, [rbx + FM_PROGRESS_TITLE_OFF]
+    mov edx, 128
+    call fm_copy_cstr
+    mov rdi, rbx
+    call fm_delete_selected
+    mov dword [rbx + FM_PROGRESS_PERCENT_OFF], 100
+    mov dword [rbx + FM_PROGRESS_ACTIVE_OFF], 0
+    xor eax, eax
+    pop rbx
+    ret
+.props:
+    mov rdi, rbx
+    mov rsi, fm_conn_hint
+    call fm_set_status
+    xor eax, eax
+    pop rbx
     ret
 
 fm_handle_input:
@@ -1355,6 +1941,68 @@ fm_handle_input:
     mov rbx, rdi
     mov r12, rsi
     mov eax, [r12 + IE_TYPE_OFF]
+    cmp dword [rbx + FM_PROGRESS_ACTIVE_OFF], 0
+    je .no_progress
+    cmp eax, INPUT_KEY
+    jne .cons
+    cmp dword [r12 + IE_KEY_STATE_OFF], KEY_PRESSED
+    jne .cons
+    cmp dword [r12 + IE_KEY_CODE_OFF], KEY_ESC
+    jne .cons
+    mov dword [rbx + FM_PROGRESS_CANCEL_OFF], 1
+    mov dword [rbx + FM_PROGRESS_ACTIVE_OFF], 0
+    jmp .cons
+.no_progress:
+    cmp dword [rbx + FM_BLOOM_ACTIVE_OFF], 0
+    je .no_bloom
+    cmp eax, INPUT_KEY
+    jne .cons
+    cmp dword [r12 + IE_KEY_STATE_OFF], KEY_PRESSED
+    jne .cons
+    mov eax, [r12 + IE_KEY_CODE_OFF]
+    cmp eax, KEY_ESC
+    je .b_cancel
+    cmp eax, KEY_UP
+    je .b_up
+    cmp eax, KEY_DOWN
+    je .b_down
+    cmp eax, KEY_ENTER
+    je .b_enter
+    jmp .cons
+.b_cancel:
+    mov dword [rbx + FM_BLOOM_ACTIVE_OFF], 0
+    jmp .cons
+.b_up:
+    cmp dword [rbx + FM_BLOOM_SELECTED_OFF], 0
+    jle .cons
+    dec dword [rbx + FM_BLOOM_SELECTED_OFF]
+    jmp .cons
+.b_down:
+    cmp dword [rbx + FM_BLOOM_SELECTED_OFF], 9
+    jge .cons
+    inc dword [rbx + FM_BLOOM_SELECTED_OFF]
+    jmp .cons
+.b_enter:
+    mov rdi, rbx
+    call fm_bloom_apply
+    mov dword [rbx + FM_BLOOM_ACTIVE_OFF], 0
+    jmp .cons
+.no_bloom:
+    cmp dword [rbx + FM_VIEWER_ACTIVE_OFF], 0
+    je .no_viewer
+    cmp eax, INPUT_KEY
+    jne .cons
+    mov rdi, [rbx + FM_VIEWER_OFF]
+    mov rsi, r12
+    call viewer_handle_input
+    cmp eax, -1
+    jne .cons
+    mov rdi, [rbx + FM_VIEWER_OFF]
+    call viewer_close
+    mov qword [rbx + FM_VIEWER_OFF], 0
+    mov dword [rbx + FM_VIEWER_ACTIVE_OFF], 0
+    jmp .cons
+.no_viewer:
     cmp dword [rbx + FM_CONN_ACTIVE_OFF], 0
     jne .dialog
     cmp eax, INPUT_KEY
@@ -1364,10 +2012,26 @@ fm_handle_input:
     mov eax, [r12 + IE_KEY_CODE_OFF]
     cmp eax, KEY_TAB
     je .tab
-    cmp eax, 63                      ; F5
+    cmp eax, KEY_F1
+    je .cons
+    cmp eax, KEY_F2
+    je .cons
+    cmp eax, KEY_F3
+    je .f3
+    cmp eax, KEY_F4
+    je .cons
+    cmp eax, KEY_F5
     je .f5
-    cmp eax, 66                      ; F8
+    cmp eax, KEY_F6
+    je .f6
+    cmp eax, KEY_F7
+    je .f7
+    cmp eax, KEY_F8
     je .f8
+    cmp eax, KEY_F9
+    je .f9
+    cmp eax, KEY_F10
+    je .f10
     cmp eax, KEY_F
     je .fkey
     cmp eax, 24                      ; O key
@@ -1402,12 +2066,35 @@ fm_handle_input:
     mov dword [rax + P_ACTIVE_OFF], 0
     jmp .cons
 .f5:
+    mov dword [rbx + FM_PROGRESS_ACTIVE_OFF], 1
+    mov dword [rbx + FM_PROGRESS_PERCENT_OFF], 25
     mov rdi, rbx
     call fm_copy_selected
+    mov dword [rbx + FM_PROGRESS_PERCENT_OFF], 100
+    mov dword [rbx + FM_PROGRESS_ACTIVE_OFF], 0
+    jmp .cons
+.f3:
+    mov rdi, rbx
+    call fm_open_viewer_selected
+    jmp .cons
+.f6:
+    ; rename/move placeholder: move selected to same path (no-op)
+    jmp .cons
+.f7:
+    mov rdi, rbx
+    call fm_mkdir
     jmp .cons
 .f8:
     mov rdi, rbx
     call fm_delete_selected
+    jmp .cons
+.f9:
+    mov dword [rbx + FM_CONN_ACTIVE_OFF], 1
+    mov dword [rbx + FM_CONN_FIELD_OFF], 0
+    jmp .cons
+.f10:
+    mov dword [rbx + FM_BLOOM_ACTIVE_OFF], 1
+    mov dword [rbx + FM_BLOOM_SELECTED_OFF], 0
     jmp .cons
 .fkey:
     test dword [r12 + INPUT_EVENT_MODIFIERS_OFF], MOD_CTRL

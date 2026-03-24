@@ -34,6 +34,7 @@ global builtin_dispatch
 global builtins_get_var_store
 global builtins_get_alias_store
 global builtins_get_history
+global builtin_fm_take_request
 
 ; CommandNode layout
 %define CMD_ARGC_OFF                4
@@ -58,7 +59,8 @@ section .data
     cmd_fg                  db "fg"
     cmd_bg                  db "bg"
     cmd_wait                db "wait"
-    help_text               db "Builtins: echo cd exit true false export set unset alias unalias history help",10
+    cmd_fm                  db "fm"
+    help_text               db "Builtins: echo cd exit true false export set unset alias unalias history help jobs fg bg wait fm",10
     help_text_len           equ $ - help_text
     eq_char                 db "="
 
@@ -66,6 +68,9 @@ section .bss
     g_vars_store            resq 1
     g_alias_store           resq 1
     g_history_store         resq 1
+    g_fm_req_pending        resd 1
+    g_fm_req_path           resb 1024
+    g_fm_req_len            resd 1
 
 section .text
 
@@ -178,6 +183,36 @@ builtins_get_alias_store:
 
 builtins_get_history:
     mov rax, [rel g_history_store]
+    ret
+
+; builtin_fm_take_request(path_out, out_cap) -> eax len, 0 if none
+builtin_fm_take_request:
+    cmp dword [rel g_fm_req_pending], 0
+    jne .have
+    xor eax, eax
+    ret
+.have:
+    push rbx
+    mov rbx, rdi
+    mov ecx, [rel g_fm_req_len]
+    cmp ecx, esi
+    jb .len_ok
+    mov ecx, esi
+    dec ecx
+.len_ok:
+    xor edx, edx
+.cp:
+    cmp edx, ecx
+    jae .term
+    mov al, [rel g_fm_req_path + rdx]
+    mov [rbx + rdx], al
+    inc edx
+    jmp .cp
+.term:
+    mov byte [rbx + rdx], 0
+    mov dword [rel g_fm_req_pending], 0
+    mov eax, edx
+    pop rbx
     ret
 
 ; builtin_dispatch(cmd_name, cmd_name_len, cmd_node, state) -> exit_code or -1 (not builtin)
@@ -504,7 +539,7 @@ builtin_dispatch:
 
 .chk_wait:
     cmp r13, 4
-    jne .not_builtin
+    jne .chk_fm
     mov rdi, r12
     lea rsi, [rel cmd_wait]
     mov rdx, 4
@@ -522,6 +557,45 @@ builtin_dispatch:
     xor rdx, rdx
     call hal_waitpid
     add rsp, 16
+    xor eax, eax
+    jmp .ret
+
+.chk_fm:
+    cmp r13, 2
+    jne .not_builtin
+    mov rdi, r12
+    lea rsi, [rel cmd_fm]
+    mov rdx, 2
+    call streq_b
+    cmp rax, 1
+    jne .not_builtin
+    ; remember request so compositor loop can open FM module
+    mov dword [rel g_fm_req_pending], 1
+    cmp dword [rbx + CMD_ARGC_OFF], 2
+    jb .fm_default
+    mov ecx, dword [rbx + CMD_ARGV_LEN_OFF + 4]
+    cmp ecx, 1023
+    jbe .fm_len_ok
+    mov ecx, 1023
+.fm_len_ok:
+    xor edx, edx
+.fm_cp:
+    cmp edx, ecx
+    jae .fm_term
+    mov r8, [rbx + CMD_ARGV_OFF + 8]
+    mov al, [r8 + rdx]
+    mov [rel g_fm_req_path + rdx], al
+    inc edx
+    jmp .fm_cp
+.fm_term:
+    mov byte [rel g_fm_req_path + rdx], 0
+    mov [rel g_fm_req_len], edx
+    xor eax, eax
+    jmp .ret
+.fm_default:
+    mov byte [rel g_fm_req_path], '/'
+    mov byte [rel g_fm_req_path + 1], 0
+    mov dword [rel g_fm_req_len], 1
     xor eax, eax
     jmp .ret
 

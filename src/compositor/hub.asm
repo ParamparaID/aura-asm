@@ -31,6 +31,10 @@ extern workspaces_get_manager
 section .rodata
     hub_clock_prefix                db "Hub ", 0
     hub_clock_prefix_len            equ $ - hub_clock_prefix - 1
+    hub_fm_title                    db "Files", 0
+    hub_fm_hint                     db "Tap: Home  Tap right: /tmp", 0
+    hub_fm_path_home                db "/", 0
+    hub_fm_path_tmp                 db "/tmp", 0
 
 section .bss
     hub_global                      resb HUB_STRUCT_SIZE
@@ -42,6 +46,8 @@ section .bss
     hub_drag_active                 resd 1
     hub_clock_buf                   resb 32
     hub_clock_len                   resd 1
+    hub_fm_req_pending              resd 1
+    hub_fm_req_path                 resb 256
 
 section .text
 global hub_get_global
@@ -49,9 +55,37 @@ global hub_init
 global hub_render
 global hub_handle_input
 global hub_toggle
+global hub_take_fm_request
 
 hub_get_global:
     lea rax, [rel hub_global]
+    ret
+
+; hub_take_fm_request(path_out, out_cap) -> eax len, 0 if none
+hub_take_fm_request:
+    cmp dword [rel hub_fm_req_pending], 0
+    jne .have
+    xor eax, eax
+    ret
+.have:
+    push rbx
+    mov rbx, rdi
+    xor ecx, ecx
+.copy:
+    cmp ecx, esi
+    jae .term
+    mov al, [rel hub_fm_req_path + rcx]
+    mov [rbx + rcx], al
+    test al, al
+    jz .done
+    inc ecx
+    jmp .copy
+.term:
+    mov byte [rbx + rcx], 0
+.done:
+    mov dword [rel hub_fm_req_pending], 0
+    mov eax, ecx
+    pop rbx
     ret
 
 hub_write_2digits:
@@ -258,6 +292,44 @@ hub_render:
     jmp .preview_loop
 
 .pop_clip:
+    ; Files quick card
+    mov rdi, r12
+    mov esi, 40
+    mov edx, 380
+    sub edx, r14d
+    mov ecx, 560
+    mov r8d, 96
+    mov r9d, [r13 + T_SURFACE_OFF]
+    call canvas_fill_rect
+    mov rdi, r12
+    mov esi, 40
+    mov edx, 380
+    sub edx, r14d
+    mov ecx, 560
+    mov r8d, 96
+    mov r9d, [r13 + T_ACCENT_OFF]
+    call canvas_draw_rect
+    mov rdi, r12
+    mov esi, 56
+    mov edx, 412
+    sub edx, r14d
+    lea rcx, [rel hub_fm_title]
+    mov r8d, 5
+    mov r9d, [r13 + T_FG_OFF]
+    push qword 0
+    call canvas_draw_string
+    add rsp, 8
+    mov rdi, r12
+    mov esi, 56
+    mov edx, 444
+    sub edx, r14d
+    lea rcx, [rel hub_fm_hint]
+    mov r8d, 25
+    mov r9d, [r13 + T_FG_OFF]
+    push qword 0
+    call canvas_draw_string
+    add rsp, 8
+
     mov rdi, r12
     call canvas_pop_clip
 .out:
@@ -343,6 +415,39 @@ hub_handle_input:
     jmp .out
 
 .tap_try:
+    ; tap on Files card -> request FM open
+    mov eax, [r12 + INPUT_EVENT_MOUSE_Y_OFF]
+    cmp eax, 380
+    jl .tap_ws
+    cmp eax, 476
+    jg .tap_ws
+    mov eax, [r12 + INPUT_EVENT_MOUSE_X_OFF]
+    cmp eax, 40
+    jl .tap_ws
+    cmp eax, 600
+    jg .tap_ws
+    cmp eax, 320
+    jl .fm_home
+    lea rsi, [rel hub_fm_path_tmp]
+    jmp .fm_copy
+.fm_home:
+    lea rsi, [rel hub_fm_path_home]
+.fm_copy:
+    lea rdi, [rel hub_fm_req_path]
+    xor ecx, ecx
+.fm_loop:
+    mov al, [rsi + rcx]
+    mov [rdi + rcx], al
+    test al, al
+    jz .fm_done
+    inc ecx
+    jmp .fm_loop
+.fm_done:
+    mov dword [rel hub_fm_req_pending], 1
+    mov eax, 1
+    jmp .out
+
+.tap_ws:
     ; tap on preview strip (first row only) -> switch workspace
     mov eax, [r12 + INPUT_EVENT_MOUSE_Y_OFF]
     cmp eax, 220

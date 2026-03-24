@@ -18,6 +18,7 @@ global hal_readlink
 global hal_chmod
 global hal_chown
 global hal_utimensat
+global hal_statfs
 
 %macro syscall_6 7
     mov rax, %1
@@ -108,4 +109,9 @@ hal_chown:
 hal_utimensat:
     mov r10, rcx
     syscall_6 SYS_UTIMENSAT, rdi, rsi, rdx, r10, 0, 0
+    ret
+
+; hal_statfs(path, statfs_buf)
+hal_statfs:
+    syscall_6 SYS_STATFS, rdi, rsi, 0, 0, 0, 0
     ret

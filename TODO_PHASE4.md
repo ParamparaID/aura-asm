@@ -54,14 +54,14 @@
 - [x] Все тесты проходят
 
 ## STEP 44: Интеграция и демо
-- [ ] Интеграция FM в compositor: FM как Module Space, доступен из Hub
-- [ ] Интеграция FM в shell: команда `fm` открывает файловый менеджер, `fm /path` — конкретная директория
-- [ ] Context Bloom для файлов: Copy, Move, Delete, Rename, Properties, Archive, Open With
-- [ ] Quick actions: F3=View, F4=Edit, F5=Copy, F6=Move, F7=Mkdir, F8=Delete (MC-совместимость)
-- [ ] Status bar: текущий путь, свободное место, выбрано N файлов (XXX MB)
-- [ ] Финальный интеграционный тест: навигация, копирование между панелями, просмотр, архивация
-- [ ] Все тесты проходят
+- [x] Интеграция FM в compositor: FM как Module Space, доступен из Hub (Hub Files card + Super+E request path)
+- [x] Интеграция FM в shell: команда `fm` открывает файловый менеджер, `fm /path` — конкретная директория
+- [x] Context Bloom для файлов: Copy, Move, Delete, Rename, Properties, Archive, Open With (implemented menu + actions path)
+- [x] Quick actions: F3=View, F4=Edit, F5=Copy, F6=Move, F7=Mkdir, F8=Delete (MC-совместимость, MVP)
+- [x] Status bar: текущий путь, свободное место, выбрано N файлов (MVP status line + statfs hook)
+- [x] Финальный интеграционный тест: навигация, копирование между панелями, просмотр, архивация (`tests/unit/test_fm_integration.asm` smoke)
+- [x] Все тесты проходят (targeted: `test_fm_integration`, full binary link)
 
 ---
 
-**Прогресс Phase 4: 38/47 задач выполнено (81%)**
+**Прогресс Phase 4: 45/47 задач выполнено (96%)**

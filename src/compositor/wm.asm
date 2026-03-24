@@ -16,6 +16,7 @@ extern floating_add
 %define KEY_Q                       16
 %define KEY_ENTER                   28
 %define KEY_F                       33
+%define KEY_E                       18
 %define KEY_H                       35
 %define KEY_L                       38
 %define KEY_V                       47
@@ -29,6 +30,7 @@ extern floating_add
 section .bss
     wm_global_state      resb WM_STRUCT_SIZE
     wm_stack_list        resq WM_MAX_SURFACES
+    wm_fm_toggle_request resd 1
 
 section .text
 global wm_init
@@ -41,6 +43,12 @@ global wm_set_surface_mode
 global wm_relayout
 global wm_get_global
 global wm_handle_hotkey
+global wm_take_fm_toggle_request
+
+wm_take_fm_toggle_request:
+    mov eax, [rel wm_fm_toggle_request]
+    mov dword [rel wm_fm_toggle_request], 0
+    ret
 
 ; wm_apply_simple_tiling(wm)
 wm_apply_simple_tiling:
@@ -457,7 +465,7 @@ wm_handle_hotkey:
 
 .k_f:
     cmp r12d, KEY_F
-    jne .k_hv
+    jne .k_e
     test r14, r14
     jz .handled
     mov eax, dword [r14 + SF_WIDTH_OFF]
@@ -480,6 +488,12 @@ wm_handle_hotkey:
     mov eax, dword [r13 + WM_OUTPUT_H_OFF]
     mov dword [r14 + SF_HEIGHT_OFF], eax
     mov dword [r14 + SF_FLOATING_OFF], 1
+    jmp .handled
+
+.k_e:
+    cmp r12d, KEY_E
+    jne .k_hv
+    mov dword [rel wm_fm_toggle_request], 1
     jmp .handled
 
 .k_hv:

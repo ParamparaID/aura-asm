@@ -63,6 +63,13 @@ extern cursor_init
 extern cursor_get_global
 extern cursor_update_pos
 extern cursor_render
+extern fm_init
+extern fm_render
+extern fm_handle_input
+extern fm_open_path
+extern builtin_fm_take_request
+extern hub_take_fm_request
+extern wm_take_fm_toggle_request
 
 %define KEY_PRESSED                     1
 %define BLINK_INTERVAL_NS               500000000
@@ -85,6 +92,8 @@ section .rodata
     theme_name          db "tokyo-night", 0
     theme_name_len      equ 11
     measure_ch          db "M", 0
+    fm_cmd_name         db "fm", 0
+    fm_default_path     db "/", 0
     init_fail_msg       db "aura-shell: init failed", 10
     init_fail_len       equ $ - init_fail_msg
 
@@ -108,6 +117,11 @@ aura_run_mode       resb 1
     cursor_ptr          resq 1
     theme_file_ptr      resq 1
     theme_file_len      resd 1
+    fm_ptr              resq 1
+    fm_visible          resd 1
+    startup_argc        resq 1
+    startup_argv        resq 1
+    fm_req_buf          resb 1024
 
 section .text
 global _start
@@ -306,9 +320,87 @@ main_reload_theme:
     pop rbx
     ret
 
+; main_open_fm_req(path_ptr, path_len) -> eax 1/0
+main_open_fm_req:
+    push rbx
+    push r12
+    mov r12, rdi
+    mov ebx, esi
+    mov rdi, [rel fm_ptr]
+    test rdi, rdi
+    jnz .have_fm
+    mov rdi, r12
+    mov esi, 1
+    call fm_init
+    test rax, rax
+    jz .fail
+    mov [rel fm_ptr], rax
+    mov rdi, rax
+.have_fm:
+    test r12, r12
+    jz .show
+    test ebx, ebx
+    jle .show
+    mov rsi, r12
+    mov edx, ebx
+    call fm_open_path
+.show:
+    mov dword [rel fm_visible], 1
+    mov eax, 1
+    pop r12
+    pop rbx
+    ret
+.fail:
+    xor eax, eax
+    pop r12
+    pop rbx
+    ret
+
+main_poll_fm_requests:
+    ; 1) shell builtin `fm [path]`
+    lea rdi, [rel fm_req_buf]
+    mov esi, 1024
+    call builtin_fm_take_request
+    test eax, eax
+    jle .hub
+    lea rdi, [rel fm_req_buf]
+    mov esi, eax
+    call main_open_fm_req
+    ret
+.hub:
+    ; 2) Hub Files card
+    lea rdi, [rel fm_req_buf]
+    mov esi, 1024
+    call hub_take_fm_request
+    test eax, eax
+    jle .hotkey
+    lea rdi, [rel fm_req_buf]
+    mov esi, eax
+    call main_open_fm_req
+    ret
+.hotkey:
+    ; 3) Super+E toggle request from WM
+    call wm_take_fm_toggle_request
+    test eax, eax
+    jz .done
+    cmp dword [rel fm_visible], 0
+    je .show_default
+    mov dword [rel fm_visible], 0
+    ret
+.show_default:
+    lea rdi, [rel fm_req_buf]
+    mov byte [rdi], '/'
+    mov byte [rdi + 1], 0
+    mov esi, 1
+    call main_open_fm_req
+.done:
+    ret
+
 _start:
     mov rcx, [rsp]
     lea rax, [rsp + 8]
+    mov [rel startup_argc], rcx
+    mov [rel startup_argv], rax
     lea rdx, [rax + rcx * 8 + 8]
     mov [rel global_envp], rdx
 
@@ -425,6 +517,36 @@ _start:
     lea rsi, [rel ts_last_blink]
     call hal_clock_gettime
 
+    ; argv integration: `aura-shell fm [/path]`
+    mov rax, [rel startup_argc]
+    cmp rax, 2
+    jb .loop
+    mov rbx, [rel startup_argv]
+    mov rdi, [rbx + 8]
+    test rdi, rdi
+    jz .loop
+    mov al, [rdi]
+    cmp al, 'f'
+    jne .loop
+    mov al, [rdi + 1]
+    cmp al, 'm'
+    jne .loop
+    cmp byte [rdi + 2], 0
+    jne .loop
+    mov rax, [rel startup_argc]
+    cmp rax, 3
+    jb .argv_default
+    mov rdi, [rbx + 16]
+    call cstr_len
+    mov esi, eax
+    mov rdi, [rbx + 16]
+    call main_open_fm_req
+    jmp .loop
+.argv_default:
+    lea rdi, [rel fm_default_path]
+    mov esi, 1
+    call main_open_fm_req
+
 .loop:
     mov rdi, [rel main_window_ptr]
     call window_process_events
@@ -462,6 +584,16 @@ _start:
     mov edx, [rel event_tmp + INPUT_EVENT_MOUSE_Y_OFF]
     call cursor_update_pos
 .widgets_only:
+    cmp dword [rel fm_visible], 0
+    je .widgets_default
+    mov rdi, [rel fm_ptr]
+    test rdi, rdi
+    jz .widgets_default
+    lea rsi, [rel event_tmp]
+    call fm_handle_input
+    test eax, eax
+    jnz .poll
+.widgets_default:
 
     mov rdi, [rel root_widget]
     lea rsi, [rel event_tmp]
@@ -498,6 +630,7 @@ _start:
     call anim_scheduler_tick
 
     call jobs_update_status
+    call main_poll_fm_requests
 
     mov rdi, [rel main_window_ptr]
     call window_get_canvas
@@ -510,12 +643,23 @@ _start:
     mov rsi, r11
     mov rdx, [rel main_theme_ptr]
     call hub_render
+    cmp dword [rel fm_visible], 0
+    je .render_root
+    mov rdi, [rel fm_ptr]
+    test rdi, rdi
+    jz .render_root
+    mov rsi, r11
+    mov rdx, [rel main_theme_ptr]
+    call fm_render
+    jmp .render_cursor
+.render_root:
     mov rdi, [rel root_widget]
     mov rsi, r11
     mov rdx, [rel main_theme_ptr]
     xor ecx, ecx
     xor r8d, r8d
     call widget_render
+.render_cursor:
     mov rdi, [rel cursor_ptr]
     mov rsi, r11
     call cursor_render
