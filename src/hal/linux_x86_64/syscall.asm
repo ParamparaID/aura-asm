@@ -20,6 +20,7 @@ global hal_munmap
 global hal_exit
 global hal_clock_gettime
 global hal_socket
+global hal_connect
 global hal_bind
 global hal_listen
 global hal_accept4
@@ -136,6 +137,11 @@ hal_clock_gettime:
 ; hal_socket(domain, type, protocol)
 hal_socket:
     syscall_6 SYS_SOCKET, rdi, rsi, rdx, 0, 0, 0
+    ret
+
+; hal_connect(fd, addr, addr_len)
+hal_connect:
+    syscall_6 SYS_CONNECT, rdi, rsi, rdx, 0, 0, 0
     ret
 
 ; hal_bind(fd, addr, addr_len)

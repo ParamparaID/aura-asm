@@ -122,9 +122,17 @@
 
 ; --- socket ---
 %define AF_UNIX              1
+%define AF_INET              2
 %define SOCK_STREAM          1
 %define SOCK_NONBLOCK        0x800
 %define SOCK_CLOEXEC         0x80000
+
+; struct sockaddr_in (IPv4)
+%define SOCKADDR_IN_SIZE     16
+%define SIN_FAMILY_OFF       0
+%define SIN_PORT_OFF         2
+%define SIN_ADDR_OFF         4
+%define SIN_ZERO_OFF         8
 
 ; --- open(2) flags ---
 %define O_RDONLY             0

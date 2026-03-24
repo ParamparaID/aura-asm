@@ -2,6 +2,7 @@
 %include "src/fm/vfs.inc"
 
 extern local_provider_get
+extern sftp_provider_get
 extern archive_provider_get
 
 section .bss
@@ -43,6 +44,12 @@ vfs_init:
     mov rdi, rax
     call vfs_register_provider
 .ok_local:
+    call sftp_provider_get
+    test rax, rax
+    jz .ok_sftp
+    mov rdi, rax
+    call vfs_register_provider
+.ok_sftp:
     call archive_provider_get
     test rax, rax
     jz .ok

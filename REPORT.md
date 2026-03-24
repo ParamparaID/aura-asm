@@ -104,6 +104,59 @@
 ### Статус
 ✅ Завершён
 
+## STEP 43: SSH/SFTP клиент — 2026-03-23
+
+### Что сделано
+- Добавлен `src/fm/ssh.asm` с:
+  - `tcp_connect(host, host_len, port)` для IPv4 (`AF_INET`, `SOCK_STREAM`, `hal_socket` + `hal_connect`).
+  - `ssh_exec_command(host, user, port, command, out, out_max)` — рабочий transport-path через системный `ssh` (`/bin/sh -c`, pipe/fork/dup2/execve/waitpid), включая захват stdout/stderr.
+  - `ssh_is_available` для graceful fallback/skip в тестах и VFS.
+- Добавлен `src/fm/sftp.asm`:
+  - SFTP constants (`SSH_FXP_*`) и парсер `sftp_parse_name` (big-endian packet parsing для `SSH_FXP_NAME`).
+  - API-функции native SFTP-path оставлены как безопасные заглушки MVP (`-1`) до полной крипто/transport реализации.
+- Добавлен `src/fm/vfs_sftp.asm`:
+  - Провайдер `VFS_SFTP` с URI `sftp://user@host:port/path`.
+  - `open_dir/read_entry/close_dir/read_file/mkdir/rmdir/unlink` реализованы поверх `ssh_exec_command`.
+  - Листинг директории через `ls -1Ap`, парсинг в `DirEntry`, read-path через `cat`.
+- Обновлён `src/fm/vfs.asm`: регистрация `sftp_provider_get` в `vfs_init`.
+- Обновлён `src/fm/fm_main.asm`:
+  - hotkey `Ctrl+F` открывает Connect Dialog;
+  - реализован ввод полей `Host/Port/User/Password` (маскирование пароля);
+  - добавлены фокус/навигация по диалогу (`Tab` по полям и кнопкам `[Connect]/[Cancel]`, `Esc` закрывает диалог);
+  - добавлена работа мышью/тачем: выбор поля по клику/тапу, кликабельные кнопки `[Connect]/[Cancel]`;
+  - добавлена валидация ввода: пустой `Host` и невалидный `Port` блокируют connect с подсказкой и фокусом на проблемном поле;
+  - визуальный полиш диалога: рамка активного поля (accent) и цветовой статус (зелёный `ok`, красный `error`);
+  - добавлена мини-история подключений (последние записи, с дедупликацией) с быстрым выбором `Up/Down` в диалоге и предпросмотром текущей записи;
+  - `Enter` запускает connect и при успехе переводит активную панель в `sftp://user@host:port/home/user` (или `/tmp`, если user пуст);
+  - добавлен постоянный индикатор `Connected to <host>` в UI файлового менеджера.
+- Обновлены HAL-константы/обёртки:
+  - `src/hal/linux_x86_64/defs.inc`: добавлены `AF_INET` и offsets `sockaddr_in`.
+  - `src/hal/linux_x86_64/syscall.asm`: добавлен `hal_connect`.
+- Обновлён `Makefile`:
+  - новые объекты `fm_ssh`, `fm_sftp`, `fm_vfs_sftp`;
+  - новая цель `test_ssh` и включение в общий `test`;
+  - обновлены link dependencies тестов из-за регистрации нового VFS-провайдера.
+- Добавлен `tests/unit/test_ssh.asm`:
+  - TCP connect (graceful fail/success),
+  - ssh exec-path (`echo test`) с graceful skip,
+  - mock parsing `SSH_FXP_NAME`,
+  - интеграционный VFS SFTP smoke (`sftp://localhost/tmp`) с graceful skip.
+
+### Результаты тестов
+- `wsl make test_ssh -B`: PASSED (`SKIP` для недоступного `ssh` окружения допускается).
+- `wsl make test -B`: PASSED (полный regression suite, включая `test_ssh`).
+
+### Проблемы и решения
+- Проблема: после регистрации SFTP-провайдера `vfs_init` требовал дополнительные provider-объекты даже в тестах, где SFTP не используется напрямую.
+- Решение: обновлены link-цепочки `Makefile` для тестовых бинарников, использующих `vfs.asm`.
+- Проблема: `sftp_parse_name` терял счётчик entries из-за caller-saved регистров между внутренними вызовами.
+- Решение: счётчик вынесен в устойчивое хранение (stack/local), парсер стабилизирован.
+
+### Статус
+⚠️ Частично
+
+Примечание: рабочий MVP реализован через exec-based transport (`ssh`), а нативный SSH crypto transport (KEX/cipher/auth на asm) оставлен в backlog Phase 5+.
+
 ## STEP 05: AuraCanvas — базовый растеризатор — 2026-03-20
 
 ### Что сделано
