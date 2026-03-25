@@ -56,6 +56,11 @@
 
 ## STEP 44: Интеграция и демо — 2026-03-24
 
+### Связанные шаги Phase 4
+- STEP 41 (Panel UI и навигация) описан в разделе `## STEP 41: Panel UI и навигация — 2026-03-23` ниже.
+- STEP 42 (Просмотрщик и архивация) описан в разделе `## STEP 42: Просмотрщик и архивация — 2026-03-23` ниже.
+- STEP 43 (SSH/SFTP клиент) описан в разделе `## STEP 43: SSH/SFTP клиент — 2026-03-23` ниже.
+
 ### Что сделано
 - `src/main.asm`: добавлена интеграция FM в главный цикл рендера/инпута (`fm_render`/`fm_handle_input`), обработка запросов открытия FM из shell/hub/hotkey, а также argv-path (`aura-shell fm /path`).
 - `src/shell/builtins.asm`: добавлен builtin `fm` и буферизированный request API `builtin_fm_take_request` для безопасной передачи команды в compositor loop.
@@ -74,6 +79,11 @@
 ### Ограничения
 - В текущем `core/threads` `threadpool_submit` реализован как синхронный facade, поэтому progress/cancel path интегрирован корректно по API и UX, но без реального параллельного worker execution.
 - Часть Bloom-actions (`Rename/Archive/Extract/Open in Terminal`) заведена как рабочие точки входа с status-path, без глубокого backend (следующий инкремент).
+
+### Дополнение по итерации финализации
+- `src/fm/fm_main.asm`: добавлен выделенный Bloom-dialog render/input path (отдельно от Connect Dialog), выбор action по `Up/Down/Enter/Esc`, и применение действий через `fm_bloom_apply`.
+- `src/fm/fm_main.asm`: progress-path для copy/delete переведён на threadpool submit API (`threadpool_init` + `threadpool_submit` + `op_copy_async`) с `fm_progress_cb` и cancel-флагом.
+- `Makefile`: линковка `core_threads` добавлена в `aura-shell`, `test_panel`, `test_fm_integration` для нового threadpool-path.
 
 ---
 
