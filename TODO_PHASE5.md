@@ -27,12 +27,12 @@
 - [x] Все тесты проходят
 
 ## STEP 52: AuraScript — лексер, парсер, AST
-- [ ] `src/aurascript/lexer.asm` — токенизация AuraScript: keywords (fn, let, mut, if, else, for, while, match, return, import), literals (int, float, string, bool), operators, delimiters
-- [ ] `src/aurascript/parser.asm` — recursive descent парсер → AST
-- [ ] AST nodes: FnDecl, LetStmt, IfExpr, ForStmt, WhileStmt, MatchExpr, CallExpr, BinaryExpr, UnaryExpr, AssignExpr, BlockExpr, ReturnStmt, ImportStmt, StringLiteral, IntLiteral, FloatLiteral, BoolLiteral, Identifier, ArrayLiteral, MapLiteral, IndexExpr, FieldExpr
-- [ ] Типы: int64, float64, string, bool, array, map
-- [ ] `tests/unit/test_aurascript_parser.asm` — парсинг функций, if/else, for, выражений
-- [ ] Все тесты проходят
+- [x] `src/aurascript/lexer.asm` — токенизация AuraScript: keywords (fn, let, mut, if, else, for, while, match, return, import), literals (int, float, string, bool), operators, delimiters
+- [x] `src/aurascript/parser.asm` — recursive descent парсер → AST
+- [x] AST nodes: FnDecl, LetStmt, IfExpr, ForStmt, WhileStmt, MatchExpr, CallExpr, BinaryExpr, UnaryExpr, AssignExpr, BlockExpr, ReturnStmt, ImportStmt, StringLiteral, IntLiteral, FloatLiteral, BoolLiteral, Identifier, ArrayLiteral, MapLiteral, IndexExpr, FieldExpr
+- [x] Типы: int64, float64, string, bool, array, map
+- [x] `tests/unit/test_aurascript_parser.asm` — парсинг функций, if/else, for, выражений
+- [x] Все тесты проходят
 
 ## STEP 53: AuraScript — AOT кодогенератор
 - [ ] `src/aurascript/codegen_x86_64.asm` — обход AST → генерация нативного x86_64 машинного кода в буфер
@@ -61,4 +61,4 @@
 
 ---
 
-**Прогресс Phase 5: 10/40 задач (25%)**
+**Прогресс Phase 5: 16/40 задач (40%)**

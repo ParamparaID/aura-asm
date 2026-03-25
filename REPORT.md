@@ -198,6 +198,47 @@
 
 ---
 
+## STEP 52: AuraScript — лексер, парсер, AST — 2026-03-25
+
+### Что сделано
+- Добавлен `src/aurascript/lexer.asm`:
+  - токены по спецификации MVP: keywords, literals, operators, delimiters, `NEWLINE/EOF/ERROR`;
+  - структура токена `ASToken` (24 байта): `type/start/length/line_number`;
+  - API: `as_lexer_init`, `as_lexer_tokenize`, плюс service-getters (`as_lexer_get_tokens`, `as_lexer_get_count`, `as_lexer_get_error`);
+  - поддержаны `//` комментарии, строки, целые/float/hex/bin числа, `$(...)` (`AS_TOK_DOLLAR_PAREN`), `..`, `->`, сравнения и логические операторы.
+- Добавлен `src/aurascript/parser.asm`:
+  - recursive-descent parser для MVP-грамматики (program/function/block/statements/expressions);
+  - AST-узлы (48 байт) с arena-allocation: program/fn/let/if/for/while/return и выражения (binary/unary/call/index/field/assign/literals/array/map/shell-capture);
+  - API: `as_parser_init`, `as_parser_parse`, `as_parser_get_error`.
+- Добавлен `tests/unit/test_aurascript_parser.asm` с покрытием 6 сценариев из спецификации:
+  - simple function (`fn add(...) -> int { return a + b }`);
+  - let + if/else;
+  - for-loop с range (`0..10`);
+  - array/map literals;
+  - shell capture (`$(...)`);
+  - error-case (`fn ( { broken`) с проверкой `as_parser_get_error != 0`.
+- Обновлён `Makefile`:
+  - добавлены сборка `src/aurascript/lexer.asm` и `src/aurascript/parser.asm`;
+  - добавлена цель `test_aurascript_parser` и включение в общий `test`.
+
+### Результаты тестов
+- `bash -lc "make test_aurascript_parser"`: PASSED (`ALL TESTS PASSED`).
+- `bash -lc "make test"`: PASSED (полный regression suite, включая `test_aurascript_parser`).
+
+### Проблемы и решения
+- Проблема: ранние версии парсера падали из-за порчи временных указателей/счётчиков в register-heavy loops.
+- Решение: стабилизированы локальные состояния (stack/local slots и non-volatile counters) в критичных parse-path.
+- Проблема: инициализация lexer теряла указатель на структуру между аллокациями.
+- Решение: lexer-pointer сохранён в non-volatile регистре до полной инициализации.
+
+### Ограничения MVP
+- AST-валидация в тестах выполнена на уровне ключевых узлов/типов (структурный sanity-check); детальная семантическая валидация каждого поля узла и type-check остаются этапом следующих шагов (STEP 53+).
+
+### Статус
+✅ Завершён (MVP)
+
+---
+
 ## STEP 41: Panel UI и навигация — 2026-03-23
 
 ### Что сделано

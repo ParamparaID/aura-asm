@@ -46,6 +46,7 @@ TEST_ARCHIVE_BIN = $(BUILD_DIR)/test_archive
 TEST_SSH_BIN = $(BUILD_DIR)/test_ssh
 TEST_FM_INTEGRATION_BIN = $(BUILD_DIR)/test_fm_integration
 TEST_PLUGIN_HOST_BIN = $(BUILD_DIR)/test_plugin_host
+TEST_AURASCRIPT_PARSER_BIN = $(BUILD_DIR)/test_aurascript_parser
 
 HAL_SYSCALL_OBJ = $(BUILD_DIR)/hal_syscall.o
 HAL_ERRNO_OBJ = $(BUILD_DIR)/hal_errno.o
@@ -185,6 +186,10 @@ PLUGIN_API_OBJ = $(BUILD_DIR)/plugin_api.o
 PLUGIN_OBJS = $(PLUGIN_HOST_OBJ) $(PLUGIN_MANIFEST_OBJ) $(PLUGIN_API_OBJ)
 TEST_PLUGIN_API_OBJ = $(BUILD_DIR)/test_plugin_api.o
 TEST_PLUGIN_API_BIN = $(BUILD_DIR)/test_plugin_api
+AS_LEXER_OBJ = $(BUILD_DIR)/as_lexer.o
+AS_PARSER_OBJ = $(BUILD_DIR)/as_parser.o
+AS_OBJS = $(AS_LEXER_OBJ) $(AS_PARSER_OBJ)
+TEST_AURASCRIPT_PARSER_OBJ = $(BUILD_DIR)/test_aurascript_parser.o
 TEST_PLUGIN_CMD_OBJ = $(BUILD_DIR)/test_plugin_cmd.o
 TEST_PLUGIN_CMD_SO = $(BUILD_DIR)/test_plugin_cmd.so
 TEST_VIEWER_OBJ = $(BUILD_DIR)/test_viewer.o
@@ -210,7 +215,7 @@ WIDGET_TERMINAL_STUBS_OBJ = $(BUILD_DIR)/widget_terminal_stubs.o
 all: $(AURA_SHELL_BIN)
 
 # Build and run unit tests
-test: test_syscall test_memory test_threads test_event test_ipc test_canvas test_lexer test_parser test_executor test_pipeline test_builtins test_jobs test_truetype test_png test_rendering test_physics test_widgets test_layout test_gesture test_theme test_compositor_server test_surfaces test_input_routing test_wm test_workspaces test_decorations test_vfs test_panel test_viewer test_archive test_ssh test_fm_integration test_plugin_host test_plugin_api
+test: test_syscall test_memory test_threads test_event test_ipc test_canvas test_lexer test_parser test_executor test_pipeline test_builtins test_jobs test_truetype test_png test_rendering test_physics test_widgets test_layout test_gesture test_theme test_compositor_server test_surfaces test_input_routing test_wm test_workspaces test_decorations test_vfs test_panel test_viewer test_archive test_ssh test_fm_integration test_plugin_host test_plugin_api test_aurascript_parser
 
 run: $(AURA_SHELL_BIN)
 	./$(AURA_SHELL_BIN)
@@ -325,6 +330,9 @@ test_plugin_host: $(TEST_PLUGIN_HOST_BIN)
 
 test_plugin_api: $(TEST_PLUGIN_API_BIN)
 	./$(TEST_PLUGIN_API_BIN)
+
+test_aurascript_parser: $(TEST_AURASCRIPT_PARSER_BIN)
+	./$(TEST_AURASCRIPT_PARSER_BIN)
 
 test_nested_smoke: $(AURA_SHELL_BIN)
 	bash tools/test_nested_smoke.sh
@@ -695,6 +703,12 @@ $(PLUGIN_MANIFEST_OBJ): src/plugins/manifest.asm | $(BUILD_DIR)
 $(PLUGIN_API_OBJ): src/plugins/api.asm src/hal/linux_x86_64/defs.inc src/fm/vfs.inc | $(BUILD_DIR)
 	$(NASM) $(NASM_FLAGS) $< -o $@
 
+$(AS_LEXER_OBJ): src/aurascript/lexer.asm | $(BUILD_DIR)
+	$(NASM) $(NASM_FLAGS) $< -o $@
+
+$(AS_PARSER_OBJ): src/aurascript/parser.asm | $(BUILD_DIR)
+	$(NASM) $(NASM_FLAGS) $< -o $@
+
 $(HAL_LIBINPUT_OBJ): src/hal/linux_x86_64/libinput.asm src/hal/linux_x86_64/defs.inc | $(BUILD_DIR)
 	$(NASM) $(NASM_FLAGS) $< -o $@
 
@@ -842,6 +856,9 @@ $(TEST_PLUGIN_CMD_OBJ): tests/data/test_plugin_cmd.asm | $(BUILD_DIR)
 $(TEST_PLUGIN_CMD_SO): $(TEST_PLUGIN_CMD_OBJ)
 	$(LD) -shared --hash-style=sysv -o $@ $<
 
+$(TEST_AURASCRIPT_PARSER_OBJ): tests/unit/test_aurascript_parser.asm src/hal/linux_x86_64/defs.inc | $(BUILD_DIR)
+	$(NASM) $(NASM_FLAGS) $< -o $@
+
 $(TEST_INPUT_ROUTING_BIN): $(HAL_SYSCALL_OBJ) $(HAL_ERRNO_OBJ) $(CORE_MEMORY_OBJ) $(CORE_EVENT_OBJ) $(HAL_WAYLAND_OBJ) $(COMPOSITOR_PROTOCOL_OBJ) $(COMPOSITOR_REGISTRY_OBJ) $(COMPOSITOR_SERVER_OBJ) $(COMPOSITOR_SURFACE_OBJ) $(COMPOSITOR_SHM_OBJ) $(COMPOSITOR_XDG_OBJ) $(COMPOSITOR_INPUT_OBJS) $(CANVAS_RASTERIZER_OBJ) $(CANVAS_SIMD_OBJ) $(TEST_INPUT_ROUTING_OBJ)
 	$(LD) $(LD_FLAGS) -o $@ $^
 
@@ -877,6 +894,9 @@ $(TEST_PLUGIN_HOST_BIN): $(HAL_SYSCALL_OBJ) $(HAL_FS_OBJ) $(HAL_PROCESS_OBJ) $(P
 
 $(TEST_PLUGIN_API_BIN): $(HAL_SYSCALL_OBJ) $(HAL_ERRNO_OBJ) $(HAL_FS_OBJ) $(HAL_PROCESS_OBJ) $(HAL_SIGNALS_OBJ) $(CORE_MEMORY_OBJ) $(SHELL_VARIABLES_OBJ) $(SHELL_ALIAS_OBJ) $(SHELL_HISTORY_OBJ) $(SHELL_JOBS_OBJ) $(SHELL_BUILTINS_OBJ) $(PLUGIN_OBJS) $(TEST_PLUGIN_API_OBJ) $(TEST_PLUGIN_CMD_SO) $(TEST_PLUGIN_SO)
 	$(LD) $(LD_FLAGS) -o $@ $(HAL_SYSCALL_OBJ) $(HAL_ERRNO_OBJ) $(HAL_FS_OBJ) $(HAL_PROCESS_OBJ) $(HAL_SIGNALS_OBJ) $(CORE_MEMORY_OBJ) $(SHELL_VARIABLES_OBJ) $(SHELL_ALIAS_OBJ) $(SHELL_HISTORY_OBJ) $(SHELL_JOBS_OBJ) $(SHELL_BUILTINS_OBJ) $(PLUGIN_OBJS) $(TEST_PLUGIN_API_OBJ)
+
+$(TEST_AURASCRIPT_PARSER_BIN): $(HAL_SYSCALL_OBJ) $(CORE_MEMORY_OBJ) $(AS_OBJS) $(TEST_AURASCRIPT_PARSER_OBJ)
+	$(LD) $(LD_FLAGS) -o $@ $^
 
 $(AURA_SHELL_BIN): $(HAL_SYSCALL_OBJ) $(HAL_PROCESS_OBJ) $(HAL_SIGNALS_OBJ) $(HAL_FS_OBJ) $(HAL_WAYLAND_OBJ) $(HAL_WAYLAND_INPUT_OBJ) $(HAL_LIBINPUT_OBJ) $(HAL_DRM_OBJ) $(CORE_MEMORY_OBJ) $(CORE_EVENT_OBJ) $(CORE_INPUT_OBJ) $(CORE_GESTURE_OBJ) $(CORE_THREADS_OBJ) $(GUI_WINDOW_OBJ) $(GUI_WIDGET_OBJ) $(WIDGET_OBJS) $(WIDGET_FILE_PANEL_OBJ) $(GUI_THEME_OBJ) $(GUI_TERMINAL_OBJ) $(GUI_LAYOUT_OBJ) $(SHELL_REPL_OBJ) $(SHELL_LEXER_OBJ) $(SHELL_PARSER_OBJ) $(SHELL_EXECUTOR_OBJ) $(SHELL_PIPELINE_OBJ) $(SHELL_VARIABLES_OBJ) $(SHELL_ALIAS_OBJ) $(SHELL_HISTORY_OBJ) $(SHELL_JOBS_OBJ) $(SHELL_BUILTINS_OBJ) $(PLUGIN_OBJS) $(CANVAS_RASTERIZER_OBJ) $(CANVAS_TEXT_OBJ) $(CANVAS_SIMD_OBJ) $(CANVAS_TRUETYPE_OBJ) $(CANVAS_PNG_OBJ) $(CANVAS_GRADIENT_OBJ) $(CANVAS_ROUNDED_OBJ) $(CANVAS_BLUR_OBJ) $(CANVAS_COMPOSITE_OBJ) $(CANVAS_LINE_OBJ) $(CANVAS_CLIP_OBJ) $(CANVAS_PHYSICS_OBJ) $(COMPOSITOR_PROTOCOL_OBJ) $(COMPOSITOR_REGISTRY_OBJ) $(COMPOSITOR_SERVER_OBJ) $(COMPOSITOR_SURFACE_OBJ) $(COMPOSITOR_SHM_OBJ) $(COMPOSITOR_XDG_OBJ) $(COMPOSITOR_RENDER_OBJ) $(COMPOSITOR_RENDER_AUX_OBJS) $(COMPOSITOR_INPUT_OBJS) $(COMPOSITOR_SPACES_OBJS) $(FM_CORE_OBJS) $(FM_UI_OBJS) $(FM_VIEWER_OBJ) $(MAIN_OBJ)
 	$(LD) $(LD_FLAGS) -o $@ $^
