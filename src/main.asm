@@ -10,6 +10,9 @@ extern hal_write
 extern hal_exit
 extern hal_clock_gettime
 extern hal_access
+extern hal_open
+extern hal_close
+extern hal_getdents64
 extern global_envp
 extern arena_init
 extern arena_destroy
@@ -70,6 +73,14 @@ extern fm_open_path
 extern builtin_fm_take_request
 extern hub_take_fm_request
 extern wm_take_fm_toggle_request
+extern plugin_api_set_theme_ptr
+extern plugin_api_set_canvas_ptr
+extern plugin_api_get_host_table
+extern plugin_api_set_current_plugin
+extern plugin_registry_add
+extern plugin_load
+extern plugin_activate
+extern plugin_unload
 
 %define KEY_PRESSED                     1
 %define BLINK_INTERVAL_NS               500000000
@@ -94,6 +105,8 @@ section .rodata
     measure_ch          db "M", 0
     fm_cmd_name         db "fm", 0
     fm_default_path     db "/", 0
+    plugins_root_path   db "/tmp/aura/plugins", 0
+    plugin_so_tail      db "/plugin.so",0
     init_fail_msg       db "aura-shell: init failed", 10
     init_fail_len       equ $ - init_fail_msg
 
@@ -122,6 +135,8 @@ aura_run_mode       resb 1
     startup_argc        resq 1
     startup_argv        resq 1
     fm_req_buf          resb 1024
+    plugins_dir_buf     resb 8192
+    plugin_path_buf     resb 1024
 
 section .text
 global _start
@@ -257,6 +272,7 @@ main_apply_theme:
     test rdi, rdi
     jz .fail
     mov [rel main_theme_ptr], rdi
+    call plugin_api_set_theme_ptr
 
     mov rax, [rel main_repl_ptr]
     test rax, rax
@@ -278,6 +294,118 @@ main_apply_theme:
     call hub_init
     mov [rel hub_ptr], rax
     mov eax, 1
+    ret
+
+; main_plugins_autoload() - best effort auto-load from /tmp/aura/plugins/*/plugin.so
+main_plugins_autoload:
+    push rbx
+    push r12
+    push r13
+    push r14
+    push r15
+    lea rdi, [rel plugins_root_path]
+    mov esi, O_RDONLY | O_DIRECTORY
+    xor edx, edx
+    call hal_open
+    test rax, rax
+    js .out
+    mov r12, rax                         ; dir fd
+.read_loop:
+    mov rdi, r12
+    lea rsi, [rel plugins_dir_buf]
+    mov edx, 8192
+    call hal_getdents64
+    test eax, eax
+    jle .close
+    mov r13d, eax                        ; bytes
+    xor r14d, r14d                       ; offset
+.ent_loop:
+    cmp r14d, r13d
+    jae .read_loop
+    lea r15, [rel plugins_dir_buf + r14] ; dirent*
+    movzx ebx, word [r15 + 16]          ; d_reclen
+    cmp ebx, 19
+    jb .next_ent
+    cmp byte [r15 + 18], DT_DIR
+    jne .next_ent
+    cmp byte [r15 + 19], '.'
+    je .next_ent
+    ; build "<root>/<name>/plugin.so"
+    lea rdi, [rel plugin_path_buf]
+    lea rsi, [rel plugins_root_path]
+    xor ecx, ecx
+.cp_root:
+    mov al, [rsi + rcx]
+    mov [rdi + rcx], al
+    test al, al
+    jz .root_done
+    inc ecx
+    cmp ecx, 900
+    jb .cp_root
+    jmp .next_ent
+.root_done:
+    mov byte [rdi + rcx], '/'
+    inc ecx
+    xor edx, edx
+.cp_name:
+    mov al, [r15 + 19 + rdx]
+    test al, al
+    jz .name_done
+    mov [rdi + rcx], al
+    inc rcx
+    inc edx
+    cmp ecx, 980
+    jb .cp_name
+    jmp .next_ent
+.name_done:
+    lea rsi, [rel plugin_so_tail]
+    xor edx, edx
+.cp_tail:
+    mov al, [rsi + rdx]
+    mov [rdi + rcx], al
+    test al, al
+    jz .try_load
+    inc rcx
+    inc edx
+    cmp ecx, 1023
+    jb .cp_tail
+    jmp .next_ent
+.try_load:
+    lea rdi, [rel plugin_path_buf]
+    call plugin_load
+    test rax, rax
+    jz .next_ent
+    mov r15, rax
+    mov rdi, r15
+    call plugin_api_set_current_plugin
+    call plugin_api_get_host_table
+    mov rsi, rax
+    mov rdi, r15
+    call plugin_activate
+    xor rdi, rdi
+    call plugin_api_set_current_plugin
+    cmp eax, 0
+    jne .fail_loaded
+    mov rdi, r15
+    call plugin_registry_add
+    cmp eax, 0
+    jne .fail_loaded
+    jmp .next_ent
+.fail_loaded:
+    mov rdi, r15
+    call plugin_unload
+.next_ent:
+    add r14d, ebx
+    jmp .ent_loop
+.close:
+    mov rdi, r12
+    call hal_close
+.out:
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    pop rbx
     ret
 .fail:
     xor eax, eax
@@ -440,6 +568,7 @@ _start:
     call main_reload_theme
     test eax, eax
     jz .fail_cleanup_ws
+    call main_plugins_autoload
 
     mov edi, 4
     call workspaces_init
@@ -635,6 +764,8 @@ _start:
     mov rdi, [rel main_window_ptr]
     call window_get_canvas
     mov r11, rax
+    mov rdi, r11
+    call plugin_api_set_canvas_ptr
     mov rdi, [rel ws_mgr_ptr]
     xor esi, esi
     mov rdx, r11

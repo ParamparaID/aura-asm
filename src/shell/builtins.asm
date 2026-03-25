@@ -27,6 +27,20 @@ extern jobs_init
 extern jobs_list
 extern jobs_fg
 extern jobs_bg
+extern plugin_api_init
+extern plugin_api_get_host_table
+extern plugin_api_set_current_plugin
+extern plugin_registry_add
+extern plugin_registry_remove_handle
+extern plugin_registry_count
+extern plugin_registry_get_name
+extern plugin_registry_find
+extern plugin_unregister_all_for_plugin
+extern plugin_command_dispatch
+extern plugin_load
+extern plugin_activate
+extern plugin_unload
+extern plugin_get_symbol
 
 section .text
 global builtins_init
@@ -60,7 +74,9 @@ section .data
     cmd_bg                  db "bg"
     cmd_wait                db "wait"
     cmd_fm                  db "fm"
-    help_text               db "Builtins: echo cd exit true false export set unset alias unalias history help jobs fg bg wait fm",10
+    cmd_plugin              db "plugin"
+    plugin_sym_get_info     db "aura_plugin_get_info",0
+    help_text               db "Builtins: echo cd exit true false export set unset alias unalias history help jobs fg bg wait fm plugin",10
     help_text_len           equ $ - help_text
     eq_char                 db "="
 
@@ -164,6 +180,9 @@ builtins_init:
     call jobs_init
     cmp rax, 0
     jne .fail_pop
+    call plugin_api_init
+    cmp eax, 0
+    jne .fail_pop
     xor eax, eax
     pop rbx
     ret
@@ -221,9 +240,12 @@ builtin_dispatch:
     push rbx
     push r12
     push r13
+    push r14
+    push r15
     mov rbx, rdx                        ; cmd node
     mov r12, rdi
     mov r13, rsi
+    mov r14, rcx                        ; state
 
     ; echo
     cmp r13, 4
@@ -539,13 +561,13 @@ builtin_dispatch:
 
 .chk_wait:
     cmp r13, 4
-    jne .chk_fm
+    jne .chk_plugin_builtin
     mov rdi, r12
     lea rsi, [rel cmd_wait]
     mov rdx, 4
     call streq_b
     cmp rax, 1
-    jne .not_builtin
+    jne .chk_plugin_builtin
     sub rsp, 16
     mov edi, -1
     cmp dword [rbx + CMD_ARGC_OFF], 2
@@ -559,6 +581,135 @@ builtin_dispatch:
     add rsp, 16
     xor eax, eax
     jmp .ret
+
+.chk_plugin_builtin:
+    cmp r13, 6
+    jne .chk_fm
+    mov rdi, r12
+    lea rsi, [rel cmd_plugin]
+    mov rdx, 6
+    call streq_b
+    cmp rax, 1
+    jne .chk_fm
+    cmp dword [rbx + CMD_ARGC_OFF], 2
+    jb .ret_fail
+    ; subcommand in argv[1]
+    mov r15, [rbx + CMD_ARGV_OFF + 8]
+    mov r11d, dword [rbx + CMD_ARGV_LEN_OFF + 4]
+
+    ; plugin list
+    cmp r11d, 4
+    jne .pb_load
+    mov rdi, r15
+    lea rsi, [rel pb_cmd_list]
+    mov rdx, 4
+    call streq_b
+    cmp rax, 1
+    jne .pb_load
+    call plugin_registry_count
+    test eax, eax
+    jle .ret_ok
+    mov r10d, eax
+    xor ecx, ecx
+.pb_list_loop:
+    cmp ecx, r10d
+    jae .ret_ok
+    mov edi, ecx
+    call plugin_registry_get_name
+    test rax, rax
+    jz .pb_list_next
+    mov rdi, rax
+    mov rsi, rdx
+    call print_line
+.pb_list_next:
+    inc ecx
+    jmp .pb_list_loop
+
+.pb_load:
+    cmp r11d, 4
+    jne .pb_unload
+    mov rdi, r15
+    lea rsi, [rel pb_cmd_load]
+    mov rdx, 4
+    call streq_b
+    cmp rax, 1
+    jne .pb_unload
+    cmp dword [rbx + CMD_ARGC_OFF], 3
+    jb .ret_fail
+    mov rdi, [rbx + CMD_ARGV_OFF + 16]   ; argv[2] path cstr
+    call plugin_load
+    test rax, rax
+    jz .ret_fail
+    mov r15, rax
+    mov rdi, r15
+    call plugin_api_set_current_plugin
+    call plugin_api_get_host_table
+    mov rsi, rax
+    mov rdi, r15
+    call plugin_activate
+    xor rdi, rdi
+    call plugin_api_set_current_plugin
+    cmp eax, 0
+    jne .pb_load_fail
+    mov rdi, r15
+    call plugin_registry_add
+    cmp eax, 0
+    jne .pb_load_fail
+    xor eax, eax
+    jmp .ret
+.pb_load_fail:
+    mov rdi, r15
+    call plugin_unload
+    jmp .ret_fail
+
+.pb_unload:
+    cmp r11d, 6
+    jne .pb_info
+    mov rdi, r15
+    lea rsi, [rel pb_cmd_unload]
+    mov rdx, 6
+    call streq_b
+    cmp rax, 1
+    jne .pb_info
+    cmp dword [rbx + CMD_ARGC_OFF], 3
+    jb .ret_fail
+    mov rdi, [rbx + CMD_ARGV_OFF + 16]
+    mov esi, dword [rbx + CMD_ARGV_LEN_OFF + 8]
+    call plugin_registry_find
+    test rax, rax
+    jz .ret_fail
+    mov r15, rax
+    mov rdi, r15
+    call plugin_unregister_all_for_plugin
+    mov rdi, r15
+    call plugin_registry_remove_handle
+    mov rdi, r15
+    call plugin_unload
+    jmp .ret_ok
+
+.pb_info:
+    cmp r11d, 4
+    jne .ret_fail
+    mov rdi, r15
+    lea rsi, [rel pb_cmd_info]
+    mov rdx, 4
+    call streq_b
+    cmp rax, 1
+    jne .ret_fail
+    cmp dword [rbx + CMD_ARGC_OFF], 3
+    jb .ret_fail
+    mov rdi, [rbx + CMD_ARGV_OFF + 16]
+    mov esi, dword [rbx + CMD_ARGV_LEN_OFF + 8]
+    call plugin_registry_find
+    test rax, rax
+    jz .ret_fail
+    lea rdi, [rax + 40]
+    call print_cstr
+    mov rdi, STDOUT
+    lea rsi, [rel msg_nl]
+    mov rdx, 1
+    call hal_write
+    jmp .ret_ok
 
 .chk_fm:
     cmp r13, 2
@@ -606,9 +757,24 @@ builtin_dispatch:
     mov eax, 1
     jmp .ret
 .not_builtin:
+    mov rdi, r12
+    mov rsi, r13
+    mov rdx, rbx
+    mov rcx, r14
+    call plugin_command_dispatch
+    cmp eax, -1
+    jne .ret
     mov eax, -1
 .ret:
+    pop r15
+    pop r14
     pop r13
     pop r12
     pop rbx
     ret
+
+section .rodata
+pb_cmd_list: db "list"
+pb_cmd_load: db "load"
+pb_cmd_unload: db "unload"
+pb_cmd_info: db "info"

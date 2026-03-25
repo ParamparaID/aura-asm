@@ -150,6 +150,54 @@
 
 ---
 
+## STEP 51: Plugin API и хуки — 2026-03-23
+
+### Что сделано
+- Добавлен `src/plugins/api.asm`:
+  - ABI-таблица `AuraHostAPI` (16 entries) и `AURA_API_VERSION=1`;
+  - реализации registration hooks (`register_command/widget/vfs/viewer/archive/theme/gesture/hub/event`) и utility hooks (`get_theme/get_canvas/log/alloc/free/get_config_dir`);
+  - глобальные реестры plugin-команд, viewer/archive handlers и loaded plugin handles;
+  - dispatch-path `plugin_command_dispatch` и unregister-path `plugin_unregister_all_for_plugin`.
+- Обновлён `src/plugins/host.asm`:
+  - `plugin_validate_exports` теперь требует `aura_plugin_init`, `aura_plugin_shutdown`, `aura_plugin_get_info`;
+  - `plugin_load` заполняет имя плагина из пути;
+  - `plugin_activate` оставляет crash-preflight в child, затем выполняет init в parent для сохранения registration side-effects.
+- Обновлён `src/shell/builtins.asm`:
+  - инициализация plugin API в `builtins_init`;
+  - новый builtin `plugin` с подкомандами `list/load/unload/info`;
+  - fallback-dispatch в реестр plugin-команд для вызова callback `(argc, argv, argv_lens, state)`.
+- Обновлён `src/fm/vfs.asm`: расширен `vfs_get_provider` — помимо встроенных типов добавлен динамический match схемы `<scheme>://` по имени провайдера; в `vfs_init` добавлен bind `plugin_api_bind_vfs_register(vfs_register_provider)` для полного bridge `register_vfs` → core VFS registry.
+- Обновлён `src/fm/viewer.asm`: в `viewer_open` добавлен plugin hook `plugin_viewer_find_handler` по расширению файла.
+- Обновлён `src/main.asm`:
+  - передача runtime контекста в plugin API (`plugin_api_set_theme_ptr`, `plugin_api_set_canvas_ptr`);
+  - `main_plugins_autoload()` для best-effort автозагрузки из `/tmp/aura/plugins/*/plugin.so`.
+- Добавлены тестовые файлы:
+  - `tests/data/test_plugin_cmd.asm` (init проверяет `api_version`, регистрирует команду `greet`);
+  - `tests/unit/test_plugin_api.asm` (load/list/dispatch/unload сценарий).
+- Обновлён `Makefile`:
+  - добавлен `src/plugins/api.asm` (`plugin_api.o`) в plugin-цепочки;
+  - добавлены `test_plugin_api`, `test_plugin_cmd.so` и обновлены link dependencies бинарников, где используются builtins/viewer/plugin API.
+
+### Результаты тестов
+- `bash -lc "make test_plugin_api"`: PASSED (`ALL TESTS PASSED`).
+- `bash -lc "make test"`: PASSED (полный regression suite, включая `test_plugin_api`).
+
+### Проблемы и решения
+- Проблема: registration side-effects терялись из-за `fork`-only init-path.
+- Решение: в `plugin_activate` оставлен child preflight (crash isolation), а успешный init повторно выполняется в parent.
+- Проблема: несколько registry-path в `plugin_api.asm` ошибочно использовали volatile индексы/указатели после helper-calls.
+- Решение: сохранение индексов/entry pointers до compare-вызовов и корректное восстановление loop-state.
+- Проблема: plugin command callback не записывался (аргумент `rdx` затирался при расчёте offset).
+- Решение: callback/handler сохраняются во временный регистр до вычисления адреса entry.
+
+### Ограничения MVP
+- Автозагрузка реализована как best-effort scan для `/tmp/aura/plugins/*/plugin.so`; парсинг `plugin.ini/.toml` в autoload-path можно расширить в следующем шаге.
+
+### Статус
+✅ Завершён (MVP)
+
+---
+
 ## STEP 41: Panel UI и навигация — 2026-03-23
 
 ### Что сделано

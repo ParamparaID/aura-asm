@@ -4,6 +4,7 @@
 extern local_provider_get
 extern sftp_provider_get
 extern archive_provider_get
+extern plugin_api_bind_vfs_register
 
 section .bss
     vfs_providers            resq VFS_MAX_PROVIDERS
@@ -38,6 +39,8 @@ vfs_path_len:
 vfs_init:
     xor eax, eax
     mov dword [rel vfs_provider_count], eax
+    lea rdi, [rel vfs_register_provider]
+    call plugin_api_bind_vfs_register
     call local_provider_get
     test rax, rax
     jz .ok
@@ -77,8 +80,32 @@ vfs_register_provider:
 vfs_get_provider:
     push rbx
     push r12
+    push r13
     mov rbx, rdi
     mov r12d, esi
+    xor r13d, r13d                    ; scheme len (0 => none)
+
+    ; detect "<scheme>://"
+    xor ecx, ecx
+.sch_scan:
+    cmp ecx, r12d
+    jae .sch_done
+    cmp byte [rbx + rcx], ':'
+    jne .sch_next
+    mov eax, ecx
+    add eax, 2
+    cmp eax, r12d
+    jae .sch_done
+    cmp byte [rbx + rcx + 1], '/'
+    jne .sch_done
+    cmp byte [rbx + rcx + 2], '/'
+    jne .sch_done
+    mov r13d, ecx
+    jmp .sch_done
+.sch_next:
+    inc ecx
+    jmp .sch_scan
+.sch_done:
 
     mov edx, VFS_LOCAL
     cmp r12d, 7
@@ -143,6 +170,24 @@ vfs_get_provider:
     test rax, rax
     jz .loop
     cmp dword [rax + VFS_TYPE_OFF], edx
+    je .out
+    ; dynamic scheme-based match for plugin providers
+    test r13d, r13d
+    jle .loop
+    mov r8, [rax + VFS_NAME_OFF]
+    test r8, r8
+    jz .loop
+    xor r9d, r9d
+.sn_cmp:
+    cmp r9d, r13d
+    jae .sn_term
+    mov r10b, [r8 + r9]
+    cmp r10b, [rbx + r9]
+    jne .loop
+    inc r9d
+    jmp .sn_cmp
+.sn_term:
+    cmp byte [r8 + r13], 0
     jne .loop
     jmp .out
 .fallback:
@@ -160,6 +205,7 @@ vfs_get_provider:
 .none:
     xor eax, eax
 .out:
+    pop r13
     pop r12
     pop rbx
     ret

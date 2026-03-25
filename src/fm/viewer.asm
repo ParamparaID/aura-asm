@@ -10,6 +10,7 @@ extern hal_lseek
 extern hal_mmap
 extern hal_munmap
 extern canvas_fill_rect
+extern plugin_viewer_find_handler
 
 %define SEEK_SET                    0
 %define SEEK_CUR                    1
@@ -112,6 +113,19 @@ viewer_open:
     push r13
     mov r12, rdi
     mov r13d, esi
+    ; plugin viewer hook by extension
+    mov rdi, r12
+    mov esi, r13d
+    call plugin_viewer_find_handler
+    test rax, rax
+    jz .builtin_open
+    mov r11, rax
+    mov rdi, r12
+    mov esi, r13d
+    call r11
+    test rax, rax
+    jnz .ok_ret
+.builtin_open:
     call viewer_alloc
     test rax, rax
     jz .fail
@@ -201,6 +215,7 @@ viewer_open:
     call viewer_pick_syntax
     mov [rbx + V_SYNTAX_TYPE_OFF], eax
     mov rax, rbx
+.ok_ret:
     pop r13
     pop r12
     pop rbx

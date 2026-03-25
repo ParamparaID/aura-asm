@@ -16,15 +16,15 @@
 - [x] Все тесты проходят
 
 ## STEP 51: Plugin API и хуки
-- [ ] `src/plugins/api.asm` — ABI-контракт: таблица функций host→plugin и plugin→host
-- [ ] Host→Plugin callbacks: `aura_plugin_init`, `aura_plugin_shutdown`, `aura_plugin_get_info`
-- [ ] Plugin→Host API: `aura_register_command(name, callback)`, `aura_register_widget(type_name, vtable)`, `aura_register_vfs(scheme, provider)`, `aura_register_viewer_format(ext, handler)`, `aura_register_archive_format(ext, handler)`, `aura_register_theme(name, theme_data)`
-- [ ] Plugin→Host API: `aura_get_theme()`, `aura_get_canvas()`, `aura_log(level, msg)`, `aura_alloc(size)`, `aura_free(ptr)`
-- [ ] Категории хуков: commands, widgets, VFS, viewer, archive, themes, gestures, Hub widgets, events
-- [ ] Версионирование API: `AURA_API_VERSION`, совместимость проверяется при загрузке
-- [ ] Интеграция: builtins ищет зарегистрированные plugin-команды, VFS ищет plugin-провайдеры
-- [ ] `tests/unit/test_plugin_api.asm` — plugin регистрирует команду, executor вызывает её
-- [ ] Все тесты проходят
+- [x] `src/plugins/api.asm` — ABI-контракт: таблица функций host→plugin и plugin→host
+- [x] Host→Plugin callbacks: `aura_plugin_init`, `aura_plugin_shutdown`, `aura_plugin_get_info`
+- [x] Plugin→Host API: `aura_register_command(name, callback)`, `aura_register_widget(type_name, vtable)`, `aura_register_vfs(scheme, provider)`, `aura_register_viewer_format(ext, handler)`, `aura_register_archive_format(ext, handler)`, `aura_register_theme(name, theme_data)`
+- [x] Plugin→Host API: `aura_get_theme()`, `aura_get_canvas()`, `aura_log(level, msg)`, `aura_alloc(size)`, `aura_free(ptr)`
+- [x] Категории хуков: commands, widgets, VFS, viewer, archive, themes, gestures, Hub widgets, events
+- [x] Версионирование API: `AURA_API_VERSION`, совместимость проверяется при загрузке
+- [x] Интеграция: builtins ищет зарегистрированные plugin-команды, VFS ищет plugin-провайдеры
+- [x] `tests/unit/test_plugin_api.asm` — plugin регистрирует команду, executor вызывает её
+- [x] Все тесты проходят
 
 ## STEP 52: AuraScript — лексер, парсер, AST
 - [ ] `src/aurascript/lexer.asm` — токенизация AuraScript: keywords (fn, let, mut, if, else, for, while, match, return, import), literals (int, float, string, bool), operators, delimiters
@@ -61,4 +61,4 @@
 
 ---
 
-**Прогресс Phase 5: 9/40 задач (23%)**
+**Прогресс Phase 5: 10/40 задач (25%)**

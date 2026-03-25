@@ -303,6 +303,7 @@ plugin_load:
     push r15
     sub rsp, 64
     mov r12, rdi
+    mov [rsp + 56], rdi                ; keep input path pointer
     xor r13d, r13d
     xor r14d, r14d
 
@@ -479,7 +480,10 @@ plugin_load:
     mov [r12 + PH_MIN_VADDR_OFF], rax
     mov dword [r12 + PH_VERSION_OFF], 1
     mov dword [r12 + PH_STATE_OFF], PLUGIN_LOADED
-    mov byte [r12 + PH_NAME_OFF], 0
+    mov rdi, [rsp + 56]
+    lea rsi, [r12 + PH_NAME_OFF]
+    mov edx, 64
+    call plugin_name_from_path
 
     ; parse PT_DYNAMIC and dynamic tags
     movzx r8d, word [r14 + EH_E_PHENTSIZE_OFF]
@@ -778,10 +782,22 @@ plugin_validate_exports:
     mov rbx, rdi
     test rbx, rbx
     jz .fail
-    ; sandbox MVP: plugin must export aura_plugin_init
+    ; required exports: init/shutdown/get_info
     mov rdi, rbx
     lea rsi, [rel plugin_init_name]
     mov edx, 16
+    call plugin_get_symbol
+    test rax, rax
+    jz .fail
+    mov rdi, rbx
+    lea rsi, [rel plugin_shutdown_name]
+    mov edx, 20
+    call plugin_get_symbol
+    test rax, rax
+    jz .fail
+    mov rdi, rbx
+    lea rsi, [rel plugin_get_info_name]
+    mov edx, 20
     call plugin_get_symbol
     test rax, rax
     jz .fail
@@ -813,8 +829,7 @@ plugin_activate:
     test rax, rax                        ; init fn ptr
     jz .ok
 
-    ; crash isolation MVP: run init in child process.
-    ; If plugin crashes (SIGSEGV etc), parent survives and marks plugin error.
+    ; crash isolation MVP: run init in child first.
     mov [rsp + 0], rax
     call hal_fork
     test rax, rax
@@ -831,6 +846,12 @@ plugin_activate:
     mov eax, [rsp + 12]
     test eax, eax
     jne .fail_set
+    ; run real init in parent so registrations are persisted.
+    mov rax, [rsp + 0]
+    mov rdi, r12
+    call rax
+    test eax, eax
+    jnz .fail_set
     jmp .ok
 
 .child:
@@ -901,3 +922,5 @@ plugin_unload:
 
 plugin_shutdown_name:
     db "aura_plugin_shutdown", 0
+plugin_get_info_name:
+    db "aura_plugin_get_info", 0
