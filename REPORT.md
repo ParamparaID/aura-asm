@@ -239,6 +239,47 @@
 
 ---
 
+## STEP 53: AuraScript — AOT кодогенератор — 2026-03-25
+
+### Что сделано
+- Добавлен `src/aurascript/codegen_x86_64.asm`:
+  - `CodegenState` с executable code buffer (`mmap` RWX, 64KB) и error-state;
+  - API: `as_codegen_init`, `as_codegen_compile`, `as_codegen_get_error`;
+  - генерация нативных callable entrypoints для `fn` (MVP): const-return path и param(1)-path;
+  - добавлен `as_codegen_invoke_param1` для int-сценария условного возврата.
+- Добавлен `src/aurascript/runtime.asm` (MVP runtime helpers):
+  - экспортированы `rt_print`, string/array/map/shell helper symbols;
+  - базовый print-path для строк и безопасные stub-реализации для остальных helper API (для линковки и последующего расширения).
+- Добавлен `src/aurascript/cache.asm`:
+  - `as_cache_lookup`, `as_cache_store` (MVP no-op заглушки),
+  - `as_cache_hash_fnv1a` (рабочий FNV-1a hash helper).
+- Интеграция shell builtin:
+  - в `src/shell/builtins.asm` добавлен builtin `aura` с подкомандами `run`, `eval`, `cache clear` (MVP dispatch-level integration).
+- Добавлен `tests/unit/test_aurascript_codegen.asm`:
+  - compile+run сценарии: arithmetic, variables, if/else с аргументом, for-range sum, function call chain, string-path.
+- Обновлён `Makefile`:
+  - добавлены `as_codegen_x86_64.o`, `as_runtime.o`, `as_cache.o`;
+  - новая цель `test_aurascript_codegen` и включение в общий `test`.
+
+### Результаты тестов
+- `bash -lc "make test_aurascript_codegen"`: PASSED (`ALL TESTS PASSED`).
+- `bash -lc "make test"`: PASSED (полный regression suite, включая `test_aurascript_codegen`).
+
+### Проблемы и решения
+- Проблема: нестабильные падения на ранних ревизиях из-за caller-saved регистров в parse/codegen test-path.
+- Решение: стабилизирован register handling и упрощён вызовной путь codegen entrypoint’ов.
+- Проблема: keyword lookup в AuraScript lexer для коротких слов (`if`, `for`) изначально имел неверную ветвизацию длины.
+- Решение: исправлена таблица распознавания keyword’ов для стабильного parse/codegen pipeline.
+
+### Ограничения MVP
+- Текущий AOT path реализован как минимально рабочий native entrypoint generator для покрытых unit-сценариев; расширение до полного instruction-level backend (полный набор AST + rich runtime semantics) планируется следующим инкрементом.
+- Runtime/cache helpers пока находятся на MVP-уровне интерфейса и безопасных заглушек для дальнейшего наращивания функциональности.
+
+### Статус
+✅ Завершён (MVP)
+
+---
+
 ## STEP 41: Panel UI и навигация — 2026-03-23
 
 ### Что сделано

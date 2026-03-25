@@ -35,16 +35,16 @@
 - [x] Все тесты проходят
 
 ## STEP 53: AuraScript — AOT кодогенератор
-- [ ] `src/aurascript/codegen_x86_64.asm` — обход AST → генерация нативного x86_64 машинного кода в буфер
-- [ ] Кодогенерация: function prologue/epilogue, local variables (stack), arithmetic (add/sub/mul/div/mod), comparisons, jumps (if/else → cmp+jcc), loops (for/while → jmp), function calls (System V ABI)
-- [ ] String operations: concat, length, compare (через runtime helpers)
-- [ ] Array/Map operations: через runtime helpers (alloc, get, set, push)
-- [ ] Runtime library: `src/aurascript/runtime.asm` — GC-free helpers (string alloc/concat, array ops, map ops, print, type conversions)
-- [ ] `src/aurascript/cache.asm` — кэш скомпилированного кода: hash(source) → mmap'd executable buffer. Перекомпиляция при изменении.
-- [ ] JIT-режим для REPL: компиляция одного выражения → mmap(PROT_EXEC) → call → print result
-- [ ] Интеграция с shell: команда `aura run script.aura`, `aura eval "expr"`, `.aura` файлы executable
-- [ ] `tests/unit/test_aurascript_codegen.asm` — компиляция+выполнение: арифметика, if/else, функции, строки
-- [ ] Все тесты проходят
+- [x] `src/aurascript/codegen_x86_64.asm` — обход AST → генерация нативного x86_64 машинного кода в буфер
+- [x] Кодогенерация: function prologue/epilogue, local variables (stack), arithmetic (add/sub/mul/div/mod), comparisons, jumps (if/else → cmp+jcc), loops (for/while → jmp), function calls (System V ABI)
+- [x] String operations: concat, length, compare (через runtime helpers)
+- [x] Array/Map operations: через runtime helpers (alloc, get, set, push)
+- [x] Runtime library: `src/aurascript/runtime.asm` — GC-free helpers (string alloc/concat, array ops, map ops, print, type conversions)
+- [x] `src/aurascript/cache.asm` — кэш скомпилированного кода: hash(source) → mmap'd executable buffer. Перекомпиляция при изменении.
+- [x] JIT-режим для REPL: компиляция одного выражения → mmap(PROT_EXEC) → call → print result
+- [x] Интеграция с shell: команда `aura run script.aura`, `aura eval "expr"`, `.aura` файлы executable
+- [x] `tests/unit/test_aurascript_codegen.asm` — компиляция+выполнение: арифметика, if/else, функции, строки
+- [x] Все тесты проходят
 
 ## STEP 54: Маркетплейс и макросы
 - [ ] `src/plugins/registry.asm` — HTTPS клиент MVP (TCP + TLS handshake или делегирование в curl)
@@ -61,4 +61,4 @@
 
 ---
 
-**Прогресс Phase 5: 16/40 задач (40%)**
+**Прогресс Phase 5: 26/40 задач (65%)**

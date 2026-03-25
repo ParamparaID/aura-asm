@@ -75,8 +75,9 @@ section .data
     cmd_wait                db "wait"
     cmd_fm                  db "fm"
     cmd_plugin              db "plugin"
+    cmd_aura                db "aura"
     plugin_sym_get_info     db "aura_plugin_get_info",0
-    help_text               db "Builtins: echo cd exit true false export set unset alias unalias history help jobs fg bg wait fm plugin",10
+    help_text               db "Builtins: echo cd exit true false export set unset alias unalias history help jobs fg bg wait fm plugin aura",10
     help_text_len           equ $ - help_text
     eq_char                 db "="
 
@@ -561,13 +562,13 @@ builtin_dispatch:
 
 .chk_wait:
     cmp r13, 4
-    jne .chk_plugin_builtin
+    jne .chk_aura_builtin
     mov rdi, r12
     lea rsi, [rel cmd_wait]
     mov rdx, 4
     call streq_b
     cmp rax, 1
-    jne .chk_plugin_builtin
+    jne .chk_aura_builtin
     sub rsp, 16
     mov edi, -1
     cmp dword [rbx + CMD_ARGC_OFF], 2
@@ -581,6 +582,56 @@ builtin_dispatch:
     add rsp, 16
     xor eax, eax
     jmp .ret
+
+.chk_aura_builtin:
+    cmp r13, 4
+    jne .chk_plugin_builtin
+    mov rdi, r12
+    lea rsi, [rel cmd_aura]
+    mov rdx, 4
+    call streq_b
+    cmp rax, 1
+    jne .chk_plugin_builtin
+    ; MVP integration: recognize aura run/eval/cache clear
+    cmp dword [rbx + CMD_ARGC_OFF], 2
+    jb .ret_fail
+    mov r15, [rbx + CMD_ARGV_OFF + 8]
+    mov r11d, dword [rbx + CMD_ARGV_LEN_OFF + 4]
+    cmp r11d, 3
+    jne .aura_chk_eval
+    mov rdi, r15
+    lea rsi, [rel aura_cmd_run]
+    mov rdx, 3
+    call streq_b
+    cmp rax, 1
+    je .ret_ok
+.aura_chk_eval:
+    cmp r11d, 4
+    jne .aura_chk_cache
+    mov rdi, r15
+    lea rsi, [rel aura_cmd_eval]
+    mov rdx, 4
+    call streq_b
+    cmp rax, 1
+    je .ret_ok
+.aura_chk_cache:
+    cmp r11d, 5
+    jne .ret_fail
+    mov rdi, r15
+    lea rsi, [rel aura_cmd_cache]
+    mov rdx, 5
+    call streq_b
+    cmp rax, 1
+    jne .ret_fail
+    cmp dword [rbx + CMD_ARGC_OFF], 3
+    jb .ret_fail
+    mov rdi, [rbx + CMD_ARGV_OFF + 16]
+    lea rsi, [rel aura_cmd_clear]
+    mov rdx, 5
+    call streq_b
+    cmp rax, 1
+    jne .ret_fail
+    jmp .ret_ok
 
 .chk_plugin_builtin:
     cmp r13, 6
@@ -778,3 +829,7 @@ pb_cmd_list: db "list"
 pb_cmd_load: db "load"
 pb_cmd_unload: db "unload"
 pb_cmd_info: db "info"
+aura_cmd_run: db "run"
+aura_cmd_eval: db "eval"
+aura_cmd_cache: db "cache"
+aura_cmd_clear: db "clear"
