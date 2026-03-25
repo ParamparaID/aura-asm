@@ -87,6 +87,69 @@
 
 ---
 
+## STEP 50: Plugin Host и загрузчик — 2026-03-23
+
+### Что сделано
+- Добавлен `src/plugins/host.asm` с минимальным ELF64 `.so`-загрузчиком без libc:
+  `plugin_load`, `plugin_get_symbol`, `plugin_activate`, `plugin_unload`.
+- В `plugin_load` реализованы этапы: `open+lstat+mmap` файла, валидация ELF (`ET_DYN`, `EM_X86_64`), копирование `PT_LOAD` сегментов в анонимное отображение, парсинг `PT_DYNAMIC` (`DT_SYMTAB`, `DT_STRTAB`, `DT_HASH`, `DT_RELA*`, `DT_JMPREL`, `DT_PLTRELSZ`, `DT_STRSZ`, `DT_SYMENT`), применение `RELA` relocations (`R_X86_64_RELATIVE`, `R_X86_64_64`, `R_X86_64_GLOB_DAT`, `R_X86_64_JUMP_SLOT`), и `mprotect` по `p_flags`.
+- Добавлен `src/plugins/manifest.asm` с MVP-парсером `plugin.ini` (`manifest_parse`) для ключей `name`, `version`, `author`, `description`, `commands`.
+- Добавлен тестовый плагин `tests/data/test_plugin.asm` с exported symbols:
+  `aura_plugin_init`, `aura_plugin_shutdown`, `test_add`.
+- Добавлен unit-тест `tests/unit/test_plugin_host.asm`:
+  загрузка `.so`, lookup символа, вызов `test_add(3,4)=7`, активация (`aura_plugin_init`), unload, проверка graceful-fail на несуществующем пути.
+- Обновлён `Makefile`:
+  - новые объекты `plugin_host.o`, `plugin_manifest.o`;
+  - цель сборки `build/test_plugin.so` (`ld -shared --hash-style=sysv`);
+  - цель `test_plugin_host` и включение её в общий `test`.
+- Обновлён HAL: добавлен `SYS_MPROTECT` в `src/hal/linux_x86_64/defs.inc` и wrapper `hal_mprotect` в `src/hal/linux_x86_64/syscall.asm`.
+
+### Результаты тестов
+- `bash -lc "make test_plugin_host"`: PASSED (`ALL TESTS PASSED`).
+- `bash -lc "make test"`: FAILED на существующей линковке `test_panel` (undefined references `viewer_render/viewer_open/viewer_handle_input/viewer_close` в `fm_main.o`), не связанной с STEP 50.
+
+### Проблемы и решения
+- Проблема: порча адреса Program Header из-за использования `bl` в байтовой копии сегмента.
+- Решение: переписана byte-copy на безопасный регистр (`dil`), устранена порча `rbx`.
+- Проблема: reuse stack-слотов приводил к ложной обработке reloc-таблиц.
+- Решение: явная инициализация scratch-слотов (`rela/jmprel`) перед парсингом `DT_*`.
+- Проблема: исполнение кода плагина падало `SIGSEGV`.
+- Решение: исполняемая защита для образа на этапе загрузки (`PROT_EXEC` при initial mmap + последующий `mprotect` per-segment).
+
+### Ограничения MVP
+- Crash isolation реализован в MVP как process-isolation (`fork/waitpid`) для `aura_plugin_init`; полноценный per-thread isolation остаётся как дальнейшее улучшение рантайма хуков.
+
+### Статус
+✅ Завершён (MVP)
+
+### Дополнение (итерация 2)
+- `src/plugins/host.asm`: в `plugin_activate` добавлена sandboxing-проверка exported hooks (`plugin_validate_exports`) — обязательный `aura_plugin_init` должен существовать, иначе активация отклоняется с `PLUGIN_ERROR`.
+- `src/plugins/manifest.asm`: `manifest_parse` расширен до `plugin.ini` + `plugin.toml`-style синтаксиса:
+  - разделители `=` и `:`;
+  - поддержка `hooks.commands` и `deps`;
+  - поддержка quoted values (`"..."` / `'...'`);
+  - парсинг `dependencies` в отдельное поле Manifest.
+- `tests/data/test_plugin_bad.asm`: добавлен негативный `.so` без `aura_plugin_init`.
+- `tests/unit/test_plugin_host.asm`: добавлены проверки:
+  - parse `manifest_ini` + `manifest_toml`;
+  - sandbox reject для `test_plugin_bad.so`.
+- `Makefile`: добавлены сборочные цели `build/test_plugin_bad.o` и `build/test_plugin_bad.so`, подключены в `test_plugin_host`.
+
+### Дополнение (итерация 3)
+- `src/plugins/host.asm`: добавлена crash-isolation обёртка для `plugin_activate`:
+  - `aura_plugin_init` выполняется в дочернем процессе (`hal_fork`);
+  - родитель ожидает `hal_waitpid`, и при `status != 0` возвращает ошибку и ставит `PLUGIN_ERROR`;
+  - падение плагина (например SIGSEGV) больше не валит host-процесс.
+- Добавлен `tests/data/test_plugin_crash.asm` (инициализация с намеренным крашем) и расширен `tests/unit/test_plugin_host.asm` проверкой, что host переживает crash-плагин и получает controlled failure.
+- `Makefile`: подключены цели `build/test_plugin_crash.o/.so` и `HAL_PROCESS_OBJ` в линковке `test_plugin_host`.
+- Исправлена существующая проблема regression-линковки `test_panel`: в `Makefile` добавлен `$(FM_VIEWER_OBJ)` в зависимости `$(TEST_PANEL_BIN)`.
+
+### Результаты тестов (после итерации 3)
+- `bash -lc "make test_plugin_host"`: PASSED (`ALL TESTS PASSED`).
+- `bash -lc "make test"`: PASSED (полный regression suite).
+
+---
+
 ## STEP 41: Panel UI и навигация — 2026-03-23
 
 ### Что сделано

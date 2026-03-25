@@ -16,6 +16,7 @@ global hal_read
 global hal_open
 global hal_close
 global hal_mmap
+global hal_mprotect
 global hal_munmap
 global hal_exit
 global hal_clock_gettime
@@ -103,6 +104,17 @@ hal_close:
 ;   rax = mapped address, or negative errno
 hal_mmap:
     syscall_6 SYS_MMAP, rdi, rsi, rdx, rcx, r8, r9
+    ret
+
+; hal_mprotect(addr, len, prot)
+; Params:
+;   rdi = address
+;   rsi = length
+;   rdx = protection flags
+; Return:
+;   rax = 0 on success, or negative errno
+hal_mprotect:
+    syscall_6 SYS_MPROTECT, rdi, rsi, rdx, 0, 0, 0
     ret
 
 ; hal_munmap(addr, len)

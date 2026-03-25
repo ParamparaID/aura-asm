@@ -14,6 +14,7 @@
 %define sys_access           21
 %define sys_dup2             33
 %define sys_mmap             9
+%define sys_mprotect         10
 %define sys_munmap           11
 %define sys_rt_sigaction     13
 %define sys_ioctl            16
@@ -72,6 +73,7 @@
 %define SYS_ACCESS           sys_access
 %define SYS_DUP2             sys_dup2
 %define SYS_MMAP             sys_mmap
+%define SYS_MPROTECT         sys_mprotect
 %define SYS_MUNMAP           sys_munmap
 %define SYS_RT_SIGACTION     sys_rt_sigaction
 %define SYS_IOCTL            sys_ioctl

@@ -45,6 +45,7 @@ TEST_VIEWER_BIN = $(BUILD_DIR)/test_viewer
 TEST_ARCHIVE_BIN = $(BUILD_DIR)/test_archive
 TEST_SSH_BIN = $(BUILD_DIR)/test_ssh
 TEST_FM_INTEGRATION_BIN = $(BUILD_DIR)/test_fm_integration
+TEST_PLUGIN_HOST_BIN = $(BUILD_DIR)/test_plugin_host
 
 HAL_SYSCALL_OBJ = $(BUILD_DIR)/hal_syscall.o
 HAL_ERRNO_OBJ = $(BUILD_DIR)/hal_errno.o
@@ -178,10 +179,20 @@ FM_VFS_SFTP_OBJ = $(BUILD_DIR)/fm_vfs_sftp.o
 FM_CORE_OBJS = $(FM_VFS_OBJ) $(FM_VFS_LOCAL_OBJ) $(FM_OPERATIONS_OBJ) $(FM_SEARCH_OBJ) $(FM_PANEL_OBJ) $(FM_ARCHIVE_OBJ) $(FM_VFS_ARCHIVE_OBJ) $(FM_SSH_OBJ) $(FM_SFTP_OBJ) $(FM_VFS_SFTP_OBJ)
 FM_UI_OBJS = $(FM_MAIN_OBJ) $(FM_STATUS_BAR_OBJ)
 FM_OBJS = $(FM_CORE_OBJS)
+PLUGIN_HOST_OBJ = $(BUILD_DIR)/plugin_host.o
+PLUGIN_MANIFEST_OBJ = $(BUILD_DIR)/plugin_manifest.o
+PLUGIN_OBJS = $(PLUGIN_HOST_OBJ) $(PLUGIN_MANIFEST_OBJ)
 TEST_VIEWER_OBJ = $(BUILD_DIR)/test_viewer.o
 TEST_ARCHIVE_OBJ = $(BUILD_DIR)/test_archive.o
 TEST_SSH_OBJ = $(BUILD_DIR)/test_ssh.o
 TEST_FM_INTEGRATION_OBJ = $(BUILD_DIR)/test_fm_integration.o
+TEST_PLUGIN_HOST_OBJ = $(BUILD_DIR)/test_plugin_host.o
+TEST_PLUGIN_OBJ = $(BUILD_DIR)/test_plugin.o
+TEST_PLUGIN_SO = $(BUILD_DIR)/test_plugin.so
+TEST_PLUGIN_BAD_OBJ = $(BUILD_DIR)/test_plugin_bad.o
+TEST_PLUGIN_BAD_SO = $(BUILD_DIR)/test_plugin_bad.so
+TEST_PLUGIN_CRASH_OBJ = $(BUILD_DIR)/test_plugin_crash.o
+TEST_PLUGIN_CRASH_SO = $(BUILD_DIR)/test_plugin_crash.so
 TEST_SURFACES_OBJ = $(BUILD_DIR)/test_surfaces.o
 TEST_SURFACES_BIN = $(BUILD_DIR)/test_surfaces
 TEST_INPUT_ROUTING_OBJ = $(BUILD_DIR)/test_input_routing.o
@@ -194,7 +205,7 @@ WIDGET_TERMINAL_STUBS_OBJ = $(BUILD_DIR)/widget_terminal_stubs.o
 all: $(AURA_SHELL_BIN)
 
 # Build and run unit tests
-test: test_syscall test_memory test_threads test_event test_ipc test_canvas test_lexer test_parser test_executor test_pipeline test_builtins test_jobs test_truetype test_png test_rendering test_physics test_widgets test_layout test_gesture test_theme test_compositor_server test_surfaces test_input_routing test_wm test_workspaces test_decorations test_vfs test_panel test_viewer test_archive test_ssh test_fm_integration
+test: test_syscall test_memory test_threads test_event test_ipc test_canvas test_lexer test_parser test_executor test_pipeline test_builtins test_jobs test_truetype test_png test_rendering test_physics test_widgets test_layout test_gesture test_theme test_compositor_server test_surfaces test_input_routing test_wm test_workspaces test_decorations test_vfs test_panel test_viewer test_archive test_ssh test_fm_integration test_plugin_host
 
 run: $(AURA_SHELL_BIN)
 	./$(AURA_SHELL_BIN)
@@ -303,6 +314,9 @@ test_ssh: $(TEST_SSH_BIN)
 
 test_fm_integration: $(TEST_FM_INTEGRATION_BIN)
 	./$(TEST_FM_INTEGRATION_BIN)
+
+test_plugin_host: $(TEST_PLUGIN_HOST_BIN)
+	./$(TEST_PLUGIN_HOST_BIN)
 
 test_nested_smoke: $(AURA_SHELL_BIN)
 	bash tools/test_nested_smoke.sh
@@ -664,6 +678,12 @@ $(FM_SFTP_OBJ): src/fm/sftp.asm src/fm/vfs.inc src/hal/linux_x86_64/defs.inc | $
 $(FM_VFS_SFTP_OBJ): src/fm/vfs_sftp.asm src/fm/vfs.inc src/hal/linux_x86_64/defs.inc | $(BUILD_DIR)
 	$(NASM) $(NASM_FLAGS) $< -o $@
 
+$(PLUGIN_HOST_OBJ): src/plugins/host.asm src/hal/linux_x86_64/defs.inc | $(BUILD_DIR)
+	$(NASM) $(NASM_FLAGS) $< -o $@
+
+$(PLUGIN_MANIFEST_OBJ): src/plugins/manifest.asm | $(BUILD_DIR)
+	$(NASM) $(NASM_FLAGS) $< -o $@
+
 $(HAL_LIBINPUT_OBJ): src/hal/linux_x86_64/libinput.asm src/hal/linux_x86_64/defs.inc | $(BUILD_DIR)
 	$(NASM) $(NASM_FLAGS) $< -o $@
 
@@ -781,6 +801,27 @@ $(TEST_SSH_OBJ): tests/unit/test_ssh.asm src/hal/linux_x86_64/defs.inc src/fm/vf
 $(TEST_FM_INTEGRATION_OBJ): tests/unit/test_fm_integration.asm src/hal/linux_x86_64/defs.inc src/gui/widget.inc src/fm/panel.inc src/fm/vfs.inc | $(BUILD_DIR)
 	$(NASM) $(NASM_FLAGS) $< -o $@
 
+$(TEST_PLUGIN_HOST_OBJ): tests/unit/test_plugin_host.asm src/hal/linux_x86_64/defs.inc | $(BUILD_DIR)
+	$(NASM) $(NASM_FLAGS) $< -o $@
+
+$(TEST_PLUGIN_OBJ): tests/data/test_plugin.asm | $(BUILD_DIR)
+	$(NASM) $(NASM_FLAGS) $< -o $@
+
+$(TEST_PLUGIN_SO): $(TEST_PLUGIN_OBJ)
+	$(LD) -shared --hash-style=sysv -o $@ $<
+
+$(TEST_PLUGIN_BAD_OBJ): tests/data/test_plugin_bad.asm | $(BUILD_DIR)
+	$(NASM) $(NASM_FLAGS) $< -o $@
+
+$(TEST_PLUGIN_BAD_SO): $(TEST_PLUGIN_BAD_OBJ)
+	$(LD) -shared --hash-style=sysv -o $@ $<
+
+$(TEST_PLUGIN_CRASH_OBJ): tests/data/test_plugin_crash.asm | $(BUILD_DIR)
+	$(NASM) $(NASM_FLAGS) $< -o $@
+
+$(TEST_PLUGIN_CRASH_SO): $(TEST_PLUGIN_CRASH_OBJ)
+	$(LD) -shared --hash-style=sysv -o $@ $<
+
 $(TEST_INPUT_ROUTING_BIN): $(HAL_SYSCALL_OBJ) $(HAL_ERRNO_OBJ) $(CORE_MEMORY_OBJ) $(CORE_EVENT_OBJ) $(HAL_WAYLAND_OBJ) $(COMPOSITOR_PROTOCOL_OBJ) $(COMPOSITOR_REGISTRY_OBJ) $(COMPOSITOR_SERVER_OBJ) $(COMPOSITOR_SURFACE_OBJ) $(COMPOSITOR_SHM_OBJ) $(COMPOSITOR_XDG_OBJ) $(COMPOSITOR_INPUT_OBJS) $(CANVAS_RASTERIZER_OBJ) $(CANVAS_SIMD_OBJ) $(TEST_INPUT_ROUTING_OBJ)
 	$(LD) $(LD_FLAGS) -o $@ $^
 
@@ -796,7 +837,7 @@ $(TEST_DECORATIONS_BIN): $(HAL_SYSCALL_OBJ) $(HAL_ERRNO_OBJ) $(CORE_MEMORY_OBJ) 
 $(TEST_VFS_BIN): $(HAL_SYSCALL_OBJ) $(HAL_ERRNO_OBJ) $(HAL_FS_OBJ) $(HAL_PROCESS_OBJ) $(CORE_MEMORY_OBJ) $(CORE_THREADS_OBJ) $(CANVAS_PNG_OBJ) $(FM_CORE_OBJS) $(TEST_VFS_OBJ)
 	$(LD) $(LD_FLAGS) -o $@ $^
 
-$(TEST_PANEL_BIN): $(HAL_SYSCALL_OBJ) $(HAL_ERRNO_OBJ) $(HAL_FS_OBJ) $(HAL_PROCESS_OBJ) $(CORE_MEMORY_OBJ) $(CORE_EVENT_OBJ) $(CORE_THREADS_OBJ) $(CANVAS_RASTERIZER_OBJ) $(CANVAS_TEXT_OBJ) $(CANVAS_SIMD_OBJ) $(CANVAS_TRUETYPE_OBJ) $(CANVAS_PNG_OBJ) $(CANVAS_ROUNDED_OBJ) $(CANVAS_COMPOSITE_OBJ) $(CANVAS_CLIP_OBJ) $(CANVAS_PHYSICS_OBJ) $(GUI_WIDGET_OBJ) $(WIDGET_OBJS) $(WIDGET_FILE_PANEL_OBJ) $(WIDGET_TERMINAL_STUBS_OBJ) $(FM_CORE_OBJS) $(FM_UI_OBJS) $(TEST_PANEL_OBJ)
+$(TEST_PANEL_BIN): $(HAL_SYSCALL_OBJ) $(HAL_ERRNO_OBJ) $(HAL_FS_OBJ) $(HAL_PROCESS_OBJ) $(CORE_MEMORY_OBJ) $(CORE_EVENT_OBJ) $(CORE_THREADS_OBJ) $(CANVAS_RASTERIZER_OBJ) $(CANVAS_TEXT_OBJ) $(CANVAS_SIMD_OBJ) $(CANVAS_TRUETYPE_OBJ) $(CANVAS_PNG_OBJ) $(CANVAS_ROUNDED_OBJ) $(CANVAS_COMPOSITE_OBJ) $(CANVAS_CLIP_OBJ) $(CANVAS_PHYSICS_OBJ) $(GUI_WIDGET_OBJ) $(WIDGET_OBJS) $(WIDGET_FILE_PANEL_OBJ) $(WIDGET_TERMINAL_STUBS_OBJ) $(FM_CORE_OBJS) $(FM_UI_OBJS) $(FM_VIEWER_OBJ) $(TEST_PANEL_OBJ)
 	$(LD) $(LD_FLAGS) -o $@ $^
 
 $(TEST_VIEWER_BIN): $(HAL_SYSCALL_OBJ) $(HAL_ERRNO_OBJ) $(HAL_FS_OBJ) $(CORE_MEMORY_OBJ) $(CANVAS_RASTERIZER_OBJ) $(CANVAS_TEXT_OBJ) $(CANVAS_SIMD_OBJ) $(FM_VIEWER_OBJ) $(TEST_VIEWER_OBJ)
@@ -810,6 +851,9 @@ $(TEST_SSH_BIN): $(HAL_SYSCALL_OBJ) $(HAL_ERRNO_OBJ) $(HAL_FS_OBJ) $(HAL_PROCESS
 
 $(TEST_FM_INTEGRATION_BIN): $(HAL_SYSCALL_OBJ) $(HAL_ERRNO_OBJ) $(HAL_FS_OBJ) $(HAL_PROCESS_OBJ) $(CORE_MEMORY_OBJ) $(CORE_THREADS_OBJ) $(CANVAS_RASTERIZER_OBJ) $(CANVAS_TEXT_OBJ) $(CANVAS_SIMD_OBJ) $(CANVAS_TRUETYPE_OBJ) $(CANVAS_PNG_OBJ) $(CANVAS_ROUNDED_OBJ) $(CANVAS_COMPOSITE_OBJ) $(CANVAS_CLIP_OBJ) $(CANVAS_PHYSICS_OBJ) $(GUI_WIDGET_OBJ) $(WIDGET_OBJS) $(WIDGET_FILE_PANEL_OBJ) $(WIDGET_TERMINAL_STUBS_OBJ) $(FM_CORE_OBJS) $(FM_UI_OBJS) $(FM_VIEWER_OBJ) $(TEST_FM_INTEGRATION_OBJ)
 	$(LD) $(LD_FLAGS) -o $@ $^
+
+$(TEST_PLUGIN_HOST_BIN): $(HAL_SYSCALL_OBJ) $(HAL_FS_OBJ) $(HAL_PROCESS_OBJ) $(PLUGIN_OBJS) $(TEST_PLUGIN_HOST_OBJ) $(TEST_PLUGIN_SO) $(TEST_PLUGIN_BAD_SO) $(TEST_PLUGIN_CRASH_SO)
+	$(LD) $(LD_FLAGS) -o $@ $(HAL_SYSCALL_OBJ) $(HAL_FS_OBJ) $(HAL_PROCESS_OBJ) $(PLUGIN_OBJS) $(TEST_PLUGIN_HOST_OBJ)
 
 $(AURA_SHELL_BIN): $(HAL_SYSCALL_OBJ) $(HAL_PROCESS_OBJ) $(HAL_SIGNALS_OBJ) $(HAL_FS_OBJ) $(HAL_WAYLAND_OBJ) $(HAL_WAYLAND_INPUT_OBJ) $(HAL_LIBINPUT_OBJ) $(HAL_DRM_OBJ) $(CORE_MEMORY_OBJ) $(CORE_EVENT_OBJ) $(CORE_INPUT_OBJ) $(CORE_GESTURE_OBJ) $(CORE_THREADS_OBJ) $(GUI_WINDOW_OBJ) $(GUI_WIDGET_OBJ) $(WIDGET_OBJS) $(WIDGET_FILE_PANEL_OBJ) $(GUI_THEME_OBJ) $(GUI_TERMINAL_OBJ) $(GUI_LAYOUT_OBJ) $(SHELL_REPL_OBJ) $(SHELL_LEXER_OBJ) $(SHELL_PARSER_OBJ) $(SHELL_EXECUTOR_OBJ) $(SHELL_PIPELINE_OBJ) $(SHELL_VARIABLES_OBJ) $(SHELL_ALIAS_OBJ) $(SHELL_HISTORY_OBJ) $(SHELL_JOBS_OBJ) $(SHELL_BUILTINS_OBJ) $(CANVAS_RASTERIZER_OBJ) $(CANVAS_TEXT_OBJ) $(CANVAS_SIMD_OBJ) $(CANVAS_TRUETYPE_OBJ) $(CANVAS_PNG_OBJ) $(CANVAS_GRADIENT_OBJ) $(CANVAS_ROUNDED_OBJ) $(CANVAS_BLUR_OBJ) $(CANVAS_COMPOSITE_OBJ) $(CANVAS_LINE_OBJ) $(CANVAS_CLIP_OBJ) $(CANVAS_PHYSICS_OBJ) $(COMPOSITOR_PROTOCOL_OBJ) $(COMPOSITOR_REGISTRY_OBJ) $(COMPOSITOR_SERVER_OBJ) $(COMPOSITOR_SURFACE_OBJ) $(COMPOSITOR_SHM_OBJ) $(COMPOSITOR_XDG_OBJ) $(COMPOSITOR_RENDER_OBJ) $(COMPOSITOR_RENDER_AUX_OBJS) $(COMPOSITOR_INPUT_OBJS) $(COMPOSITOR_SPACES_OBJS) $(FM_CORE_OBJS) $(FM_UI_OBJS) $(FM_VIEWER_OBJ) $(MAIN_OBJ)
 	$(LD) $(LD_FLAGS) -o $@ $^
