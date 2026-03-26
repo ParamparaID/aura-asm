@@ -420,6 +420,43 @@ Phase 5 завершена. Проект готов к переходу в Phase
 
 ---
 
+## STEP 62: ARM64 HAL — AArch64 syscalls — 2026-03-26
+
+### Что сделано
+- Добавлен `src/hal/linux_arm64/defs.S`:
+  - ARM64 syscall номера Linux (`read/write/openat/mmap/clone/execve/wait4/socket/...`),
+  - базовые константы (`AT_FDCWD`, `O_*`, `PROT_*`, `MAP_*`, `CLOCK_*`, `SIGCHLD`).
+- Добавлен `src/hal/linux_arm64/syscall.S`:
+  - syscall macro (`x8=nr`, `svc #0`) и ARM64 HAL wrappers,
+  - file/memory/time/process/network wrappers: `hal_write`, `hal_read`, `hal_open/openat`, `hal_close`, `hal_mmap`, `hal_mprotect`, `hal_munmap`, `hal_exit`, `hal_clock_gettime`,
+  - process wrappers: `hal_fork` (clone), `hal_execve`, `hal_waitpid`, `hal_pipe`, `hal_dup2` (через `dup3`), `hal_getcwd`, `hal_chdir`, `hal_getenv_raw`,
+  - net/fs helpers: `hal_socket`, `hal_connect`, `hal_bind`, `hal_listen`, `hal_accept4`, `hal_recvmsg`, `hal_access`, `hal_unlink`, `hal_ftruncate`, `hal_memfd_create`, `hal_lseek`.
+- Добавлен `src/hal/linux_arm64/sync.S`:
+  - `atomic_cas`, `atomic_inc`, `spin_lock`, `spin_unlock` на `LDXR/STXR` + memory barriers.
+- Добавлен `src/hal/linux_arm64/threads.S`:
+  - `thread_create` (clone-based thread start с отдельным mmap stack),
+  - `thread_join` (wait4 path).
+- Добавлен `tests/unit/test_arm64_hal.S`:
+  - smoke для `hal_write`, `hal_mmap/hal_munmap`, `hal_clock_gettime`, `hal_exit`.
+- Обновлён `Makefile`:
+  - ARM64 cross toolchain variables (`ARM_AS`, `ARM_LD`, `ARM_QEMU`),
+  - сборка `.S` через GNU as,
+  - цели `arm64_hal_check` и `test_arm64_hal`.
+
+### Результаты тестов
+- `make PLATFORM=linux_arm64 arm64_hal_check`: PASSED.
+- `make PLATFORM=linux_arm64 test_arm64_hal`: PASSED (`qemu-aarch64`, вывод `Hello Aura` + `ALL TESTS PASSED`).
+- `make test`: PASSED (Linux x86_64 regression suite без регрессий).
+
+### Ограничения MVP
+- Проверка исполнения ARM64 бинарника требует установленного cross toolchain + QEMU/ARM runner (в текущем окружении настроено и проверено через QEMU).
+- Часть расширенных HAL направлений (полный epoll/timerfd/high-level integration across all modules) остаются предметом следующих шагов Phase 6.
+
+### Статус
+✅ Завершён (MVP STEP 62)
+
+---
+
 ## STEP 41: Panel UI и навигация — 2026-03-23
 
 ### Что сделано

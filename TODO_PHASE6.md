@@ -28,13 +28,13 @@
 - [x] `tests/unit/test_win32_window.asm` — открытие окна, рендер canvas, обработка ввода
 
 ## STEP 62: ARM64 HAL — AArch64 syscalls
-- [ ] `src/hal/linux_arm64/defs.inc` — ARM64 Linux syscall номера (отличаются от x86_64!)
-- [ ] `src/hal/linux_arm64/syscall.asm` — макрос syscall через `svc #0` (x8=nr, x0-x5=args, x0=return)
-- [ ] Все hal_* обёртки: write, read, open, close, mmap, munmap, exit, clock_gettime, fork, execve, waitpid, pipe, dup2, socket, connect, bind, listen, accept, epoll, timerfd, getdents64, stat, и др.
-- [ ] Threads: clone syscall на ARM64 (аналогично x86_64 но другие регистры)
-- [ ] Sync: LDXR/STXR для atomic operations (вместо LOCK CMPXCHG), DMB/DSB для barriers
-- [ ] `tests/unit/test_arm64_hal.asm` — базовые тесты
-- [ ] Cross-compilation Makefile: `nasm` не поддерживает ARM → использовать GNU `as` (GAS) или `aarch64-linux-gnu-as`
+- [x] `src/hal/linux_arm64/defs.inc` — ARM64 Linux syscall номера (отличаются от x86_64!)
+- [x] `src/hal/linux_arm64/syscall.asm` — макрос syscall через `svc #0` (x8=nr, x0-x5=args, x0=return)
+- [x] Все hal_* обёртки: write, read, open, close, mmap, munmap, exit, clock_gettime, fork, execve, waitpid, pipe, dup2, socket, connect, bind, listen, accept, epoll, timerfd, getdents64, stat, и др.
+- [x] Threads: clone syscall на ARM64 (аналогично x86_64 но другие регистры)
+- [x] Sync: LDXR/STXR для atomic operations (вместо LOCK CMPXCHG), DMB/DSB для barriers
+- [x] `tests/unit/test_arm64_hal.asm` — базовые тесты
+- [x] Cross-compilation Makefile: `nasm` не поддерживает ARM → использовать GNU `as` (GAS) или `aarch64-linux-gnu-as`
 
 ## STEP 63: ARM64 Canvas и NEON оптимизации
 - [ ] `src/canvas/simd_neon.asm` — NEON эквиваленты SSE2 функций: fill_rect, clear, alpha_blend, blur
@@ -54,4 +54,4 @@
 
 ---
 
-**Прогресс Phase 6: 19/35 задач (54%)**
+**Прогресс Phase 6: 26/35 задач (74%)**
