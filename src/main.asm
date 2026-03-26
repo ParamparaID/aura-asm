@@ -295,6 +295,9 @@ main_apply_theme:
     mov [rel hub_ptr], rax
     mov eax, 1
     ret
+.fail:
+    xor eax, eax
+    ret
 
 ; main_plugins_autoload() - best effort auto-load from /tmp/aura/plugins/*/plugin.so
 main_plugins_autoload:

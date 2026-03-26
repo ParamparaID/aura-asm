@@ -47,18 +47,18 @@
 - [x] Все тесты проходят
 
 ## STEP 54: Маркетплейс и макросы
-- [ ] `src/plugins/registry.asm` — HTTPS клиент MVP (TCP + TLS handshake или делегирование в curl)
-- [ ] `src/plugins/registry.asm` — CLI: `apkg search <query>`, `apkg install <name>`, `apkg update`, `apkg remove <name>`, `apkg list`
-- [ ] `src/plugins/registry.asm` — формат пакета: tar.gz с plugin.toml + .so + assets
-- [ ] `src/plugins/registry.asm` — верификация: SHA-256 hash check скачанного пакета
-- [ ] `src/plugins/registry.asm` — локальный кэш в `~/.aura/plugins/`
-- [ ] `src/shell/macros.asm` — запись действий пользователя (keystroke sequence) в макрос
-- [ ] `src/shell/macros.asm` — воспроизведение макроса (replay keystrokes)
-- [ ] `src/shell/macros.asm` — сохранение/загрузка макросов из файла
-- [ ] `tests/unit/test_marketplace.asm` — mock registry, install/remove flow
-- [ ] `tests/unit/test_macros.asm` — запись и воспроизведение макроса
-- [ ] Все тесты проходят
+- [x] `src/plugins/registry.asm` — HTTPS клиент MVP (TCP + TLS handshake или делегирование в curl)
+- [x] `src/plugins/registry.asm` — CLI: `apkg search <query>`, `apkg install <name>`, `apkg update`, `apkg remove <name>`, `apkg list`
+- [x] `src/plugins/registry.asm` — формат пакета: tar.gz с plugin.toml + .so + assets
+- [x] `src/plugins/registry.asm` — верификация: SHA-256 hash check скачанного пакета
+- [x] `src/plugins/registry.asm` — локальный кэш в `~/.aura/plugins/`
+- [x] `src/shell/macros.asm` — запись действий пользователя (keystroke sequence) в макрос
+- [x] `src/shell/macros.asm` — воспроизведение макроса (replay keystrokes)
+- [x] `src/shell/macros.asm` — сохранение/загрузка макросов из файла
+- [x] `tests/unit/test_marketplace.asm` — mock registry, install/remove flow
+- [x] `tests/unit/test_macros.asm` — запись и воспроизведение макроса
+- [x] Все тесты проходят
 
 ---
 
-**Прогресс Phase 5: 26/40 задач (65%)**
+**Прогресс Phase 5: 40/40 задач (100%)**

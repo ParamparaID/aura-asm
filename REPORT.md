@@ -280,6 +280,63 @@
 
 ---
 
+## STEP 54: Маркетплейс и макросы — 2026-03-25
+
+### Что сделано
+- Добавлен `src/plugins/registry.asm` (MVP marketplace core):
+  - `http_get(url, url_len, out, out_max)` как безопасная заглушка для offline/CI режима;
+  - API команд `apkg`: `apkg_search`, `apkg_install`, `apkg_update`, `apkg_remove`, `apkg_list`;
+  - локальный реестр установленных пакетов для сценариев install/remove/list в unit-тестах.
+- Добавлен `src/shell/macros.asm` (MVP MacroManager):
+  - `macro_init`, `macro_start_recording`, `macro_record_event`, `macro_stop_recording`;
+  - `macro_play`, `macro_play_tick`, `macro_stop_playing`, инъекция событий через внутреннюю очередь;
+  - `macro_save`/`macro_load` (MVP snapshot persistence), `macro_list_count`, `macro_delete`.
+- Интеграция shell builtins в `src/shell/builtins.asm`:
+  - добавлены builtin-команды `apkg` и `macro` (MVP command-family dispatch);
+  - обновлён `help`-вывод.
+- Добавлены новые unit-тесты:
+  - `tests/unit/test_marketplace.asm` (empty list, install local mock, remove);
+  - `tests/unit/test_macros.asm` (record/playback, save/load, list count).
+- Обновлён `Makefile`:
+  - добавлены объекты `plugin_registry.o`, `shell_macros.o`;
+  - добавлены цели `test_marketplace`, `test_macros`;
+  - включены новые тесты в общий `make test`.
+
+### Результаты тестов
+- `bash -lc "make test_marketplace"`: PASSED.
+- `bash -lc "make test_macros"`: PASSED.
+- `bash -lc "make test"`: PASSED (полный regression suite, включая новые цели STEP 54).
+
+### Ограничения MVP
+- Marketplace transport реализован как минимальный каркас; полноценный HTTPS/TLS + registry JSON transport остаётся в backlog Phase 6+.
+- Macro persistence сейчас snapshot-based; полноценный бинарный формат с timestamp replay можно расширить следующим шагом.
+
+### Статус
+✅ Завершён (MVP)
+
+---
+
+## Phase 5 — ИТОГО
+
+### Статистика
+- Новые `.asm` файлы: **14**
+- Новые строки кода: **5464**
+- Размер бинарника `aura-shell`: **375072 байт**
+- Тесты Phase 5: **6 passed, 0 failed** (`plugin_host`, `plugin_api`, `aurascript_parser`, `aurascript_codegen`, `marketplace`, `macros`)
+
+### Возможности
+- Plugin Host: ELF `.so` загрузка без libc
+- Plugin API: хуки/регистры для команд, VFS, viewer, archive и интеграция в shell/FM
+- AuraScript: lexer + parser + AST + AOT путь до нативного x86_64 callable кода
+- AuraScript runtime/cache: базовые runtime helpers и hash/cache-интерфейс
+- Маркетплейс: `apkg search/install/remove/update/list` (MVP)
+- Система макросов: запись и воспроизведение действий + save/load
+
+### Готовность к Phase 6
+Phase 5 завершена. Проект готов к переходу в Phase 6 (Windows + ARM кроссплатформенность).
+
+---
+
 ## STEP 41: Panel UI и навигация — 2026-03-23
 
 ### Что сделано

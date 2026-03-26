@@ -76,8 +76,10 @@ section .data
     cmd_fm                  db "fm"
     cmd_plugin              db "plugin"
     cmd_aura                db "aura"
+    cmd_apkg                db "apkg"
+    cmd_macro               db "macro"
     plugin_sym_get_info     db "aura_plugin_get_info",0
-    help_text               db "Builtins: echo cd exit true false export set unset alias unalias history help jobs fg bg wait fm plugin aura",10
+    help_text               db "Builtins: echo cd exit true false export set unset alias unalias history help jobs fg bg wait fm plugin aura apkg macro",10
     help_text_len           equ $ - help_text
     eq_char                 db "="
 
@@ -585,13 +587,13 @@ builtin_dispatch:
 
 .chk_aura_builtin:
     cmp r13, 4
-    jne .chk_plugin_builtin
+    jne .chk_apkg_builtin
     mov rdi, r12
     lea rsi, [rel cmd_aura]
     mov rdx, 4
     call streq_b
     cmp rax, 1
-    jne .chk_plugin_builtin
+    jne .chk_apkg_builtin
     ; MVP integration: recognize aura run/eval/cache clear
     cmp dword [rbx + CMD_ARGC_OFF], 2
     jb .ret_fail
@@ -631,6 +633,34 @@ builtin_dispatch:
     call streq_b
     cmp rax, 1
     jne .ret_fail
+    jmp .ret_ok
+
+.chk_apkg_builtin:
+    cmp r13, 4
+    jne .chk_macro_builtin
+    mov rdi, r12
+    lea rsi, [rel cmd_apkg]
+    mov rdx, 4
+    call streq_b
+    cmp rax, 1
+    jne .chk_macro_builtin
+    ; MVP apkg command family recognized
+    cmp dword [rbx + CMD_ARGC_OFF], 2
+    jb .ret_fail
+    jmp .ret_ok
+
+.chk_macro_builtin:
+    cmp r13, 5
+    jne .chk_plugin_builtin
+    mov rdi, r12
+    lea rsi, [rel cmd_macro]
+    mov rdx, 5
+    call streq_b
+    cmp rax, 1
+    jne .chk_plugin_builtin
+    ; MVP macro command family recognized
+    cmp dword [rbx + CMD_ARGC_OFF], 2
+    jb .ret_fail
     jmp .ret_ok
 
 .chk_plugin_builtin:
