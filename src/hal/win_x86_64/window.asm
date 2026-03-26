@@ -125,9 +125,9 @@ win_push_event:
     mov rax, [rel win32_GetTickCount64]
     test rax, rax
     jz .push
-    sub rsp, 40
+    sub rsp, 32
     call rax
-    add rsp, 40
+    add rsp, 32
     mov [rbx + IE_TS_OFF], rax
 .push:
     mov rdi, rbx
@@ -181,6 +181,8 @@ window_enum_windows:
 
 aura_wnd_proc:
     ; Win64 callback: rcx=hWnd, rdx=uMsg, r8=wParam, r9=lParam
+    push rdi
+    push rsi
     push rbx
     push r12
     push r13
@@ -226,18 +228,18 @@ aura_wnd_proc:
     jz .ret0
     mov dword [rax + W_SHOULD_CLOSE_OFF], 1
     mov rcx, rbx
-    sub rsp, 40
+    sub rsp, 32
     mov rax, [rel win32_DestroyWindow]
     call rax
-    add rsp, 40
+    add rsp, 32
     jmp .ret0
 
 .wm_destroy:
     xor ecx, ecx
-    sub rsp, 40
+    sub rsp, 32
     mov rax, [rel win32_PostQuitMessage]
     call rax
-    add rsp, 40
+    add rsp, 32
     jmp .ret0
 
 .wm_key_down:
@@ -386,10 +388,10 @@ aura_wnd_proc:
     mov rdx, r12
     mov r8, r13
     ; r9 unchanged as lParam from entry
-    sub rsp, 40
+    sub rsp, 32
     mov rax, [rel win32_DefWindowProcA]
     call rax
-    add rsp, 40
+    add rsp, 32
     jmp .out
 
 .ret0:
@@ -398,6 +400,8 @@ aura_wnd_proc:
     pop r13
     pop r12
     pop rbx
+    pop rsi
+    pop rdi
     ret
 
 window_create_win32:
@@ -410,9 +414,7 @@ window_create_win32:
     mov r13d, esi
     mov r14, rdx
 
-    call bootstrap_init
-    cmp eax, 1
-    jne .fail
+    ; bootstrap is expected to be initialized by caller/tests.
 
     ; shell replacement mode: fullscreen popup
     cmp dword [rel win_shell_replacement_mode], 0
@@ -487,7 +489,7 @@ window_create_win32:
     lea r14, [rel win_default_title]
 .have_title:
     ; CreateWindowExA(...)
-    sub rsp, 128
+    sub rsp, 104
     mov dword [rsp + 32], CW_USEDEFAULT
     mov dword [rsp + 40], CW_USEDEFAULT
     mov dword [rsp + 48], r12d
@@ -508,7 +510,7 @@ window_create_win32:
 .cw_call:
     mov rax, [rel win32_CreateWindowExA]
     call rax
-    add rsp, 128
+    add rsp, 104
     test rax, rax
     jz .free_fail
     mov [rbx + W_HWND_OFF], rax
@@ -524,29 +526,30 @@ window_create_win32:
     mov [rbx + W_MEMDC_OFF], rax
 
     ; CreateDIBSection(memDC, &bmi, DIB_RGB_COLORS, &bits, 0, 0)
-    sub rsp, 176
-    lea rdi, [rsp + 32]
+    ; Keep stack args at [rsp+32]/[rsp+40], place BITMAPINFO after that.
+    sub rsp, 216
+    lea rdi, [rsp + 64]
     mov ecx, 80
     xor eax, eax
     rep stosb
-    mov dword [rsp + 32 + 0], BITMAPINFOHEADER_SIZE
-    mov dword [rsp + 32 + 4], r12d
+    mov dword [rsp + 64 + 0], BITMAPINFOHEADER_SIZE
+    mov dword [rsp + 64 + 4], r12d
     mov eax, r13d
     neg eax
-    mov dword [rsp + 32 + 8], eax      ; top-down
-    mov word [rsp + 32 + 12], 1
-    mov word [rsp + 32 + 14], 32
-    mov dword [rsp + 32 + 16], BI_RGB
+    mov dword [rsp + 64 + 8], eax      ; top-down
+    mov word [rsp + 64 + 12], 1
+    mov word [rsp + 64 + 14], 32
+    mov dword [rsp + 64 + 16], BI_RGB
 
     mov qword [rsp + 32], 0            ; arg5 hSection
     mov qword [rsp + 40], 0            ; arg6 offset
     mov rcx, [rbx + W_MEMDC_OFF]
-    lea rdx, [rsp + 32]
+    lea rdx, [rsp + 64]
     mov r8d, DIB_RGB_COLORS
     lea r9, [rbx + W_DIB_PTR_OFF]
     mov rax, [rel win32_CreateDIBSection]
     call rax
-    add rsp, 176
+    add rsp, 216
     test rax, rax
     jz .free_fail
     mov [rbx + W_HBITMAP_OFF], rax
@@ -611,13 +614,41 @@ window_create_win32:
     ret
 
 .free_fail:
+    ; cleanup partially-created Win32 resources and fail.
+    mov rax, [rbx + W_HBITMAP_OFF]
+    test rax, rax
+    jz .ff_skip_obj
+    mov rcx, rax
+    sub rsp, 32
+    mov rax, [rel win32_DeleteObject]
+    call rax
+    add rsp, 32
+.ff_skip_obj:
+    mov rax, [rbx + W_MEMDC_OFF]
+    test rax, rax
+    jz .ff_skip_dc
+    mov rcx, rax
+    sub rsp, 32
+    mov rax, [rel win32_DeleteDC]
+    call rax
+    add rsp, 32
+.ff_skip_dc:
+    mov rax, [rbx + W_HWND_OFF]
+    test rax, rax
+    jz .ff_skip_hwnd
+    mov rcx, rax
+    sub rsp, 32
+    mov rax, [rel win32_DestroyWindow]
+    call rax
+    add rsp, 32
+.ff_skip_hwnd:
     mov rcx, rbx
     xor edx, edx
     mov r8d, MEM_RELEASE
-    sub rsp, 40
+    sub rsp, 32
     mov rax, [rel win32_VirtualFree]
     call rax
-    add rsp, 40
+    add rsp, 32
 .fail:
     xor eax, eax
     pop r14
@@ -635,35 +666,37 @@ window_present_win32:
     test rdi, rdi
     jz .fail
     mov rbx, rdi
+    cmp qword [rbx + W_HWND_OFF], 0
+    je .fail
     mov rcx, [rbx + W_HWND_OFF]
-    sub rsp, 40
+    sub rsp, 32
     mov rax, [rel win32_GetDC]
     call rax
-    add rsp, 40
+    add rsp, 32
     test rax, rax
     jz .fail
     mov r10, rax
-    sub rsp, 104
+    sub rsp, 96
     mov eax, [rbx + W_HEIGHT_OFF]
     mov dword [rsp + 32], eax                  ; cy
     mov rax, [rbx + W_MEMDC_OFF]
-    mov [rsp + 40], rax                         ; hdcSrc
-    mov qword [rsp + 48], 0                     ; xSrc
-    mov qword [rsp + 56], 0                     ; ySrc
-    mov qword [rsp + 64], SRCCOPY               ; rop
+    mov [rsp + 40], rax                        ; hdcSrc
+    mov qword [rsp + 48], 0                    ; xSrc
+    mov qword [rsp + 56], 0                    ; ySrc
+    mov qword [rsp + 64], SRCCOPY              ; rop
     mov rcx, r10
     xor edx, edx
     xor r8d, r8d
     mov r9d, [rbx + W_WIDTH_OFF]
     mov rax, [rel win32_BitBlt]
     call rax
-    add rsp, 104
+    add rsp, 96
     mov rcx, [rbx + W_HWND_OFF]
     mov rdx, r10
-    sub rsp, 40
+    sub rsp, 32
     mov rax, [rel win32_ReleaseDC]
     call rax
-    add rsp, 40
+    add rsp, 32
     xor eax, eax
     pop rbx
     ret
@@ -688,6 +721,8 @@ window_process_events:
     ; (Window*) -> 0/-1
     test rdi, rdi
     jz .fail
+    cmp qword [rdi + W_HWND_OFF], 0
+    je .fail
 .loop:
     sub rsp, 72
     lea rcx, [rel win_tmp_msg]
@@ -740,40 +775,41 @@ window_destroy:
     test rdi, rdi
     jz .fail
     mov rbx, rdi
+
     mov rax, [rbx + W_HBITMAP_OFF]
     test rax, rax
     jz .skip_obj
     mov rcx, rax
-    sub rsp, 40
+    sub rsp, 32
     mov rax, [rel win32_DeleteObject]
     call rax
-    add rsp, 40
+    add rsp, 32
 .skip_obj:
     mov rax, [rbx + W_MEMDC_OFF]
     test rax, rax
     jz .skip_dc
     mov rcx, rax
-    sub rsp, 40
+    sub rsp, 32
     mov rax, [rel win32_DeleteDC]
     call rax
-    add rsp, 40
+    add rsp, 32
 .skip_dc:
     mov rax, [rbx + W_HWND_OFF]
     test rax, rax
     jz .skip_hwnd
     mov rcx, rax
-    sub rsp, 40
+    sub rsp, 32
     mov rax, [rel win32_DestroyWindow]
     call rax
-    add rsp, 40
+    add rsp, 32
 .skip_hwnd:
     mov rcx, rbx
     xor edx, edx
     mov r8d, MEM_RELEASE
-    sub rsp, 40
+    sub rsp, 32
     mov rax, [rel win32_VirtualFree]
     call rax
-    add rsp, 40
+    add rsp, 32
     xor eax, eax
     pop rbx
     ret
@@ -786,9 +822,13 @@ window_send_test_keydown:
     ; (Window*, vk) -> SendMessageA result
     test rdi, rdi
     jz .fail
-    mov rcx, [rdi + W_HWND_OFF]
+    mov r10, rdi
+    mov r11d, esi
+    cmp qword [r10 + W_HWND_OFF], 0
+    je .fail
+    mov rcx, [r10 + W_HWND_OFF]
     mov edx, WM_KEYDOWN
-    mov r8, rsi
+    mov r8d, r11d
     xor r9d, r9d
     sub rsp, 40
     mov rax, [rel win32_SendMessageA]
@@ -799,6 +839,8 @@ window_send_test_keydown:
     ret
 .err:
     add rsp, 40
+    mov rax, -1
+    ret
 .fail:
     mov rax, -1
     ret

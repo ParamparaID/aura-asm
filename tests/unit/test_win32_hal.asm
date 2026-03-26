@@ -69,6 +69,8 @@ fail:
     call hal_exit
 
 _start:
+    ; Win64 ABI: stabilize entry stack alignment for nested WinAPI calls.
+    push rbx
     ; test1: bootstrap
     call bootstrap_init
     cmp eax, 1

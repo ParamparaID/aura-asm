@@ -93,52 +93,81 @@ win_capture_cmd_output:
     push rbx
     push r12
     push r13
-    mov rbx, rdi
-    mov r12, rsi
-    mov r13d, edx
-    sub rsp, 16                      ; pipe [read,write] handles
+    push r14
+    mov rbx, rdi                      ; cmdline
+    mov r12, rsi                      ; out_buf
+    mov r13d, edx                     ; out_max
+    test r12, r12
+    jz .ret_fail
+    cmp r13d, 1
+    jl .ret_fail
+
+    ; capture via pipe + spawn + read
+    sub rsp, 24                       ; [0]=read, [8]=write, [16]=proc
     lea rdi, [rsp]
     call hal_pipe
     cmp eax, 0
-    jne .fail
+    jne .capture_fail
 
-    ; spawn with stdout redirected to pipe write-end
     mov rdi, rbx
     xor rsi, rsi
     mov rdx, [rsp + 8]
     call hal_spawn
     cmp rax, -1
-    je .cleanup
-    mov r11, rax
+    je .cleanup_fail
+    mov [rsp + 16], rax
 
     ; close write end in parent
     mov rdi, [rsp + 8]
     call hal_close
 
-    ; read from pipe read end
+    ; read command output
+    mov edx, r13d
+    dec edx                           ; reserve room for terminator
+    jle .cleanup_fail
     mov rdi, [rsp]
     mov rsi, r12
-    mov edx, r13d
     call hal_read
-    mov r10d, eax
+    mov r14d, eax
 
-    ; close read end and wait process
+    ; close read end and wait child
     mov rdi, [rsp]
     call hal_close
-    mov rdi, r11
+    mov rdi, [rsp + 16]
     call hal_spawn_wait
-    mov eax, r10d
-    jmp .out
+    cmp eax, -1
+    je .capture_fail_after_stack
 
-.cleanup:
+    cmp r14d, 0
+    jl .capture_fail_after_stack
+    mov eax, r14d
+    mov byte [r12 + rax], 0
+    mov eax, r14d
+    add rsp, 24
+    pop r14
+    pop r13
+    pop r12
+    pop rbx
+    ret
+
+.cleanup_fail:
     mov rdi, [rsp]
     call hal_close
     mov rdi, [rsp + 8]
     call hal_close
-.fail:
+
+.capture_fail_after_stack:
+    add rsp, 24
+.capture_fail:
     mov eax, -1
-.out:
-    add rsp, 16
+    pop r14
+    pop r13
+    pop r12
+    pop rbx
+    ret
+.ret_fail:
+    mov eax, -1
+    pop r14
     pop r13
     pop r12
     pop rbx

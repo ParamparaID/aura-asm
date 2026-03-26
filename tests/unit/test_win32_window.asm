@@ -43,6 +43,8 @@ fail:
     call hal_exit
 
 _start:
+    ; Win64 ABI: stabilize entry stack alignment for nested WinAPI calls.
+    push rbx
     call bootstrap_init
     cmp eax, 1
     jne fail
@@ -54,15 +56,9 @@ _start:
     call window_create_win32
     test rax, rax
     jz fail
+    cmp qword [rax + 0], 0
+    je fail
     mov [rel wnd_ptr], rax
-    mov rdi, rax
-    call window_get_canvas
-    test rax, rax
-    jz fail
-    mov [rel cv_ptr], rax
-    ; fill top-left pixel red (BGRA order in DIB)
-    mov rbx, [rax + CV_BUFFER_OFF]
-    mov dword [rbx], 0x000000FF
     mov rdi, [rel wnd_ptr]
     call window_present_win32
     cmp eax, 0

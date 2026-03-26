@@ -65,16 +65,46 @@ global hal_mutex_unlock
 global hal_mutex_destroy
 global hal_atomic_inc
 
+section .bss
+    win_spawn_si                     resb STARTUPINFOA_SIZE
+    win_spawn_pi                     resb PROCESS_INFORMATION_SIZE
+
 section .text
 win_thread_entry:
     ; rcx = ctx ptr {fn,arg}
+    ; Preserve all Win64 non-volatile registers because we call SysV code.
+    push rbp
     push rbx
+    push rdi
+    push rsi
+    push r12
+    push r13
+    push r14
+    push r15
     mov rbx, rcx
     mov rax, [rbx]
     mov rdi, [rbx + 8]
     call rax
+    ; release temporary thread context allocated in hal_thread_create
+    mov rcx, rbx
+    xor edx, edx
+    mov r8d, MEM_RELEASE
+    sub rsp, 40
+    mov rax, [rel win32_VirtualFree]
+    test rax, rax
+    jz .skip_free
+    call rax
+.skip_free:
+    add rsp, 40
     xor eax, eax
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    pop rsi
+    pop rdi
     pop rbx
+    pop rbp
     ret
 
 section .text
@@ -125,7 +155,7 @@ hal_write:
 
     call win_pick_handle
     mov r11, rax
-    sub rsp, 72
+    sub rsp, 80
     lea r9, [rsp + 64]               ; DWORD bytesWritten
     mov qword [rsp + 32], 0          ; OVERLAPPED = NULL
     mov rcx, r11
@@ -136,11 +166,11 @@ hal_write:
     test eax, eax
     jz .err
     mov eax, [rsp + 64]
-    add rsp, 72
+    add rsp, 80
     pop rbx
     ret
 .err:
-    add rsp, 72
+    add rsp, 80
 .fail:
     mov eax, -1
     pop rbx
@@ -157,7 +187,7 @@ hal_read:
 
     call win_pick_handle
     mov r11, rax
-    sub rsp, 72
+    sub rsp, 80
     lea r9, [rsp + 64]               ; DWORD bytesRead
     mov qword [rsp + 32], 0          ; OVERLAPPED = NULL
     mov rcx, r11
@@ -168,11 +198,11 @@ hal_read:
     test eax, eax
     jz .err
     mov eax, [rsp + 64]
-    add rsp, 72
+    add rsp, 80
     pop rbx
     ret
 .err:
-    add rsp, 72
+    add rsp, 80
 .fail:
     mov eax, -1
     pop rbx
@@ -272,10 +302,10 @@ hal_mmap:
     mov rcx, 0
     mov rdx, rbx
     mov r8d, MEM_COMMIT | MEM_RESERVE
-    sub rsp, 40
+    sub rsp, 32
     mov rax, [rel win32_VirtualAlloc]
     call rax
-    add rsp, 40
+    add rsp, 32
     test rax, rax
     jz .fail
     pop rbx
@@ -293,10 +323,10 @@ hal_munmap:
     mov rcx, rdi
     mov rdx, 0
     mov r8d, MEM_RELEASE
-    sub rsp, 40
+    sub rsp, 32
     mov rax, [rel win32_VirtualFree]
     call rax
-    add rsp, 40
+    add rsp, 32
     test eax, eax
     jz .fail
     xor eax, eax
@@ -398,57 +428,59 @@ hal_spawn:
     ; (cmdline, stdin_h, stdout_h) -> process handle or -1
     ; cmdline must be mutable buffer for CreateProcessA.
     push rbx
+    push r12
+    push r13
     mov rbx, rdi                     ; cmdline
-    mov r10, rsi                     ; stdin
-    mov r11, rdx                     ; stdout
+    mov r12, rsi                     ; stdin
+    mov r13, rdx                     ; stdout
     call win_bootstrap_ensure
     test eax, eax
     js .fail
 
-    test r10, r10
+    test r12, r12
     jnz .have_stdin
     mov ecx, STD_INPUT_HANDLE
-    sub rsp, 40
+    sub rsp, 32
     mov rax, [rel win32_GetStdHandle]
     call rax
-    add rsp, 40
-    mov r10, rax
+    add rsp, 32
+    mov r12, rax
 .have_stdin:
-    test r11, r11
+    test r13, r13
     jnz .have_stdout
     mov ecx, STD_OUTPUT_HANDLE
-    sub rsp, 40
+    sub rsp, 32
     mov rax, [rel win32_GetStdHandle]
     call rax
-    add rsp, 40
-    mov r11, rax
+    add rsp, 32
+    mov r13, rax
 .have_stdout:
-
-    sub rsp, 304                     ; shadow + call args + local structs
-    ; STARTUPINFOA at rsp+128
-    ; PROCESS_INFORMATION at rsp+240
-    lea rdi, [rsp + 128]
+    ; zero static STARTUPINFOA/PROCESS_INFORMATION buffers
+    lea rdi, [rel win_spawn_si]
     mov ecx, STARTUPINFOA_SIZE
     xor eax, eax
     rep stosb
-    mov dword [rsp + 128], STARTUPINFOA_SIZE
-    mov dword [rsp + 128 + STARTUPINFOA_DWFLAGS_OFF], STARTF_USESTDHANDLES
-    mov [rsp + 128 + STARTUPINFOA_HSTDIN_OFF], r10
-    mov [rsp + 128 + STARTUPINFOA_HSTDOUT_OFF], r11
-    mov [rsp + 128 + STARTUPINFOA_HSTDERR_OFF], r11
+    lea rdi, [rel win_spawn_pi]
+    mov ecx, PROCESS_INFORMATION_SIZE
+    xor eax, eax
+    rep stosb
+    mov dword [rel win_spawn_si + 0], STARTUPINFOA_SIZE
+    mov dword [rel win_spawn_si + STARTUPINFOA_DWFLAGS_OFF], STARTF_USESTDHANDLES
+    mov [rel win_spawn_si + STARTUPINFOA_HSTDIN_OFF], r12
+    mov [rel win_spawn_si + STARTUPINFOA_HSTDOUT_OFF], r13
+    mov [rel win_spawn_si + STARTUPINFOA_HSTDERR_OFF], r13
 
     ; BOOL CreateProcessA(lpAppName, lpCmdLine, lpProcAttr, lpThreadAttr,
     ;   bInheritHandles, dwCreationFlags, lpEnv, lpCwd, lpStartupInfo, lpProcessInfo)
-    mov qword [rsp + 32], 0          ; lpProcessAttributes
-    mov qword [rsp + 40], 0          ; lpThreadAttributes
-    mov qword [rsp + 48], 1          ; bInheritHandles
-    mov qword [rsp + 56], 0          ; dwCreationFlags
-    mov qword [rsp + 64], 0          ; lpEnvironment
-    mov qword [rsp + 72], 0          ; lpCurrentDirectory
-    lea rax, [rsp + 128]             ; STARTUPINFOA
-    mov [rsp + 80], rax
-    lea rax, [rsp + 240]             ; PROCESS_INFORMATION
-    mov [rsp + 88], rax
+    sub rsp, 96
+    mov qword [rsp + 32], 1          ; bInheritHandles
+    mov qword [rsp + 40], 0          ; dwCreationFlags
+    mov qword [rsp + 48], 0          ; lpEnvironment
+    mov qword [rsp + 56], 0          ; lpCurrentDirectory
+    lea rax, [rel win_spawn_si]      ; STARTUPINFOA
+    mov [rsp + 64], rax              ; 9th arg
+    lea rax, [rel win_spawn_pi]      ; PROCESS_INFORMATION
+    mov [rsp + 72], rax              ; 10th arg
     mov rcx, 0
     mov rdx, rbx
     mov r8, 0
@@ -459,18 +491,24 @@ hal_spawn:
     jz .spawn_fail
 
     ; close thread handle, return process handle
-    mov rcx, [rsp + 240 + PROCINFO_HTHREAD_OFF]
+    mov rcx, [rel win_spawn_pi + PROCINFO_HTHREAD_OFF]
     mov rax, [rel win32_CloseHandle]
+    sub rsp, 32
     call rax
-    mov rax, [rsp + 240 + PROCINFO_HPROCESS_OFF]
-    add rsp, 304
+    add rsp, 32
+    mov rax, [rel win_spawn_pi + PROCINFO_HPROCESS_OFF]
+    add rsp, 96
+    pop r13
+    pop r12
     pop rbx
     ret
 
 .spawn_fail:
-    add rsp, 304
+    add rsp, 96
 .fail:
     mov rax, -1
+    pop r13
+    pop r12
     pop rbx
     ret
 
@@ -484,16 +522,18 @@ hal_pipe:
     call win_bootstrap_ensure
     test eax, eax
     js .fail
-    sub rsp, 56
-    mov qword [rsp + 32], 0
-    mov qword [rsp + 40], 0
+    ; SECURITY_ATTRIBUTES with bInheritHandle=TRUE
+    sub rsp, 104
+    mov dword [rsp + 32], 24           ; nLength
+    mov qword [rsp + 40], 0            ; lpSecurityDescriptor
+    mov dword [rsp + 48], 1            ; bInheritHandle
     mov rcx, rdi
     lea rdx, [rdi + 8]
-    mov r8, 0
+    lea r8, [rsp + 32]
     mov r9d, 0
     mov rax, [rel win32_CreatePipe]
     call rax
-    add rsp, 56
+    add rsp, 104
     test eax, eax
     jz .fail
     xor eax, eax
@@ -538,40 +578,66 @@ hal_dup2:
 
 hal_waitpid:
     ; (process_handle, status_ptr, options_ignored) -> 0/-1
+    ; Windows HANDLE wait + exit code retrieval.
     push rbx
-    mov rbx, rsi
+    push r12
+    mov rbx, rdi                      ; process handle
+    mov r12, rsi                      ; status_ptr (optional)
+    test rbx, rbx
+    jz .fail
     call win_bootstrap_ensure
     test eax, eax
     js .fail
-    mov rcx, rdi
-    mov edx, INFINITE
-    sub rsp, 56
+
+    ; WaitForSingleObject(process, INFINITE)
+    mov rcx, rbx
+    mov edx, 0xFFFFFFFF
+    sub rsp, 40
     mov rax, [rel win32_WaitForSingleObject]
     call rax
-    cmp eax, WAIT_OBJECT_0
-    jne .err
-    mov rcx, rdi
-    lea rdx, [rsp + 48]
+    add rsp, 40
+    cmp eax, 0xFFFFFFFF               ; WAIT_FAILED
+    je .close_fail
+
+    ; GetExitCodeProcess(process, &code)
+    sub rsp, 48
+    mov rcx, rbx
+    lea rdx, [rsp + 32]
     mov rax, [rel win32_GetExitCodeProcess]
     call rax
     test eax, eax
-    jz .err
-    test rbx, rbx
-    jz .close
-    mov eax, [rsp + 48]
-    mov [rbx], eax
-.close:
-    mov rcx, rdi
+    jz .getcode_fail
+
+    test r12, r12
+    jz .close_ok
+    mov eax, [rsp + 32]
+    mov [r12], eax
+
+.close_ok:
+    add rsp, 48
+    mov rcx, rbx
+    sub rsp, 40
     mov rax, [rel win32_CloseHandle]
     call rax
-    add rsp, 56
+    add rsp, 40
+    test eax, eax
+    jz .fail
     xor eax, eax
+    pop r12
     pop rbx
     ret
-.err:
-    add rsp, 56
+
+.getcode_fail:
+    add rsp, 48
+.close_fail:
+    mov rcx, rbx
+    sub rsp, 40
+    mov rax, [rel win32_CloseHandle]
+    call rax
+    add rsp, 40
 .fail:
     mov eax, -1
+    pop r12
     pop rbx
     ret
 
@@ -687,14 +753,18 @@ hal_sleep_ms:
 
 hal_wsapoll:
     ; (fds_ptr, nfds, timeout_ms) -> ready_count or -1
-    test esi, esi
-    jz .zero
+    test rsi, rsi
+    jnz .do_poll
+    ; POSIX-compatible behavior: poll/WSAPoll with nfds=0 is valid.
+    xor eax, eax
+    ret
+.do_poll:
     mov r10d, edx
     call win_bootstrap_ensure
     test eax, eax
     js .fail
     mov rcx, rdi
-    mov edx, esi
+    mov rdx, rsi
     mov r8d, r10d
     sub rsp, 40
     mov rax, [rel win32_WSAPoll]
@@ -702,14 +772,13 @@ hal_wsapoll:
     jz .err
     call rax
     add rsp, 40
+    cmp eax, -1
+    je .fail
     ret
 .err:
     add rsp, 40
 .fail:
     mov eax, -1
-    ret
-.zero:
-    xor eax, eax
     ret
 
 hal_event_poll:
@@ -718,77 +787,105 @@ hal_event_poll:
 
 hal_thread_create:
     ; (fn_ptr, arg_ptr, stack_size) -> handle or -1
-    ; Context block via VirtualAlloc: [0]=fn, [8]=arg
     push rbx
     push r12
-    mov rbx, rdi
-    mov r12, rdx
+    push r13
+    mov rbx, rdi                      ; fn_ptr
+    mov r12, rsi                      ; arg_ptr
+    mov r13, rdx                      ; stack_size
     test rbx, rbx
     jz .fail
     call win_bootstrap_ensure
     test eax, eax
     js .fail
 
-    ; allocate 16-byte context
-    mov rcx, 0
-    mov rdx, 16
+    ; allocate tiny ctx {fn,arg}
+    xor rcx, rcx
+    mov edx, 16
     mov r8d, MEM_COMMIT | MEM_RESERVE
     mov r9d, PAGE_READWRITE
-    sub rsp, 56
+    sub rsp, 32
     mov rax, [rel win32_VirtualAlloc]
     call rax
+    add rsp, 32
     test rax, rax
-    jz .alloc_fail
+    jz .fail
     mov [rax], rbx
-    mov [rax + 8], rsi
-    mov r11, rax                      ; context
+    mov [rax + 8], r12
+    mov r12, rax                      ; ctx ptr
 
-    ; CreateThread(NULL, stack, win_thread_entry, ctx, 0, NULL)
-    mov qword [rsp + 32], 0           ; dwCreationFlags (5th arg)
-    mov qword [rsp + 40], 0           ; lpThreadId (6th arg)
-    xor ecx, ecx
-    mov rdx, r12
+    ; CreateThread(NULL, stack_size, win_thread_entry, ctx, 0, NULL)
+    sub rsp, 48
+    mov qword [rsp + 32], 0
+    mov qword [rsp + 40], 0
+    xor rcx, rcx
+    mov rdx, r13
     lea r8, [rel win_thread_entry]
-    mov r9, r11
+    mov r9, r12
     mov rax, [rel win32_CreateThread]
     call rax
+    add rsp, 48
     test rax, rax
-    jz .alloc_fail
-    add rsp, 56
+    jz .free_ctx_fail
+    pop r13
     pop r12
     pop rbx
     ret
 
-.alloc_fail:
-    add rsp, 56
+.free_ctx_fail:
+    mov rcx, r12
+    xor edx, edx
+    mov r8d, MEM_RELEASE
+    sub rsp, 32
+    mov rax, [rel win32_VirtualFree]
+    call rax
+    add rsp, 32
 .fail:
     mov rax, -1
+    pop r13
     pop r12
     pop rbx
     ret
 
 hal_thread_join:
     ; (thread_handle) -> 0/-1
+    push rbx
+    mov rbx, rdi
+    test rbx, rbx
+    jz .fail
     call win_bootstrap_ensure
     test eax, eax
     js .fail
-    mov rcx, rdi
+
+    mov rcx, rbx
     mov edx, INFINITE
-    sub rsp, 40
+    sub rsp, 32
     mov rax, [rel win32_WaitForSingleObject]
     call rax
-    cmp eax, WAIT_OBJECT_0
-    jne .err
-    mov rcx, rdi
+    add rsp, 32
+    cmp eax, 0xFFFFFFFF               ; WAIT_FAILED
+    je .close_fail
+
+    mov rcx, rbx
+    sub rsp, 32
     mov rax, [rel win32_CloseHandle]
     call rax
-    add rsp, 40
+    add rsp, 32
+    test eax, eax
+    jz .fail
     xor eax, eax
+    pop rbx
     ret
-.err:
-    add rsp, 40
+
+.close_fail:
+    mov rcx, rbx
+    sub rsp, 32
+    mov rax, [rel win32_CloseHandle]
+    call rax
+    add rsp, 32
 .fail:
     mov eax, -1
+    pop rbx
     ret
 
 hal_mutex_init:
@@ -804,11 +901,11 @@ hal_mutex_init:
 
 hal_mutex_lock:
     ; (mutex_ptr) -> 0/-1
+    test rdi, rdi
+    jz .fail
     call win_bootstrap_ensure
     test eax, eax
     js .fail
-    test rdi, rdi
-    jz .fail
     mov rcx, rdi
     sub rsp, 40
     mov rax, [rel win32_AcquireSRWLockExclusive]
@@ -820,17 +917,19 @@ hal_mutex_lock:
     ret
 .err:
     add rsp, 40
+    mov eax, -1
+    ret
 .fail:
     mov eax, -1
     ret
 
 hal_mutex_unlock:
     ; (mutex_ptr) -> 0/-1
+    test rdi, rdi
+    jz .fail
     call win_bootstrap_ensure
     test eax, eax
     js .fail
-    test rdi, rdi
-    jz .fail
     mov rcx, rdi
     sub rsp, 40
     mov rax, [rel win32_ReleaseSRWLockExclusive]
@@ -842,6 +941,8 @@ hal_mutex_unlock:
     ret
 .err:
     add rsp, 40
+    mov eax, -1
+    ret
 .fail:
     mov eax, -1
     ret
@@ -853,21 +954,12 @@ hal_mutex_destroy:
 
 hal_atomic_inc:
     ; (ptr qword*) -> new value or -1
-    call win_bootstrap_ensure
-    test eax, eax
-    js .fail
     test rdi, rdi
     jz .fail
-    mov rcx, rdi
-    sub rsp, 40
-    mov rax, [rel win32_InterlockedIncrement64]
-    test rax, rax
-    jz .err
-    call rax
-    add rsp, 40
+    mov rax, 1
+    lock xadd [rdi], rax
+    add rax, 1
     ret
-.err:
-    add rsp, 40
 .fail:
     mov rax, -1
     ret
