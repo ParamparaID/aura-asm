@@ -337,6 +337,50 @@ Phase 5 завершена. Проект готов к переходу в Phase
 
 ---
 
+## STEP 60: Windows HAL — Win32 API — 2026-03-26
+
+### Что сделано
+- Добавлен `src/hal/win_x86_64/defs.inc`:
+  - базовые Win32 константы (`GENERIC_*`, `CREATE_ALWAYS`, `MEM_*`, `PAGE_*`, `STD_*`, Winsock),
+  - Linux-совместимые флаги (`O_*`, `PROT_*`, `MAP_ANONYMOUS`) для адаптации существующего HAL API,
+  - offsets для `timespec`, `STARTUPINFOA`, `PROCESS_INFORMATION`.
+- Добавлен `src/hal/win_x86_64/bootstrap.asm`:
+  - bootstrap через PEB/LDR (получение базы `kernel32.dll` без libc),
+  - ручной PE export resolver по hash (`boot_find_export_hash` + `boot_hash_name`),
+  - резолв `GetProcAddress` и `LoadLibraryA`, загрузка `user32.dll`, `ws2_32.dll`, `gdi32.dll`,
+  - заполнение глобальной таблицы Win32 function pointers,
+  - `WSAStartup(2.2)` в bootstrap-path.
+- Добавлен `src/hal/win_x86_64/syscall.asm` (SysV→Win64 ABI адаптер):
+  - file/memory/time/process wrappers: `hal_write`, `hal_read`, `hal_open`, `hal_close`, `hal_mmap`, `hal_munmap`, `hal_exit`, `hal_clock_gettime`, `hal_getenv`,
+  - process model для Windows: `hal_spawn` + `hal_waitpid`, `hal_fork=-1`, `hal_execve=-1`,
+  - pipe/stdio wrappers: `hal_pipe`, `hal_dup2`,
+  - networking wrappers via Winsock pointers: `hal_socket`, `hal_connect`, `hal_bind`, `hal_listen`, `hal_accept4`,
+  - threads/sync/event wrappers: `hal_thread_create`, `hal_thread_join`, `hal_mutex_*` (SRW lock), `hal_atomic_inc` (Interlocked), `hal_event_poll` (WSAPoll).
+- Добавлен `tests/unit/test_win32_hal.asm`:
+  - bootstrap smoke,
+  - stdout write,
+  - VirtualAlloc/VirtualFree path через `hal_mmap/hal_munmap`,
+  - `hal_clock_gettime` sanity-check,
+  - spawn/wait smoke (`cmd.exe /c echo hello`),
+  - thread/mutex/atomic smoke,
+  - event poll smoke (`hal_event_poll`).
+- Обновлён `Makefile`:
+  - добавлен Windows-ассембли build-path (`NASM_WIN`, `WIN_BUILD_DIR`),
+  - добавлены объекты `bootstrap.obj`, `syscall.obj`, `test_win32_hal.obj`,
+  - добавлена цель `win_hal_check` (`nasm -f win64` smoke build).
+
+### Результаты тестов
+- `bash -lc "make win_hal_check"`: PASSED (все Win32-объекты успешно собираются как COFF/win64).
+
+### Ограничения MVP
+- Проверка runtime на реальном Windows runner не выполнялась в текущем окружении (Linux host); подтверждена только сборка win64 объектов.
+- Event loop реализован как минимальный WSAPoll-path; полноценный IOCP backend остаётся backlog для следующего шага.
+
+### Статус
+✅ Завершён (MVP STEP 60)
+
+---
+
 ## STEP 41: Panel UI и навигация — 2026-03-23
 
 ### Что сделано
