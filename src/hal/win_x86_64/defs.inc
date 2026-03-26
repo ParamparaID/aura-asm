@@ -66,5 +66,50 @@
 %define PROCINFO_HPROCESS_OFF     0
 %define PROCINFO_HTHREAD_OFF      8
 
+; windowing / user32 / gdi
+%define CS_HREDRAW                0x0002
+%define CS_VREDRAW                0x0001
+%define WS_OVERLAPPEDWINDOW       0x00CF0000
+%define WS_VISIBLE                0x10000000
+%define WS_POPUP                  0x80000000
+%define WS_EX_TOOLWINDOW          0x00000080
+%define CW_USEDEFAULT             0x80000000
+%define SW_SHOW                   5
+%define PM_REMOVE                 0x0001
+%define WM_NULL                   0x0000
+%define WM_CREATE                 0x0001
+%define WM_DESTROY                0x0002
+%define WM_SIZE                   0x0005
+%define WM_PAINT                  0x000F
+%define WM_CLOSE                  0x0010
+%define WM_QUIT                   0x0012
+%define WM_KEYDOWN                0x0100
+%define WM_KEYUP                  0x0101
+%define WM_CHAR                   0x0102
+%define WM_MOUSEMOVE              0x0200
+%define WM_LBUTTONDOWN            0x0201
+%define WM_LBUTTONUP              0x0202
+%define WM_RBUTTONDOWN            0x0204
+%define WM_RBUTTONUP              0x0205
+%define WM_MOUSEWHEEL             0x020A
+%define WM_TOUCH                  0x0240
+%define WM_POINTERDOWN            0x0246
+%define WM_POINTERUP              0x0247
+%define WM_POINTERUPDATE          0x0245
+%define IDC_ARROW                 32512
+%define DIB_RGB_COLORS            0
+%define BI_RGB                    0
+%define SRCCOPY                   0x00CC0020
+%define SM_CXSCREEN               0
+%define SM_CYSCREEN               1
+%define MOD_WIN                   0x0008
+%define VK_RETURN                 0x0D
+%define GWLP_WNDPROC              -4
+
+; Win32 structure sizes used in asm
+%define WNDCLASSEXA_SIZE          80
+%define MSG_SIZE                  48
+%define BITMAPINFOHEADER_SIZE     40
+
 ; Windows x64 ABI reminder:
 ; rcx, rdx, r8, r9 are arg1..arg4, caller allocates 32-byte shadow space.

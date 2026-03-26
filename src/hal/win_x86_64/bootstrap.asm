@@ -33,6 +33,8 @@ section .data
     win32_AcquireSRWLockExclusive    dq 0
     win32_ReleaseSRWLockExclusive    dq 0
     win32_InterlockedIncrement64     dq 0
+    win32_GetTickCount64             dq 0
+    win32_Sleep                      dq 0
 
     ; winsock
     win32_WSAStartup                 dq 0
@@ -43,6 +45,36 @@ section .data
     win32_listen                     dq 0
     win32_accept                     dq 0
     win32_closesocket                dq 0
+
+    ; user32 / gdi32
+    win32_RegisterClassExA           dq 0
+    win32_CreateWindowExA            dq 0
+    win32_DefWindowProcA             dq 0
+    win32_DestroyWindow              dq 0
+    win32_ShowWindow                 dq 0
+    win32_UpdateWindow               dq 0
+    win32_PeekMessageA               dq 0
+    win32_TranslateMessage           dq 0
+    win32_DispatchMessageA           dq 0
+    win32_PostQuitMessage            dq 0
+    win32_LoadCursorA                dq 0
+    win32_GetDC                      dq 0
+    win32_ReleaseDC                  dq 0
+    win32_GetSystemMetrics           dq 0
+    win32_RegisterTouchWindow        dq 0
+    win32_GetPointerInfo             dq 0
+    win32_SendMessageA               dq 0
+    win32_RegisterHotKey             dq 0
+    win32_EnumWindows                dq 0
+    win32_SetWindowPos               dq 0
+    win32_SetWindowLongPtrA          dq 0
+
+    win32_CreateCompatibleDC         dq 0
+    win32_CreateDIBSection           dq 0
+    win32_SelectObject               dq 0
+    win32_BitBlt                     dq 0
+    win32_DeleteObject               dq 0
+    win32_DeleteDC                   dq 0
 
     bootstrap_ready                  dd 0
     bootstrap_pad                    dd 0
@@ -77,6 +109,8 @@ section .data
     s_AcquireSRWLockExclusive        db "AcquireSRWLockExclusive",0
     s_ReleaseSRWLockExclusive        db "ReleaseSRWLockExclusive",0
     s_InterlockedIncrement64         db "InterlockedIncrement64",0
+    s_GetTickCount64                 db "GetTickCount64",0
+    s_Sleep                          db "Sleep",0
 
     ; winsock names
     s_WSAStartup                     db "WSAStartup",0
@@ -87,6 +121,36 @@ section .data
     s_listen                         db "listen",0
     s_accept                         db "accept",0
     s_closesocket                    db "closesocket",0
+
+    ; user32 / gdi32 names
+    s_RegisterClassExA               db "RegisterClassExA",0
+    s_CreateWindowExA                db "CreateWindowExA",0
+    s_DefWindowProcA                 db "DefWindowProcA",0
+    s_DestroyWindow                  db "DestroyWindow",0
+    s_ShowWindow                     db "ShowWindow",0
+    s_UpdateWindow                   db "UpdateWindow",0
+    s_PeekMessageA                   db "PeekMessageA",0
+    s_TranslateMessage               db "TranslateMessage",0
+    s_DispatchMessageA               db "DispatchMessageA",0
+    s_PostQuitMessage                db "PostQuitMessage",0
+    s_LoadCursorA                    db "LoadCursorA",0
+    s_GetDC                          db "GetDC",0
+    s_ReleaseDC                      db "ReleaseDC",0
+    s_GetSystemMetrics               db "GetSystemMetrics",0
+    s_RegisterTouchWindow            db "RegisterTouchWindow",0
+    s_GetPointerInfo                 db "GetPointerInfo",0
+    s_SendMessageA                   db "SendMessageA",0
+    s_RegisterHotKey                 db "RegisterHotKey",0
+    s_EnumWindows                    db "EnumWindows",0
+    s_SetWindowPos                   db "SetWindowPos",0
+    s_SetWindowLongPtrA              db "SetWindowLongPtrA",0
+
+    s_CreateCompatibleDC             db "CreateCompatibleDC",0
+    s_CreateDIBSection               db "CreateDIBSection",0
+    s_SelectObject                   db "SelectObject",0
+    s_BitBlt                         db "BitBlt",0
+    s_DeleteObject                   db "DeleteObject",0
+    s_DeleteDC                       db "DeleteDC",0
 
 section .bss
     wsadata_buf                      resb WSADATA_SIZE
@@ -125,6 +189,8 @@ global win32_SetStdHandle
 global win32_AcquireSRWLockExclusive
 global win32_ReleaseSRWLockExclusive
 global win32_InterlockedIncrement64
+global win32_GetTickCount64
+global win32_Sleep
 
 global win32_WSAStartup
 global win32_WSAPoll
@@ -134,6 +200,35 @@ global win32_bind
 global win32_listen
 global win32_accept
 global win32_closesocket
+
+global win32_RegisterClassExA
+global win32_CreateWindowExA
+global win32_DefWindowProcA
+global win32_DestroyWindow
+global win32_ShowWindow
+global win32_UpdateWindow
+global win32_PeekMessageA
+global win32_TranslateMessage
+global win32_DispatchMessageA
+global win32_PostQuitMessage
+global win32_LoadCursorA
+global win32_GetDC
+global win32_ReleaseDC
+global win32_GetSystemMetrics
+global win32_RegisterTouchWindow
+global win32_GetPointerInfo
+global win32_SendMessageA
+global win32_RegisterHotKey
+global win32_EnumWindows
+global win32_SetWindowPos
+global win32_SetWindowLongPtrA
+
+global win32_CreateCompatibleDC
+global win32_CreateDIBSection
+global win32_SelectObject
+global win32_BitBlt
+global win32_DeleteObject
+global win32_DeleteDC
 
 %define HASH_GetProcAddress         0xCF31BB1F
 
@@ -400,6 +495,132 @@ bootstrap_init:
     lea rsi, [rel s_InterlockedIncrement64]
     call boot_getproc
     mov [rel win32_InterlockedIncrement64], rax
+    mov rdi, [rel win_mod_kernel32]
+    lea rsi, [rel s_GetTickCount64]
+    call boot_getproc
+    mov [rel win32_GetTickCount64], rax
+    mov rdi, [rel win_mod_kernel32]
+    lea rsi, [rel s_Sleep]
+    call boot_getproc
+    mov [rel win32_Sleep], rax
+
+    ; user32 exports
+    mov rdi, [rel win_mod_user32]
+    test rdi, rdi
+    jz .skip_user32
+    lea rsi, [rel s_RegisterClassExA]
+    call boot_getproc
+    mov [rel win32_RegisterClassExA], rax
+    mov rdi, [rel win_mod_user32]
+    lea rsi, [rel s_CreateWindowExA]
+    call boot_getproc
+    mov [rel win32_CreateWindowExA], rax
+    mov rdi, [rel win_mod_user32]
+    lea rsi, [rel s_DefWindowProcA]
+    call boot_getproc
+    mov [rel win32_DefWindowProcA], rax
+    mov rdi, [rel win_mod_user32]
+    lea rsi, [rel s_DestroyWindow]
+    call boot_getproc
+    mov [rel win32_DestroyWindow], rax
+    mov rdi, [rel win_mod_user32]
+    lea rsi, [rel s_ShowWindow]
+    call boot_getproc
+    mov [rel win32_ShowWindow], rax
+    mov rdi, [rel win_mod_user32]
+    lea rsi, [rel s_UpdateWindow]
+    call boot_getproc
+    mov [rel win32_UpdateWindow], rax
+    mov rdi, [rel win_mod_user32]
+    lea rsi, [rel s_PeekMessageA]
+    call boot_getproc
+    mov [rel win32_PeekMessageA], rax
+    mov rdi, [rel win_mod_user32]
+    lea rsi, [rel s_TranslateMessage]
+    call boot_getproc
+    mov [rel win32_TranslateMessage], rax
+    mov rdi, [rel win_mod_user32]
+    lea rsi, [rel s_DispatchMessageA]
+    call boot_getproc
+    mov [rel win32_DispatchMessageA], rax
+    mov rdi, [rel win_mod_user32]
+    lea rsi, [rel s_PostQuitMessage]
+    call boot_getproc
+    mov [rel win32_PostQuitMessage], rax
+    mov rdi, [rel win_mod_user32]
+    lea rsi, [rel s_LoadCursorA]
+    call boot_getproc
+    mov [rel win32_LoadCursorA], rax
+    mov rdi, [rel win_mod_user32]
+    lea rsi, [rel s_GetDC]
+    call boot_getproc
+    mov [rel win32_GetDC], rax
+    mov rdi, [rel win_mod_user32]
+    lea rsi, [rel s_ReleaseDC]
+    call boot_getproc
+    mov [rel win32_ReleaseDC], rax
+    mov rdi, [rel win_mod_user32]
+    lea rsi, [rel s_GetSystemMetrics]
+    call boot_getproc
+    mov [rel win32_GetSystemMetrics], rax
+    mov rdi, [rel win_mod_user32]
+    lea rsi, [rel s_RegisterTouchWindow]
+    call boot_getproc
+    mov [rel win32_RegisterTouchWindow], rax
+    mov rdi, [rel win_mod_user32]
+    lea rsi, [rel s_GetPointerInfo]
+    call boot_getproc
+    mov [rel win32_GetPointerInfo], rax
+    mov rdi, [rel win_mod_user32]
+    lea rsi, [rel s_SendMessageA]
+    call boot_getproc
+    mov [rel win32_SendMessageA], rax
+    mov rdi, [rel win_mod_user32]
+    lea rsi, [rel s_RegisterHotKey]
+    call boot_getproc
+    mov [rel win32_RegisterHotKey], rax
+    mov rdi, [rel win_mod_user32]
+    lea rsi, [rel s_EnumWindows]
+    call boot_getproc
+    mov [rel win32_EnumWindows], rax
+    mov rdi, [rel win_mod_user32]
+    lea rsi, [rel s_SetWindowPos]
+    call boot_getproc
+    mov [rel win32_SetWindowPos], rax
+    mov rdi, [rel win_mod_user32]
+    lea rsi, [rel s_SetWindowLongPtrA]
+    call boot_getproc
+    mov [rel win32_SetWindowLongPtrA], rax
+.skip_user32:
+
+    ; gdi32 exports
+    mov rdi, [rel win_mod_gdi32]
+    test rdi, rdi
+    jz .skip_gdi32
+    lea rsi, [rel s_CreateCompatibleDC]
+    call boot_getproc
+    mov [rel win32_CreateCompatibleDC], rax
+    mov rdi, [rel win_mod_gdi32]
+    lea rsi, [rel s_CreateDIBSection]
+    call boot_getproc
+    mov [rel win32_CreateDIBSection], rax
+    mov rdi, [rel win_mod_gdi32]
+    lea rsi, [rel s_SelectObject]
+    call boot_getproc
+    mov [rel win32_SelectObject], rax
+    mov rdi, [rel win_mod_gdi32]
+    lea rsi, [rel s_BitBlt]
+    call boot_getproc
+    mov [rel win32_BitBlt], rax
+    mov rdi, [rel win_mod_gdi32]
+    lea rsi, [rel s_DeleteObject]
+    call boot_getproc
+    mov [rel win32_DeleteObject], rax
+    mov rdi, [rel win_mod_gdi32]
+    lea rsi, [rel s_DeleteDC]
+    call boot_getproc
+    mov [rel win32_DeleteDC], rax
+.skip_gdi32:
 
     ; ws2_32 exports (optional but initialized for networking wrappers)
     mov rdi, [rel win_mod_ws2_32]

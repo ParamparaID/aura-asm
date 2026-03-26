@@ -18,14 +18,14 @@
 - [x] Сборка: nasm -f win64 + link.exe или GoLink
 
 ## STEP 61: Windows Compositor и Shell Replacement
-- [ ] `src/hal/win_x86_64/window.asm` — Win32 окно: RegisterClassEx, CreateWindowEx, message loop (GetMessage/TranslateMessage/DispatchMessage)
-- [ ] `src/hal/win_x86_64/gdi.asm` — GDI/GDI+ для вывода canvas: CreateDIBSection, BitBlt, StretchDIBits
-- [ ] Input: WM_KEYDOWN/WM_KEYUP/WM_CHAR, WM_MOUSEMOVE/WM_LBUTTONDOWN, WM_TOUCH/WM_POINTER для мультитач
-- [ ] Shell replacement: регистрация как альтернативная оболочка (HKCU\Software\Microsoft\Windows NT\CurrentVersion\Winlogon\Shell)
-- [ ] Window management: EnumWindows, SetWindowPos, ShowWindow для управления чужими окнами
-- [ ] Субклассинг: SetWindowLongPtr(GWLP_WNDPROC) для декораций
-- [ ] Интеграция: AuraCanvas → DIBSection → BitBlt для отрисовки
-- [ ] `tests/unit/test_win32_window.asm` — открытие окна, рендер canvas, обработка ввода
+- [x] `src/hal/win_x86_64/window.asm` — Win32 окно: RegisterClassEx, CreateWindowEx, message loop (GetMessage/TranslateMessage/DispatchMessage)
+- [x] `src/hal/win_x86_64/gdi.asm` — GDI/GDI+ для вывода canvas: CreateDIBSection, BitBlt, StretchDIBits
+- [x] Input: WM_KEYDOWN/WM_KEYUP/WM_CHAR, WM_MOUSEMOVE/WM_LBUTTONDOWN, WM_TOUCH/WM_POINTER для мультитач
+- [x] Shell replacement: регистрация как альтернативная оболочка (HKCU\Software\Microsoft\Windows NT\CurrentVersion\Winlogon\Shell)
+- [x] Window management: EnumWindows, SetWindowPos, ShowWindow для управления чужими окнами
+- [x] Субклассинг: SetWindowLongPtr(GWLP_WNDPROC) для декораций
+- [x] Интеграция: AuraCanvas → DIBSection → BitBlt для отрисовки
+- [x] `tests/unit/test_win32_window.asm` — открытие окна, рендер canvas, обработка ввода
 
 ## STEP 62: ARM64 HAL — AArch64 syscalls
 - [ ] `src/hal/linux_arm64/defs.inc` — ARM64 Linux syscall номера (отличаются от x86_64!)
@@ -54,4 +54,4 @@
 
 ---
 
-**Прогресс Phase 6: 11/35 задач (31%)**
+**Прогресс Phase 6: 19/35 задач (54%)**

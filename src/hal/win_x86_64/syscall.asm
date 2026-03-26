@@ -24,6 +24,7 @@ extern win32_AcquireSRWLockExclusive
 extern win32_ReleaseSRWLockExclusive
 extern win32_InterlockedIncrement64
 extern win32_WSAPoll
+extern win32_Sleep
 extern win32_socket
 extern win32_connect
 extern win32_bind
@@ -53,6 +54,7 @@ global hal_connect
 global hal_bind
 global hal_listen
 global hal_accept4
+global hal_sleep_ms
 global hal_wsapoll
 global hal_event_poll
 global hal_thread_create
@@ -403,6 +405,25 @@ hal_spawn:
     test eax, eax
     js .fail
 
+    test r10, r10
+    jnz .have_stdin
+    mov ecx, STD_INPUT_HANDLE
+    sub rsp, 40
+    mov rax, [rel win32_GetStdHandle]
+    call rax
+    add rsp, 40
+    mov r10, rax
+.have_stdin:
+    test r11, r11
+    jnz .have_stdout
+    mov ecx, STD_OUTPUT_HANDLE
+    sub rsp, 40
+    mov rax, [rel win32_GetStdHandle]
+    call rax
+    add rsp, 40
+    mov r11, rax
+.have_stdout:
+
     sub rsp, 304                     ; shadow + call args + local structs
     ; STARTUPINFOA at rsp+128
     ; PROCESS_INFORMATION at rsp+240
@@ -640,6 +661,26 @@ hal_accept4:
     call rax
     add rsp, 40
     ret
+.fail:
+    mov eax, -1
+    ret
+
+hal_sleep_ms:
+    ; (milliseconds) -> 0
+    call win_bootstrap_ensure
+    test eax, eax
+    js .fail
+    mov ecx, edi
+    sub rsp, 40
+    mov rax, [rel win32_Sleep]
+    test rax, rax
+    jz .err
+    call rax
+    add rsp, 40
+    xor eax, eax
+    ret
+.err:
+    add rsp, 40
 .fail:
     mov eax, -1
     ret

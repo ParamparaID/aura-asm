@@ -54,10 +54,14 @@ TEST_AURASCRIPT_CODEGEN_BIN = $(BUILD_DIR)/test_aurascript_codegen
 TEST_MARKETPLACE_BIN = $(BUILD_DIR)/test_marketplace
 TEST_MACROS_BIN = $(BUILD_DIR)/test_macros
 TEST_WIN32_HAL_OBJ = $(WIN_BUILD_DIR)/test_win32_hal.obj
+TEST_WIN32_WINDOW_OBJ = $(WIN_BUILD_DIR)/test_win32_window.obj
 
 HAL_SYSCALL_OBJ = $(BUILD_DIR)/hal_syscall.o
 WIN_BOOTSTRAP_OBJ = $(WIN_BUILD_DIR)/bootstrap.obj
 WIN_SYSCALL_OBJ = $(WIN_BUILD_DIR)/syscall.obj
+WIN_WINDOW_OBJ = $(WIN_BUILD_DIR)/window.obj
+WIN_GDI_OBJ = $(WIN_BUILD_DIR)/gdi.obj
+WIN_EXECUTOR_WIN_OBJ = $(WIN_BUILD_DIR)/executor_win.obj
 HAL_ERRNO_OBJ = $(BUILD_DIR)/hal_errno.o
 HAL_WAYLAND_OBJ = $(BUILD_DIR)/hal_wayland.o
 HAL_WAYLAND_INPUT_OBJ = $(BUILD_DIR)/hal_wayland_input.o
@@ -226,7 +230,7 @@ TEST_INPUT_ROUTING_OBJ = $(BUILD_DIR)/test_input_routing.o
 TEST_INPUT_ROUTING_BIN = $(BUILD_DIR)/test_input_routing
 WIDGET_TERMINAL_STUBS_OBJ = $(BUILD_DIR)/widget_terminal_stubs.o
 
-.PHONY: all test run demo clean test_nested_smoke test_nested_smoke_ci win_hal_check
+.PHONY: all test run demo clean test_nested_smoke test_nested_smoke_ci win_hal_check win_step61_check
 
 # Final binary
 all: $(AURA_SHELL_BIN)
@@ -377,6 +381,9 @@ $(WIN_BUILD_DIR):
 
 win_hal_check: $(WIN_BOOTSTRAP_OBJ) $(WIN_SYSCALL_OBJ) $(TEST_WIN32_HAL_OBJ)
 	@echo "win_x86_64 HAL objects assembled successfully."
+
+win_step61_check: $(WIN_BOOTSTRAP_OBJ) $(WIN_SYSCALL_OBJ) $(WIN_WINDOW_OBJ) $(WIN_GDI_OBJ) $(WIN_EXECUTOR_WIN_OBJ) $(TEST_WIN32_HAL_OBJ) $(TEST_WIN32_WINDOW_OBJ)
+	@echo "win_x86_64 STEP61 objects assembled successfully."
 
 $(HAL_SYSCALL_OBJ): src/hal/linux_x86_64/syscall.asm src/hal/linux_x86_64/defs.inc | $(BUILD_DIR)
 	$(NASM) $(NASM_FLAGS) $< -o $@
@@ -921,7 +928,19 @@ $(WIN_BOOTSTRAP_OBJ): src/hal/win_x86_64/bootstrap.asm src/hal/win_x86_64/defs.i
 $(WIN_SYSCALL_OBJ): src/hal/win_x86_64/syscall.asm src/hal/win_x86_64/defs.inc | $(WIN_BUILD_DIR)
 	$(NASM_WIN) $(NASM_WIN_FLAGS) $< -o $@
 
+$(WIN_WINDOW_OBJ): src/hal/win_x86_64/window.asm src/hal/win_x86_64/defs.inc src/canvas/canvas.inc | $(WIN_BUILD_DIR)
+	$(NASM_WIN) $(NASM_WIN_FLAGS) $< -o $@
+
+$(WIN_GDI_OBJ): src/hal/win_x86_64/gdi.asm src/hal/win_x86_64/defs.inc | $(WIN_BUILD_DIR)
+	$(NASM_WIN) $(NASM_WIN_FLAGS) $< -o $@
+
+$(WIN_EXECUTOR_WIN_OBJ): src/hal/win_x86_64/executor_win.asm src/hal/win_x86_64/defs.inc | $(WIN_BUILD_DIR)
+	$(NASM_WIN) $(NASM_WIN_FLAGS) $< -o $@
+
 $(TEST_WIN32_HAL_OBJ): tests/unit/test_win32_hal.asm src/hal/win_x86_64/defs.inc | $(WIN_BUILD_DIR)
+	$(NASM_WIN) $(NASM_WIN_FLAGS) $< -o $@
+
+$(TEST_WIN32_WINDOW_OBJ): tests/unit/test_win32_window.asm src/hal/win_x86_64/defs.inc src/canvas/canvas.inc | $(WIN_BUILD_DIR)
 	$(NASM_WIN) $(NASM_WIN_FLAGS) $< -o $@
 
 $(TEST_INPUT_ROUTING_BIN): $(HAL_SYSCALL_OBJ) $(HAL_ERRNO_OBJ) $(CORE_MEMORY_OBJ) $(CORE_EVENT_OBJ) $(HAL_WAYLAND_OBJ) $(COMPOSITOR_PROTOCOL_OBJ) $(COMPOSITOR_REGISTRY_OBJ) $(COMPOSITOR_SERVER_OBJ) $(COMPOSITOR_SURFACE_OBJ) $(COMPOSITOR_SHM_OBJ) $(COMPOSITOR_XDG_OBJ) $(COMPOSITOR_INPUT_OBJS) $(CANVAS_RASTERIZER_OBJ) $(CANVAS_SIMD_OBJ) $(TEST_INPUT_ROUTING_OBJ)

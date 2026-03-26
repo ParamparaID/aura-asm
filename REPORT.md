@@ -381,6 +381,45 @@ Phase 5 завершена. Проект готов к переходу в Phase
 
 ---
 
+## STEP 61: Windows Compositor и Shell Replacement — 2026-03-26
+
+### Что сделано
+- Добавлен `src/hal/win_x86_64/window.asm`:
+  - Win32 window backend: `RegisterClassExA` + `CreateWindowExA` + message pump (`PeekMessageA/TranslateMessage/DispatchMessageA`),
+  - GDI present-path: `GetDC` + `BitBlt` + `ReleaseDC`,
+  - DIB section surface (`CreateDIBSection`) и привязка буфера к `AuraCanvas`,
+  - обработка Win32 input messages в `aura_wnd_proc` (`WM_KEY*`, `WM_CHAR`, `WM_MOUSE*`, `WM_POINTER*`, `WM_SIZE`, `WM_CLOSE`, `WM_DESTROY`) с мостом в `input_push_event`,
+  - shell-replacement helpers: fullscreen mode flag, hotkey registration, enum/manage windows, subclass helper (`SetWindowLongPtrA`).
+- Добавлен `src/hal/win_x86_64/executor_win.asm`:
+  - `hal_spawn_wait`,
+  - `exec_pipeline_win` (MVP sequential CreateProcess/wait path),
+  - `win_capture_cmd_output` (pipe + spawn + read capture),
+  - `shell_replacement_register` (MVP registry setup через `reg add` command path).
+- Добавлен `src/hal/win_x86_64/gdi.asm`:
+  - минимальные GDI helper entrypoints для surface create/present/destroy.
+- Расширен `src/hal/win_x86_64/bootstrap.asm`:
+  - резолв дополнительных user32/gdi32/kernel32 функций для window/compositor path (`RegisterClassExA`, `CreateWindowExA`, `DefWindowProcA`, `PeekMessageA`, `DispatchMessageA`, `BitBlt`, `CreateDIBSection`, `SetWindowPos`, `SetWindowLongPtrA`, и др.).
+- Добавлен `tests/unit/test_win32_window.asm`:
+  - создание окна и present,
+  - input smoke через `SendMessageA` path,
+  - process/capture smoke (`cmd.exe /c echo test`).
+- Обновлён `Makefile`:
+  - win64 STEP61 объекты/тесты,
+  - цель `win_step61_check`.
+
+### Результаты тестов
+- `bash -lc "make win_step61_check"`: PASSED (все Win32 STEP61 объекты успешно собираются как COFF/win64).
+- `bash -lc "make test"`: PASSED (Linux regression suite без регрессий).
+
+### Ограничения MVP
+- В текущем окружении выполнена compile-time валидация win64 объектов; runtime GUI/Win32 behavior требует прогона на Windows runner.
+- Shell replacement реализован как opt-in helper-path; безопасная production-активация (policy/rollback) остаётся отдельной операционной процедурой.
+
+### Статус
+✅ Завершён (MVP STEP 61)
+
+---
+
 ## STEP 41: Panel UI и навигация — 2026-03-23
 
 ### Что сделано
