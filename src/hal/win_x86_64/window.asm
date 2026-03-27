@@ -45,6 +45,8 @@ section .data
 
 section .bss
     win_single_ctx               resq 1
+    win_expected_hwnd            resq 1
+    win_cached_hdc               resq 1
     win_tmp_msg                  resb MSG_SIZE
     win_tmp_event                resb 64
 
@@ -102,6 +104,8 @@ global window_subclass_hwnd
 
 win_push_event:
     ; rdi=event_type, rsi=key/button, rdx=state, rcx=x, r8=y, r9=scroll_y
+    push rdi
+    push rsi
     push rbx
     lea rbx, [rel win_tmp_event]
     ; zero 64 bytes
@@ -133,6 +137,8 @@ win_push_event:
     mov rdi, rbx
     call input_push_event
     pop rbx
+    pop rsi
+    pop rdi
     ret
 
 window_set_shell_replacement_mode:
@@ -181,11 +187,15 @@ window_enum_windows:
 
 aura_wnd_proc:
     ; Win64 callback: rcx=hWnd, rdx=uMsg, r8=wParam, r9=lParam
+    push rbp
+    push r14
+    push r15
     push rdi
     push rsi
     push rbx
     push r12
     push r13
+    sub rsp, 8
     mov rbx, rcx
     mov r12, rdx
     mov r13, r8
@@ -245,6 +255,10 @@ aura_wnd_proc:
 .wm_key_down:
     mov rdi, INPUT_KEY
     mov rsi, r13
+    cmp r13d, 0x09                    ; VK_TAB
+    jne .wm_key_down_push
+    mov esi, 0x27                     ; route Tab as VK_RIGHT for FM toggle
+.wm_key_down_push:
     mov rdx, KEY_PRESSED
     xor ecx, ecx
     xor r8d, r8d
@@ -265,6 +279,10 @@ aura_wnd_proc:
 .wm_char:
     mov rdi, INPUT_KEY
     mov rsi, r13
+    cmp r13d, 0x09                    ; '\t'
+    jne .wm_char_push
+    mov esi, 0x27                     ; keep same behavior as WM_KEYDOWN
+.wm_char_push:
     mov rdx, KEY_PRESSED
     xor ecx, ecx
     xor r8d, r8d
@@ -369,17 +387,87 @@ aura_wnd_proc:
     mov rax, [rel win_single_ctx]
     test rax, rax
     jz .ret0
+    mov rsi, rax
     mov ecx, r9d
     and ecx, 0xFFFF
     mov r8d, r9d
     shr r8d, 16
-    mov [rax + W_WIDTH_OFF], ecx
-    mov [rax + W_HEIGHT_OFF], r8d
-    mov [rax + W_CANVAS_OFF + CV_WIDTH_OFF], ecx
-    mov [rax + W_CANVAS_OFF + CV_HEIGHT_OFF], r8d
-    mov edx, ecx
-    shl edx, 2
-    mov [rax + W_CANVAS_OFF + CV_STRIDE_OFF], edx
+    mov [rsi + W_WIDTH_OFF], ecx
+    mov [rsi + W_HEIGHT_OFF], r8d
+    test ecx, ecx
+    jz .ret0
+    test r8d, r8d
+    jz .ret0
+
+    ; Recreate DIB surface to match new client size.
+    sub rsp, 224
+    lea rdi, [rsp + 64]
+    mov ecx, 80
+    xor eax, eax
+    rep stosb
+    mov eax, [rsi + W_WIDTH_OFF]
+    mov dword [rsp + 64 + 0], BITMAPINFOHEADER_SIZE
+    mov dword [rsp + 64 + 4], eax
+    mov eax, [rsi + W_HEIGHT_OFF]
+    neg eax
+    mov dword [rsp + 64 + 8], eax      ; top-down
+    mov word [rsp + 64 + 12], 1
+    mov word [rsp + 64 + 14], 32
+    mov dword [rsp + 64 + 16], BI_RGB
+    mov qword [rsp + 32], 0            ; hSection
+    mov qword [rsp + 40], 0            ; offset
+    mov qword [rsp + 48], 0            ; temp bits ptr
+    mov qword [rsp + 56], 0            ; temp hbitmap
+    mov rcx, [rsi + W_MEMDC_OFF]
+    lea rdx, [rsp + 64]
+    mov r8d, DIB_RGB_COLORS
+    lea r9, [rsp + 48]
+    mov rax, [rel win32_CreateDIBSection]
+    call rax
+    test rax, rax
+    jz .wm_size_done
+
+    ; Select new bitmap into memory DC.
+    mov [rsp + 56], rax
+    mov rcx, [rsi + W_MEMDC_OFF]
+    mov rdx, [rsp + 56]
+    mov rax, [rel win32_SelectObject]
+    call rax
+
+    ; Delete previous bitmap after replacement.
+    mov rcx, [rsi + W_HBITMAP_OFF]
+    test rcx, rcx
+    jz .wm_size_store
+    mov rax, [rel win32_DeleteObject]
+    call rax
+
+.wm_size_store:
+    mov rax, [rsp + 56]
+    mov [rsi + W_HBITMAP_OFF], rax
+    mov rax, [rsp + 48]
+    mov [rsi + W_DIB_PTR_OFF], rax
+    mov [rsi + W_CANVAS_OFF + CV_BUFFER_OFF], rax
+    mov eax, [rsi + W_WIDTH_OFF]
+    mov [rsi + W_CANVAS_OFF + CV_WIDTH_OFF], eax
+    mov eax, [rsi + W_HEIGHT_OFF]
+    mov [rsi + W_CANVAS_OFF + CV_HEIGHT_OFF], eax
+    mov eax, [rsi + W_WIDTH_OFF]
+    shl eax, 2
+    mov [rsi + W_CANVAS_OFF + CV_STRIDE_OFF], eax
+    mov eax, [rsi + W_WIDTH_OFF]
+    imul eax, [rsi + W_HEIGHT_OFF]
+    shl eax, 2
+    mov [rsi + W_CANVAS_OFF + CV_SIZE_OFF], rax
+    mov dword [rsi + W_CANVAS_OFF + CV_CLIP_DEPTH_OFF], 0
+    mov dword [rsi + W_CANVAS_OFF + CV_CLIP_X_OFF], 0
+    mov dword [rsi + W_CANVAS_OFF + CV_CLIP_Y_OFF], 0
+    mov eax, [rsi + W_WIDTH_OFF]
+    mov [rsi + W_CANVAS_OFF + CV_CLIP_W_OFF], eax
+    mov eax, [rsi + W_HEIGHT_OFF]
+    mov [rsi + W_CANVAS_OFF + CV_CLIP_H_OFF], eax
+
+.wm_size_done:
+    add rsp, 224
     jmp .ret0
 
 .def:
@@ -397,15 +485,21 @@ aura_wnd_proc:
 .ret0:
     xor eax, eax
 .out:
+    add rsp, 8
     pop r13
     pop r12
     pop rbx
     pop rsi
     pop rdi
+    pop r15
+    pop r14
+    pop rbp
     ret
 
 window_create_win32:
     ; (width rdi, height rsi, title rdx) -> Window* or 0
+    push rdi
+    push rsi
     push rbx
     push r12
     push r13
@@ -459,6 +553,7 @@ window_create_win32:
     mov dword [rsp + 32 + 0], WNDCLASSEXA_SIZE
     mov dword [rsp + 32 + 4], CS_HREDRAW | CS_VREDRAW
     lea rax, [rel aura_wnd_proc]
+.wc_use_def:
     mov [rsp + 32 + 8], rax
     xor ecx, ecx
     sub rsp, 40
@@ -514,6 +609,9 @@ window_create_win32:
     test rax, rax
     jz .free_fail
     mov [rbx + W_HWND_OFF], rax
+    mov [rel win_expected_hwnd], rax
+    xor rax, rax
+    mov [rel win_cached_hdc], rax
 
     ; memDC = CreateCompatibleDC(NULL)
     xor ecx, ecx
@@ -611,6 +709,8 @@ window_create_win32:
     pop r13
     pop r12
     pop rbx
+    pop rsi
+    pop rdi
     ret
 
 .free_fail:
@@ -655,6 +755,8 @@ window_create_win32:
     pop r13
     pop r12
     pop rbx
+    pop rsi
+    pop rdi
     ret
 
 window_create:
@@ -662,21 +764,24 @@ window_create:
 
 window_present_win32:
     ; (Window*) -> 0/-1
+    push rdi
+    push rsi
     push rbx
+    push r12
     test rdi, rdi
     jz .fail
     mov rbx, rdi
     cmp qword [rbx + W_HWND_OFF], 0
     je .fail
     mov rcx, [rbx + W_HWND_OFF]
-    sub rsp, 32
+    sub rsp, 40
     mov rax, [rel win32_GetDC]
     call rax
-    add rsp, 32
+    add rsp, 40
     test rax, rax
     jz .fail
-    mov r10, rax
-    sub rsp, 96
+    mov r12, rax
+    sub rsp, 88
     mov eax, [rbx + W_HEIGHT_OFF]
     mov dword [rsp + 32], eax                  ; cy
     mov rax, [rbx + W_MEMDC_OFF]
@@ -684,25 +789,31 @@ window_present_win32:
     mov qword [rsp + 48], 0                    ; xSrc
     mov qword [rsp + 56], 0                    ; ySrc
     mov qword [rsp + 64], SRCCOPY              ; rop
-    mov rcx, r10
+    mov rcx, r12
     xor edx, edx
     xor r8d, r8d
     mov r9d, [rbx + W_WIDTH_OFF]
     mov rax, [rel win32_BitBlt]
     call rax
-    add rsp, 96
+    add rsp, 88
     mov rcx, [rbx + W_HWND_OFF]
-    mov rdx, r10
-    sub rsp, 32
+    mov rdx, r12
+    sub rsp, 40
     mov rax, [rel win32_ReleaseDC]
     call rax
-    add rsp, 32
+    add rsp, 40
     xor eax, eax
+    pop r12
     pop rbx
+    pop rsi
+    pop rdi
     ret
 .fail:
     mov eax, -1
+    pop r12
     pop rbx
+    pop rsi
+    pop rdi
     ret
 
 window_present:
@@ -719,12 +830,16 @@ window_get_canvas:
 
 window_process_events:
     ; (Window*) -> 0/-1
+    push rdi
+    push rsi
+    push r12
     test rdi, rdi
     jz .fail
-    cmp qword [rdi + W_HWND_OFF], 0
+    mov r12, rdi
+    cmp qword [r12 + W_HWND_OFF], 0
     je .fail
 .loop:
-    sub rsp, 72
+    sub rsp, 48
     lea rcx, [rel win_tmp_msg]
     xor rdx, rdx
     xor r8d, r8d
@@ -732,29 +847,53 @@ window_process_events:
     mov qword [rsp + 32], PM_REMOVE
     mov rax, [rel win32_PeekMessageA]
     call rax
-    add rsp, 72
+    add rsp, 48
     test eax, eax
     jz .out
     cmp dword [rel win_tmp_msg + 8], WM_QUIT
     jne .dispatch
-    mov dword [rdi + W_SHOULD_CLOSE_OFF], 1
+    mov dword [r12 + W_SHOULD_CLOSE_OFF], 1
 .dispatch:
+    ; Some Win configurations swallow Tab during translation/dispatch.
+    ; Inject explicit FM-switch key event before default dispatch.
+    cmp dword [rel win_tmp_msg + 8], WM_KEYDOWN
+    je .tab_check
+    cmp dword [rel win_tmp_msg + 8], 0x0104      ; WM_SYSKEYDOWN
+    jne .dispatch_default
+.tab_check:
+    cmp dword [rel win_tmp_msg + 16], 0x09       ; VK_TAB
+    jne .dispatch_default
+    mov rdi, INPUT_KEY
+    mov esi, 0x27                                ; VK_RIGHT fallback
+    mov rdx, KEY_PRESSED
+    xor ecx, ecx
+    xor r8d, r8d
+    xor r9d, r9d
+    call win_push_event
+    jmp .loop
+.dispatch_default:
     lea rcx, [rel win_tmp_msg]
-    sub rsp, 40
+    sub rsp, 32
     mov rax, [rel win32_TranslateMessage]
     call rax
-    add rsp, 40
+    add rsp, 32
     lea rcx, [rel win_tmp_msg]
-    sub rsp, 40
+    sub rsp, 32
     mov rax, [rel win32_DispatchMessageA]
     call rax
-    add rsp, 40
+    add rsp, 32
     jmp .loop
 .out:
     xor eax, eax
+    pop r12
+    pop rsi
+    pop rdi
     ret
 .fail:
     mov eax, -1
+    pop r12
+    pop rsi
+    pop rdi
     ret
 
 window_should_close:
@@ -771,10 +910,26 @@ window_should_close:
 
 window_destroy:
     ; (Window*) -> 0/-1
+    push rdi
+    push rsi
     push rbx
     test rdi, rdi
     jz .fail
     mov rbx, rdi
+    mov rax, [rel win_cached_hdc]
+    test rax, rax
+    jz .skip_hdc_rel
+    mov rcx, [rbx + W_HWND_OFF]
+    test rcx, rcx
+    jz .skip_hdc_rel
+    mov rdx, rax
+    sub rsp, 40
+    mov rax, [rel win32_ReleaseDC]
+    call rax
+    add rsp, 40
+    xor rax, rax
+    mov [rel win_cached_hdc], rax
+.skip_hdc_rel:
 
     mov rax, [rbx + W_HBITMAP_OFF]
     test rax, rax
@@ -812,10 +967,14 @@ window_destroy:
     add rsp, 32
     xor eax, eax
     pop rbx
+    pop rsi
+    pop rdi
     ret
 .fail:
     mov eax, -1
     pop rbx
+    pop rsi
+    pop rdi
     ret
 
 window_send_test_keydown:

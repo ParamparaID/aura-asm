@@ -522,11 +522,12 @@ panel_navigate:
     lea rdx, [rbx + P_ENTRIES_BUF_OFF + rax]
     cmp dword [rdx + DE_TYPE_OFF], DT_DIR
     jne .file
+    mov r9, rdx
     lea rdi, [rbx + P_TMP_PATH_OFF]
     lea rsi, [rbx + P_PATH_OFF]
     mov edx, [rbx + P_PATH_LEN_OFF]
-    lea rcx, [rdx + DE_NAME_OFF]
-    mov r8d, [rdx + DE_NAME_LEN_OFF]
+    lea rcx, [r9 + DE_NAME_OFF]
+    mov r8d, [r9 + DE_NAME_LEN_OFF]
     call panel_join_path
     test eax, eax
     js .bad

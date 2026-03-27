@@ -12,6 +12,8 @@ extern panel_go_path
 extern panel_toggle_mark
 extern file_panel_create
 extern font_draw_string
+extern canvas_draw_string
+extern canvas_fill_rect
 extern canvas_fill_rect_alpha
 extern canvas_fill_rounded_rect
 extern widget_init
@@ -86,6 +88,8 @@ extern op_copy_async
 %define KEY_BACKSPACE              14
 %define KEY_UP                     103
 %define KEY_DOWN                   108
+%define KEY_LEFT                   105
+%define KEY_RIGHT                  106
 %define KEY_F1                     59
 %define KEY_F2                     60
 %define KEY_F3                     61
@@ -131,6 +135,14 @@ section .rodata
     fm_sftp_uri_tmp                db "/tmp",0
     fm_progress_copy               db "Copying...",0
     fm_progress_delete             db "Deleting...",0
+    fm_overlay_text                db "[FM ACTIVE]",0
+    fm_overlay_text_len            equ 11
+    fm_left_label                  db "LEFT PANEL",0
+    fm_left_label_len              equ 10
+    fm_right_label                 db "RIGHT PANEL",0
+    fm_right_label_len             equ 11
+    fm_stub_label                  db "VFS STUB: NO ENTRIES YET",0
+    fm_stub_label_len              equ 24
     fm_bloom_title                 db "Context Bloom",0
     fm_bloom_0                     db "Open",0
     fm_bloom_1                     db "Copy",0
@@ -1286,9 +1298,10 @@ fm_init:
     jz .fail
     mov [rbx + FM_LEFT_PANEL_OFF], rax
     mov [rbx + FM_ACTIVE_PANEL_OFF], rax
-    mov dword [rax + P_ACTIVE_OFF], 1
-
     mov rdi, rax
+    mov dword [rdi + P_ACTIVE_OFF], 1
+
+    mov rdi, [rbx + FM_LEFT_PANEL_OFF]
     xor esi, esi
     xor edx, edx
     mov ecx, 400
@@ -1361,17 +1374,258 @@ fm_init:
 
 fm_render:
     ; (fm rdi, canvas rsi, theme rdx)
+    push rdi
+    push rsi
     push rbx
     push r12
     push r13
+    sub rsp, 16
     mov rbx, rdi
     mov r12, rsi
     mov r13, rdx
-    mov rax, [rdi + FM_SPLIT_PANE_OFF]
+
+    ; Reset clip to full canvas each frame on Win native path.
+    mov dword [r12 + CV_CLIP_DEPTH_OFF], 0
+    mov dword [r12 + CV_CLIP_X_OFF], 0
+    mov dword [r12 + CV_CLIP_Y_OFF], 0
+    mov eax, [r12 + CV_WIDTH_OFF]
+    mov [r12 + CV_CLIP_W_OFF], eax
+    mov eax, [r12 + CV_HEIGHT_OFF]
+    mov [r12 + CV_CLIP_H_OFF], eax
+
+    ; Clear full canvas first to avoid stale/black regions when widget
+    ; subtree does not cover the entire framebuffer.
+    mov r9d, 0xFF1A1B26
+    test r13, r13
+    jz .bg_ready
+    mov r9d, [r13 + TH_BG_OFF]
+.bg_ready:
+    ; Hard clear framebuffer directly (ignore clip state entirely).
+    mov rdi, [r12 + CV_BUFFER_OFF]
+    test rdi, rdi
+    jz .out
+    mov ecx, [r12 + CV_SIZE_OFF]
+    shr ecx, 2
+    jz .out
+    mov eax, r9d
+    cld
+    rep stosd
+    ; Stable FM fallback scaffold (no font rendering) for Win native path.
+    ; Keeps UI visible while text/theme/TT paths are being stabilized.
+    mov eax, [r12 + CV_WIDTH_OFF]
+    shr eax, 1
+    mov dword [rsp + 0], eax            ; half width
+    mov eax, [r12 + CV_HEIGHT_OFF]
+    cmp eax, 20
+    jb .fallback_h_ok
+    sub eax, 20
+.fallback_h_ok:
+    mov dword [rsp + 4], eax            ; work height
+    ; left panel shell
+    mov rdi, r12
+    mov esi, 8
+    mov edx, 24
+    mov ecx, [rsp + 0]
+    sub ecx, 12
+    mov r8d, [rsp + 4]
+    sub r8d, 32
+    mov r9d, 0xFF2A3045
+    call canvas_fill_rect_alpha
+    ; right panel shell
+    mov rdi, r12
+    mov esi, [rsp + 0]
+    add esi, 4
+    mov edx, 24
+    mov ecx, [r12 + CV_WIDTH_OFF]
+    sub ecx, esi
+    sub ecx, 8
+    mov r8d, [rsp + 4]
+    sub r8d, 32
+    mov r9d, 0xFF334B6A
+    call canvas_fill_rect_alpha
+    ; top bars for active panel cue (stable geometry-only indicator)
+    mov rdi, r12
+    mov esi, 8
+    mov edx, 24
+    mov ecx, [rsp + 0]
+    sub ecx, 12
+    mov r8d, 3
+    mov r9d, 0xFF3E4A60
+    call canvas_fill_rect_alpha
+    mov rdi, r12
+    mov esi, [rsp + 0]
+    add esi, 4
+    mov edx, 24
+    mov ecx, [r12 + CV_WIDTH_OFF]
+    sub ecx, esi
+    sub ecx, 8
+    mov r8d, 3
+    mov r9d, 0xFF3E4A60
+    call canvas_fill_rect_alpha
+    mov rax, [rbx + FM_ACTIVE_PANEL_OFF]
+    cmp rax, [rbx + FM_LEFT_PANEL_OFF]
+    jne .fb_act_right
+    mov rdi, r12
+    mov esi, 8
+    mov edx, 24
+    mov ecx, [rsp + 0]
+    sub ecx, 12
+    mov r8d, 3
+    mov r9d, 0xFF7EC8FF
+    call canvas_fill_rect_alpha
+    jmp .fb_act_done
+.fb_act_right:
+    mov rdi, r12
+    mov esi, [rsp + 0]
+    add esi, 4
+    mov edx, 24
+    mov ecx, [r12 + CV_WIDTH_OFF]
+    sub ecx, esi
+    sub ecx, 8
+    mov r8d, 3
+    mov r9d, 0xFF7EC8FF
+    call canvas_fill_rect_alpha
+.fb_act_done:
+    ; center divider
+    mov rdi, r12
+    mov esi, [rsp + 0]
+    sub esi, 1
+    mov edx, 24
+    mov ecx, 2
+    mov r8d, [rsp + 4]
+    sub r8d, 32
+    mov r9d, 0xFF5C9CFF
+    call canvas_fill_rect_alpha
+    ; bottom status strip (visual only)
+    mov rdi, r12
+    mov esi, 8
+    mov edx, [r12 + CV_HEIGHT_OFF]
+    sub edx, 20
+    mov ecx, [r12 + CV_WIDTH_OFF]
+    sub ecx, 16
+    mov r8d, 12
+    mov r9d, 0xFF1F2433
+    call canvas_fill_rect_alpha
+    ; Render rows from live panel model as geometry only (no text path).
+    ; Left panel rows.
+    mov eax, 1
+    mov r11, [rbx + FM_LEFT_PANEL_OFF]
+    test r11, r11
+    jz .fb_left_count_ready
+    mov eax, [r11 + P_ENTRY_COUNT_OFF]
+    cmp eax, 1
+    jge .fb_left_count_ready
+    mov eax, 1
+.fb_left_count_ready:
+    cmp eax, 10
+    jle .fb_left_count_clamped
+    mov eax, 10
+.fb_left_count_clamped:
+    mov [rsp + 12], eax
+    xor eax, eax
+    mov [rsp + 8], eax
+.fb_left_rows_loop:
+    mov eax, [rsp + 8]
+    cmp eax, [rsp + 12]
+    jae .fb_right_rows_start
+    mov rdi, r12
+    mov esi, 20
+    mov edx, eax
+    imul edx, 14
+    add edx, 44
+    mov ecx, [rsp + 0]
+    sub ecx, 36
+    mov r10d, eax
+    and r10d, 3
+    shl r10d, 4
+    sub ecx, r10d
+    mov r8d, 6
+    mov r9d, 0xFF6F7F99
+    mov r11, [rbx + FM_LEFT_PANEL_OFF]
+    test r11, r11
+    jz .fb_left_draw
+    mov r10d, [r11 + P_SELECTED_IDX_OFF]
+    cmp r10d, eax
+    jne .fb_left_draw
+    mov r9d, 0xFFB8C6DD
+.fb_left_draw:
+    call canvas_fill_rect_alpha
+    inc dword [rsp + 8]
+    jmp .fb_left_rows_loop
+
+.fb_right_rows_start:
+    mov eax, 1
+    mov r11, [rbx + FM_RIGHT_PANEL_OFF]
+    test r11, r11
+    jz .fb_right_count_ready
+    mov eax, [r11 + P_ENTRY_COUNT_OFF]
+    cmp eax, 1
+    jge .fb_right_count_ready
+    mov eax, 1
+.fb_right_count_ready:
+    cmp eax, 10
+    jle .fb_right_count_clamped
+    mov eax, 10
+.fb_right_count_clamped:
+    mov [rsp + 12], eax
+    xor eax, eax
+    mov [rsp + 8], eax
+.fb_right_rows_loop:
+    mov eax, [rsp + 8]
+    cmp eax, [rsp + 12]
+    jae .fb_rows_done
+    mov rdi, r12
+    mov esi, [rsp + 0]
+    add esi, 16
+    mov edx, eax
+    imul edx, 14
+    add edx, 44
+    mov ecx, [r12 + CV_WIDTH_OFF]
+    sub ecx, esi
+    sub ecx, 20
+    mov r10d, eax
+    and r10d, 3
+    shl r10d, 4
+    sub ecx, r10d
+    mov r8d, 6
+    mov r9d, 0xFF8EA2BF
+    mov r11, [rbx + FM_RIGHT_PANEL_OFF]
+    test r11, r11
+    jz .fb_right_draw
+    mov r10d, [r11 + P_SELECTED_IDX_OFF]
+    cmp r10d, eax
+    jne .fb_right_draw
+    mov r9d, 0xFFD2DEEE
+.fb_right_draw:
+    call canvas_fill_rect_alpha
+    inc dword [rsp + 8]
+    jmp .fb_right_rows_loop
+.fb_rows_done:
+    jmp .out
+
+    mov rax, [rbx + FM_SPLIT_PANE_OFF]
     test rax, rax
     jz .dlg
+    ; Stretch root FM widget to full client area (status bar kept at bottom).
+    mov ecx, [r12 + CV_WIDTH_OFF]
+    mov r10d, [r12 + CV_HEIGHT_OFF]
+    cmp r10d, 20
+    jb .no_work_h
+    sub r10d, 20
+    jmp .have_work_h
+.no_work_h:
+    xor r10d, r10d
+.have_work_h:
+    mov dword [rax + W_X_OFF], 0
+    mov dword [rax + W_Y_OFF], 0
+    mov dword [rax + W_WIDTH_OFF], ecx
+    mov dword [rax + W_HEIGHT_OFF], r10d
     mov rdi, rax
+    call widget_layout
+.render_root:
+    mov rdi, [rbx + FM_SPLIT_PANE_OFF]
     mov rsi, r12
+    mov rdx, r13
     xor ecx, ecx
     xor r8d, r8d
     call widget_render
@@ -1437,9 +1691,12 @@ fm_render:
     mov rdx, r13
     call fm_render_connected_status
 .out:
+    add rsp, 16
     pop r13
     pop r12
     pop rbx
+    pop rsi
+    pop rdi
     ret
 
 fm_copy_selected:
@@ -1941,6 +2198,60 @@ fm_handle_input:
     mov rbx, rdi
     mov r12, rsi
     mov eax, [r12 + IE_TYPE_OFF]
+    ; Win backend sends VK codes for WM_KEYDOWN/WM_KEYUP. Normalize
+    ; control/navigation keys to the legacy Linux-like codes used by FM.
+    cmp eax, INPUT_KEY
+    jne .key_norm_done
+    mov edx, [r12 + IE_KEY_CODE_OFF]
+    cmp edx, 0x26                    ; VK_UP
+    jne .chk_vk_down
+    mov dword [r12 + IE_KEY_CODE_OFF], KEY_UP
+    jmp .key_norm_done
+.chk_vk_down:
+    cmp edx, 0x28                    ; VK_DOWN
+    jne .chk_vk_enter
+    mov dword [r12 + IE_KEY_CODE_OFF], KEY_DOWN
+    jmp .key_norm_done
+.chk_vk_enter:
+    cmp edx, 0x25                    ; VK_LEFT
+    jne .chk_vk_right
+    mov dword [r12 + IE_KEY_CODE_OFF], KEY_LEFT
+    jmp .key_norm_done
+.chk_vk_right:
+    cmp edx, 0x27                    ; VK_RIGHT
+    jne .chk_vk_enter_real
+    mov dword [r12 + IE_KEY_CODE_OFF], KEY_RIGHT
+    jmp .key_norm_done
+.chk_vk_enter_real:
+    cmp edx, 0x0D                    ; VK_RETURN
+    jne .chk_vk_tab
+    mov dword [r12 + IE_KEY_CODE_OFF], KEY_ENTER
+    jmp .key_norm_done
+.chk_vk_tab:
+    cmp edx, 0x09                    ; VK_TAB
+    jne .chk_vk_esc
+    mov dword [r12 + IE_KEY_CODE_OFF], KEY_TAB
+    jmp .key_norm_done
+.chk_vk_esc:
+    cmp edx, 0x1B                    ; VK_ESCAPE
+    jne .chk_vk_back
+    mov dword [r12 + IE_KEY_CODE_OFF], KEY_ESC
+    jmp .key_norm_done
+.chk_vk_back:
+    cmp edx, 0x08                    ; VK_BACK
+    jne .chk_vk_fkeys
+    mov dword [r12 + IE_KEY_CODE_OFF], KEY_BACKSPACE
+    jmp .key_norm_done
+.chk_vk_fkeys:
+    cmp edx, 0x70                    ; VK_F1
+    jb .key_norm_done
+    cmp edx, 0x79                    ; VK_F10
+    ja .key_norm_done
+    sub edx, 0x70
+    add edx, KEY_F1
+    mov [r12 + IE_KEY_CODE_OFF], edx
+.key_norm_done:
+    mov eax, [r12 + IE_TYPE_OFF]
     cmp dword [rbx + FM_PROGRESS_ACTIVE_OFF], 0
     je .no_progress
     cmp eax, INPUT_KEY
@@ -2011,6 +2322,12 @@ fm_handle_input:
     jne .delegate
     mov eax, [r12 + IE_KEY_CODE_OFF]
     cmp eax, KEY_TAB
+    je .tab
+    cmp eax, KEY_LEFT
+    je .tab
+    cmp eax, KEY_RIGHT
+    je .tab
+    cmp eax, 0x09                    ; raw VK_TAB fallback
     je .tab
     cmp eax, KEY_F1
     je .cons
