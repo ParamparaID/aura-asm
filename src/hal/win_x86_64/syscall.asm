@@ -64,10 +64,30 @@ global hal_mutex_lock
 global hal_mutex_unlock
 global hal_mutex_destroy
 global hal_atomic_inc
+global hal_sigaction
+global hal_sigreturn_restorer
+global hal_access
+global hal_chdir
+global hal_getdents64
+global hal_stat
+global hal_lstat
+global hal_rename
+global hal_unlink
+global hal_rmdir
+global hal_mkdir
+global hal_chmod
+global hal_statfs
+global hal_lseek
+global hal_kill
+global hal_getpid
+global hal_tcsetpgrp
+global global_envp
+global hal_mprotect
 
 section .bss
     win_spawn_si                     resb STARTUPINFOA_SIZE
     win_spawn_pi                     resb PROCESS_INFORMATION_SIZE
+    global_envp                      resq 1
 
 section .text
 win_thread_entry:
@@ -427,6 +447,8 @@ hal_fork:
 hal_spawn:
     ; (cmdline, stdin_h, stdout_h) -> process handle or -1
     ; cmdline must be mutable buffer for CreateProcessA.
+    push rdi
+    push rsi
     push rbx
     push r12
     push r13
@@ -501,6 +523,8 @@ hal_spawn:
     pop r13
     pop r12
     pop rbx
+    pop rsi
+    pop rdi
     ret
 
 .spawn_fail:
@@ -510,6 +534,8 @@ hal_spawn:
     pop r13
     pop r12
     pop rbx
+    pop rsi
+    pop rdi
     ret
 
 hal_execve:
@@ -519,6 +545,8 @@ hal_execve:
 
 hal_pipe:
     ; (ptr_to_two_handles) -> 0/-1
+    push rdi
+    push rsi
     call win_bootstrap_ensure
     test eax, eax
     js .fail
@@ -536,14 +564,20 @@ hal_pipe:
     add rsp, 104
     test eax, eax
     jz .fail
+    pop rsi
+    pop rdi
     xor eax, eax
     ret
 .fail:
+    pop rsi
+    pop rdi
     mov eax, -1
     ret
 
 hal_dup2:
     ; (old_handle, new_fd[0/1/2]) -> 0/-1
+    push rdi
+    push rsi
     call win_bootstrap_ensure
     test eax, eax
     js .fail
@@ -570,15 +604,21 @@ hal_dup2:
     add rsp, 40
     test eax, eax
     jz .fail
+    pop rsi
+    pop rdi
     xor eax, eax
     ret
 .fail:
+    pop rsi
+    pop rdi
     mov eax, -1
     ret
 
 hal_waitpid:
     ; (process_handle, status_ptr, options_ignored) -> 0/-1
     ; Windows HANDLE wait + exit code retrieval.
+    push rdi
+    push rsi
     push rbx
     push r12
     mov rbx, rdi                      ; process handle
@@ -625,6 +665,8 @@ hal_waitpid:
     xor eax, eax
     pop r12
     pop rbx
+    pop rsi
+    pop rdi
     ret
 
 .getcode_fail:
@@ -639,6 +681,8 @@ hal_waitpid:
     mov eax, -1
     pop r12
     pop rbx
+    pop rsi
+    pop rdi
     ret
 
 hal_socket:
@@ -962,4 +1006,177 @@ hal_atomic_inc:
     ret
 .fail:
     mov rax, -1
+    ret
+
+hal_sigaction:
+    ; Windows no-op compatibility for REPL signal setup.
+    xor eax, eax
+    ret
+
+hal_sigreturn_restorer:
+    ret
+
+; --- Linux compatibility symbols used by shell/FM on Win build ---
+; These are minimal compatibility shims to unblock native Win shell/FM linking.
+
+hal_access:
+    ; (path, mode) -> 0/-1
+    push rbx
+    mov rbx, rdi
+    test rbx, rbx
+    jz .fail
+    mov rdi, rbx
+    mov esi, O_RDONLY
+    xor edx, edx
+    call hal_open
+    test rax, rax
+    js .fail
+    mov rdi, rax
+    call hal_close
+    xor eax, eax
+    pop rbx
+    ret
+.fail:
+    mov eax, -1
+    pop rbx
+    ret
+
+hal_chdir:
+    ; (path) -> 0/-1 (best-effort no-op on Win path)
+    test rdi, rdi
+    jz .fail
+    xor eax, eax
+    ret
+.fail:
+    mov eax, -1
+    ret
+
+hal_getdents64:
+    ; (fd, buf, size) -> bytes or 0/-1
+    ; Minimal shim: no directory entries for now.
+    xor eax, eax
+    ret
+
+hal_stat:
+    ; (path, stat_buf) -> 0/-1
+    test rdi, rdi
+    jz .fail
+    test rsi, rsi
+    jz .fail
+    push rbx
+    mov rbx, rsi
+    mov rdi, rbx
+    mov ecx, 144
+    xor eax, eax
+    rep stosb
+    mov dword [rbx + 24], 0x81A4      ; S_IFREG | 0644
+    mov dword [rbx + 28], 0
+    mov dword [rbx + 32], 0
+    mov qword [rbx + 48], 0
+    mov qword [rbx + 88], 0
+    xor eax, eax
+    pop rbx
+    ret
+.fail:
+    mov eax, -1
+    ret
+
+hal_lstat:
+    jmp hal_stat
+
+hal_rename:
+    ; (old_path, new_path) -> 0/-1 (best-effort success)
+    test rdi, rdi
+    jz .fail
+    test rsi, rsi
+    jz .fail
+    xor eax, eax
+    ret
+.fail:
+    mov eax, -1
+    ret
+
+hal_unlink:
+    ; (path) -> 0/-1 (best-effort success)
+    test rdi, rdi
+    jz .fail
+    xor eax, eax
+    ret
+.fail:
+    mov eax, -1
+    ret
+
+hal_rmdir:
+    ; (path) -> 0/-1
+    test rdi, rdi
+    jz .fail
+    xor eax, eax
+    ret
+.fail:
+    mov eax, -1
+    ret
+
+hal_mkdir:
+    ; (path, mode) -> 0/-1
+    test rdi, rdi
+    jz .fail
+    xor eax, eax
+    ret
+.fail:
+    mov eax, -1
+    ret
+
+hal_chmod:
+    ; (path, mode) -> 0/-1
+    test rdi, rdi
+    jz .fail
+    xor eax, eax
+    ret
+.fail:
+    mov eax, -1
+    ret
+
+hal_statfs:
+    ; (path, statfs_buf) -> 0/-1
+    test rsi, rsi
+    jz .fail
+    push rbx
+    mov rbx, rsi
+    mov rdi, rbx
+    mov ecx, 128
+    xor eax, eax
+    rep stosb
+    mov qword [rbx + 8], 4096         ; f_bsize
+    mov qword [rbx + 16], 1           ; f_blocks
+    mov qword [rbx + 32], 1           ; f_bavail
+    xor eax, eax
+    pop rbx
+    ret
+.fail:
+    mov eax, -1
+    ret
+
+hal_lseek:
+    ; (fd, offset, whence) -> new pos or -1
+    xor eax, eax
+    ret
+
+hal_kill:
+    ; (pid, sig) -> 0/-1
+    xor eax, eax
+    ret
+
+hal_getpid:
+    mov eax, 1
+    ret
+
+hal_tcsetpgrp:
+    ; (fd, pgid) -> 0/-1
+    xor eax, eax
+    ret
+
+hal_mprotect:
+    ; (addr, len, prot) -> 0/-1
+    ; Best-effort compatibility shim for plugin host.
+    xor eax, eax
     ret
