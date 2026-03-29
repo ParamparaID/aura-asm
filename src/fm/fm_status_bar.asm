@@ -53,6 +53,7 @@ fm_status_bar_render:
     push rbx
     push r12
     push r13
+    push r14
     mov rbx, rdi
     mov r12, rsi
     mov r13, rdx
@@ -63,10 +64,21 @@ fm_status_bar_render:
     test r13, r13
     jz .out
 
+    mov r11d, [r12 + CV_HEIGHT_OFF]
+    test r11d, r11d
+    jle .out
+    cmp r11d, 20
+    jb .tiny
+    sub r11d, 20
+    jmp .have_y
+.tiny:
+    xor r11d, r11d
+.have_y:
+
     mov rdi, r12
     xor esi, esi
-    mov edx, 580
-    mov ecx, 800
+    mov edx, r11d
+    mov ecx, [r12 + CV_WIDTH_OFF]
     mov r8d, 20
     mov r9d, [r13 + TH_SURFACE_OFF]
     call canvas_fill_rect
@@ -74,8 +86,9 @@ fm_status_bar_render:
     mov rax, [rbx + FM_ACTIVE_PANEL_OFF]
     test rax, rax
     jz .out
+    mov r14, rax
     ; left: current path
-    lea rdi, [rax + P_PATH_OFF]
+    lea rdi, [r14 + P_PATH_OFF]
     lea rsi, [rel fm_sb_path_buf]
     mov edx, 256
     call fm_sb_copy
@@ -84,7 +97,8 @@ fm_status_bar_render:
     lea rcx, [rel fm_sb_path_buf]
     mov rdi, r12
     mov esi, 8
-    mov edx, 585
+    mov edx, r11d
+    add edx, 5
     mov r8d, eax
     mov r9d, [r13 + TH_FG_OFF]
     push qword 0
@@ -92,7 +106,7 @@ fm_status_bar_render:
     add rsp, 8
 
     ; right: free space (best effort statfs)
-    lea rdi, [rax + P_PATH_OFF]
+    lea rdi, [r14 + P_PATH_OFF]
     lea rsi, [rel fm_sb_tmp_statfs]
     call hal_statfs
     test rax, rax
@@ -120,14 +134,18 @@ fm_status_bar_render:
 .draw_free:
     lea rcx, [rel fm_sb_free_buf]
     mov rdi, r12
-    mov esi, 700
-    mov edx, 585
+    mov esi, [r12 + CV_WIDTH_OFF]
+    sub esi, 100
+    js .out
+    mov edx, r11d
+    add edx, 5
     mov r8d, 8
     mov r9d, [r13 + TH_FG_OFF]
     push qword 0
     call canvas_draw_string
     add rsp, 8
 .out:
+    pop r14
     pop r13
     pop r12
     pop rbx

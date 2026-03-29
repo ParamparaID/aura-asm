@@ -641,6 +641,8 @@ widget_layout:
 
 ; widget_render(widget rdi, rsi canvas, rdx theme, ecx abs_x, r8d abs_y)
 widget_render:
+    push rdi
+    push rsi
     push rbx
     push r12
     push r13
@@ -654,6 +656,8 @@ widget_render:
 
     test r12, r12
     jz .out
+    cmp r12, 0x10000
+    jb .out
     cmp dword [r12 + W_VISIBLE_OFF], 0
     je .out
 
@@ -670,6 +674,8 @@ widget_render:
     mov rax, [r12 + W_FN_RENDER_OFF]
     test rax, rax
     jz .after_render
+    cmp rax, 0x10000
+    jb .after_render
     mov rdi, r12
     mov rsi, r13
     mov rdx, r14
@@ -681,28 +687,39 @@ widget_render:
     jmp .kids
 .skip_self:
 .kids:
-    push r10
     xor r10d, r10d
 .child_loop:
     cmp r10d, [r12 + W_CHILD_COUNT_OFF]
     jae .kids_done
     mov rax, [r12 + W_CHILDREN_OFF]
     mov rdi, [rax + r10*8]
+    test rdi, rdi
+    jz .next_child
+    cmp rdi, 0x10000
+    jb .next_child
+    cmp rdi, r12
+    je .next_child
     mov rsi, r13
     mov rdx, r14
     mov ecx, r15d
     mov r8d, ebx
+    push r10
+    push r11
     call widget_render
+    pop r11
+    pop r10
+.next_child:
     inc r10d
     jmp .child_loop
 .kids_done:
-    pop r10
 .out:
     pop r15
     pop r14
     pop r13
     pop r12
     pop rbx
+    pop rsi
+    pop rdi
     ret
 
 ; widget_hit_test(widget rdi, esi x, edx y, ecx abs_x, r8d abs_y) -> rax Widget*

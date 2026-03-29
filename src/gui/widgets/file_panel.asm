@@ -78,11 +78,16 @@ w_file_panel_measure:
 
 w_file_panel_render:
     ; (widget rdi, canvas rsi, theme rdx, abs_x ecx, abs_y r8d)
+    push rdi
+    push rsi
     push rbx
     push r12
     push r13
     push r14
     push r15
+    sub rsp, 16
+    mov dword [rsp + 0], ecx            ; abs_x
+    mov dword [rsp + 4], r8d            ; abs_y
     mov r12, rdi
     mov r13, rsi
     mov r14, [r12 + W_DATA_OFF]
@@ -99,8 +104,8 @@ w_file_panel_render:
     mov r9d, [rdx + TH_SURFACE_OFF]
 .bg:
     mov rdi, r13
-    mov esi, ecx
-    mov edx, r8d
+    mov esi, [rsp + 0]
+    mov edx, [rsp + 4]
     mov ecx, [r12 + W_WIDTH_OFF]
     mov r8d, [r12 + W_HEIGHT_OFF]
     call canvas_fill_rect
@@ -108,26 +113,43 @@ w_file_panel_render:
     ; breadcrumb/header strip
     mov r9d, 0xFF222834
     mov rdi, r13
-    mov esi, ecx
-    mov edx, r8d
+    mov esi, [rsp + 0]
+    mov edx, [rsp + 4]
     mov ecx, [r12 + W_WIDTH_OFF]
     mov r8d, [r14 + FPD_HEAD_H_OFF]
     call canvas_fill_rect
 
     ; draw rows
     mov ebx, [r15 + P_SCROLL_OFF]
-    mov r10d, [r15 + P_ENTRY_COUNT_OFF]
-    xor r11d, r11d
+    mov eax, [r15 + P_ENTRY_COUNT_OFF]
+    mov dword [rsp + 8], eax             ; entry_count
+    test eax, eax
+    jnz .rows_init
+    ; empty panel placeholder (high contrast) so FM is visibly alive
+    mov rdi, r13
+    mov esi, [rsp + 0]
+    mov edx, [rsp + 4]
+    add edx, [r14 + FPD_HEAD_H_OFF]
+    add edx, 12
+    mov ecx, [r12 + W_WIDTH_OFF]
+    sub ecx, 24
+    jle .status
+    mov r8d, 28
+    mov r9d, 0xFF3A5EA8
+    call canvas_fill_rect
+    jmp .status
+.rows_init:
+    mov dword [rsp + 12], 0              ; row_index
 .rows:
-    cmp ebx, r10d
+    cmp ebx, [rsp + 8]
     jae .status
     ; y = abs_y + head + row*row_h
-    mov eax, r11d
+    mov eax, [rsp + 12]
     imul eax, [r14 + FPD_ROW_H_OFF]
     add eax, [r14 + FPD_HEAD_H_OFF]
-    add eax, r8d
+    add eax, [rsp + 4]
     mov edx, eax
-    mov eax, r8d
+    mov eax, [rsp + 4]
     add eax, [r12 + W_HEIGHT_OFF]
     sub eax, 20
     cmp edx, eax
@@ -140,7 +162,7 @@ w_file_panel_render:
     mov r9d, 0xFF3A5EA8
     jmp .draw
 .norm:
-    mov eax, r11d
+    mov eax, [rsp + 12]
     and eax, 1
     test eax, eax
     jz .z1
@@ -150,34 +172,39 @@ w_file_panel_render:
     mov r9d, 0xFF1A202A
 .draw:
     mov rdi, r13
-    mov esi, ecx
+    mov esi, [rsp + 0]
     mov ecx, [r12 + W_WIDTH_OFF]
     mov r8d, [r14 + FPD_ROW_H_OFF]
     call canvas_fill_rect
 
     inc ebx
-    inc r11d
+    mov eax, [rsp + 12]
+    inc eax
+    mov [rsp + 12], eax
     jmp .rows
 
 .status:
     ; status line
-    mov eax, r8d
+    mov eax, [rsp + 4]
     add eax, [r12 + W_HEIGHT_OFF]
     sub eax, 20
     mov edx, eax
     mov r9d, 0xFF202734
     mov rdi, r13
-    mov esi, ecx
+    mov esi, [rsp + 0]
     mov ecx, [r12 + W_WIDTH_OFF]
     mov r8d, 20
     call canvas_fill_rect
 
 .out:
+    add rsp, 16
     pop r15
     pop r14
     pop r13
     pop r12
     pop rbx
+    pop rsi
+    pop rdi
     ret
 
 w_file_panel_handle_input:

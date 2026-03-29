@@ -1426,6 +1426,9 @@ rasterize_bbox_bitmap:
     jmp .clr
 
 .try_scanline:
+    ; Win-native stabilization: disable experimental scanline rasterizer.
+    ; Use stable bbox fallback to avoid AV in segment prep/intersection path.
+    jmp .fallback_bbox
     mov eax, [parsed_edge_count]
     test eax, eax
     jz .fallback_bbox

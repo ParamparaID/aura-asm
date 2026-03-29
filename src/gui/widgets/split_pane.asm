@@ -28,11 +28,14 @@ w_split_measure:
     ret
 
 w_split_render:
+    push rdi
+    push rsi
     push rbx
     push r12
     push r13
     push r14
     push r15
+    sub rsp, 8
     mov r12, rdi
     mov r13, rsi
     mov r14d, ecx
@@ -53,19 +56,25 @@ w_split_render:
     mov rdi, r13
     call canvas_fill_rect
 .out:
+    add rsp, 8
     pop r15
     pop r14
     pop r13
     pop r12
     pop rbx
+    pop rsi
+    pop rdi
     ret
 
 w_split_handle_input:
+    push rdi
+    push rsi
     push rbx
     push r12
     push r13
     push r14
     push r15
+    sub rsp, 8
     mov r12, rdi
     mov r13, rsi
     mov r14d, edx
@@ -112,14 +121,19 @@ w_split_handle_input:
 .no:
     xor eax, eax
 .ret:
+    add rsp, 8
     pop r15
     pop r14
     pop r13
     pop r12
     pop rbx
+    pop rsi
+    pop rdi
     ret
 
 w_split_layout:
+    push rdi
+    push rsi
     push rbx
     push r12
     push r13
@@ -170,6 +184,8 @@ w_split_layout:
     pop r13
     pop r12
     pop rbx
+    pop rsi
+    pop rdi
     ret
 
 w_split_destroy:

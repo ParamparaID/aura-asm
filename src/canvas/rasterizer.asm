@@ -277,6 +277,9 @@ canvas_fill_rect:
 ; Return: rax=0/-1
 ; Complexity: O(w*h)
 canvas_fill_rect_scalar:
+    push rbp
+    push rsi
+    push rdi
     push rbx
     push r12
     push r13
@@ -375,6 +378,9 @@ canvas_fill_rect_scalar:
     pop r13
     pop r12
     pop rbx
+    pop rdi
+    pop rsi
+    pop rbp
     ret
 .bad:
     mov rax, -1
@@ -383,6 +389,9 @@ canvas_fill_rect_scalar:
     pop r13
     pop r12
     pop rbx
+    pop rdi
+    pop rsi
+    pop rbp
     ret
 
 ; canvas_draw_rect(canvas_ptr, x, y, w, h, color, thickness)

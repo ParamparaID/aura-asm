@@ -211,10 +211,13 @@ skip_newlines:
 ; parse_redirect(parser, cmd_ptr)
 ; rax=1 success, 0 fail
 parse_redirect:
+    push rdi
+    push rsi
     push rbx
     push r12
     push r13
     push r14
+    sub rsp, 8
     mov rbx, rdi
     mov r12, rsi
 
@@ -239,11 +242,7 @@ parse_redirect:
     mov rdi, rbx
     call set_error
     xor eax, eax
-    pop r14
-    pop r13
-    pop r12
-    pop rbx
-    ret
+    jmp .ret
 
 .have_word:
     mov r13, [rax + TOKEN_START_OFF]
@@ -256,11 +255,7 @@ parse_redirect:
     mov [r12 + CMD_REDIRECT_IN_OFF], r13
     mov dword [r12 + CMD_REDIRECT_IN_LEN_OFF], r14d
     mov eax, 1
-    pop r14
-    pop r13
-    pop r12
-    pop rbx
-    ret
+    jmp .ret
 
 .check_out:
     mov [r12 + CMD_REDIRECT_OUT_OFF], r13
@@ -273,25 +268,28 @@ parse_redirect:
     mov dword [r12 + CMD_REDIRECT_APPEND_OFF], 0
 .ok:
     mov eax, 1
-    pop r14
-    pop r13
-    pop r12
-    pop rbx
-    ret
+    jmp .ret
 
 .eof:
     lea rsi, [rel err_unexpected_eof]
     mov rdi, rbx
     call set_error
     xor eax, eax
+    jmp .ret
+.ret:
+    add rsp, 8
     pop r14
     pop r13
     pop r12
     pop rbx
+    pop rsi
+    pop rdi
     ret
 
 ; parse_command(parser) -> rax=CommandNode* or 0
 parse_command:
+    push rdi
+    push rsi
     push rbx
     push r12
     push r13
@@ -460,13 +458,19 @@ parse_command:
     pop r13
     pop r12
     pop rbx
+    pop rsi
+    pop rdi
     ret
 
 ; parse_pipeline(parser) -> rax=PipelineNode* or 0
 parse_pipeline:
+    push rdi
+    push rsi
     push rbx
     push r12
     push r13
+    push r15
+    sub rsp, 8
     mov rbx, rdi
 
     mov rdi, rbx
@@ -475,18 +479,19 @@ parse_pipeline:
     test rax, rax
     jz .fail
     mov r12, rax
+    mov r15, rax
 
     mov rdi, r12
     mov rsi, PIPELINE_NODE_SIZE
     call memzero
-    mov dword [r12 + PL_TYPE_OFF], NODE_PIPELINE
+    mov dword [r15 + PL_TYPE_OFF], NODE_PIPELINE
 
     mov rdi, rbx
     call parse_command
     test rax, rax
     jz .fail
-    mov [r12 + PL_COMMANDS_OFF], rax
-    mov dword [r12 + PL_CMD_COUNT_OFF], 1
+    mov [r15 + PL_COMMANDS_OFF], rax
+    mov dword [r15 + PL_CMD_COUNT_OFF], 1
 
 .pipe_loop:
     mov rdi, rbx
@@ -499,7 +504,7 @@ parse_pipeline:
     mov rdi, rbx
     call advance
 
-    mov r13d, dword [r12 + PL_CMD_COUNT_OFF]
+    mov r13d, dword [r15 + PL_CMD_COUNT_OFF]
     cmp r13d, MAX_COMMANDS
     jb .parse_next
     lea rsi, [rel err_too_many_cmds]
@@ -512,27 +517,35 @@ parse_pipeline:
     call parse_command
     test rax, rax
     jz .fail
-    mov [r12 + PL_COMMANDS_OFF + r13*8], rax
-    inc dword [r12 + PL_CMD_COUNT_OFF]
+    mov [r15 + PL_COMMANDS_OFF + r13*8], rax
+    inc dword [r15 + PL_CMD_COUNT_OFF]
     jmp .pipe_loop
 
 .ok:
-    mov rax, r12
+    mov rax, r15
     jmp .ret
 
 .fail:
     xor eax, eax
 .ret:
+    add rsp, 8
+    pop r15
     pop r13
     pop r12
     pop rbx
+    pop rsi
+    pop rdi
     ret
 
 ; parse_list(parser) -> rax=ListNode* or 0
 parse_list:
+    push rdi
+    push rsi
     push rbx
     push r12
     push r13
+    push r15
+    sub rsp, 8
     mov rbx, rdi
 
     mov rdi, rbx
@@ -541,10 +554,11 @@ parse_list:
     test rax, rax
     jz .fail
     mov r12, rax
+    mov r15, rax
     mov rdi, r12
     mov rsi, LIST_NODE_SIZE
     call memzero
-    mov dword [r12 + LS_TYPE_OFF], NODE_LIST
+    mov dword [r15 + LS_TYPE_OFF], NODE_LIST
 
     mov rdi, rbx
     call skip_newlines
@@ -560,8 +574,8 @@ parse_list:
     call parse_pipeline
     test rax, rax
     jz .fail
-    mov [r12 + LS_PIPELINES_OFF], rax
-    mov dword [r12 + LS_COUNT_OFF], 1
+    mov [r15 + LS_PIPELINES_OFF], rax
+    mov dword [r15 + LS_COUNT_OFF], 1
 
 .list_loop:
     mov rdi, rbx
@@ -611,7 +625,7 @@ parse_list:
     jmp .eof_after_op
 
 .store_and_parse:
-    mov ecx, dword [r12 + LS_COUNT_OFF]
+    mov ecx, dword [r15 + LS_COUNT_OFF]
     cmp ecx, MAX_LIST_ITEMS
     jb .fit_list
     lea rsi, [rel err_too_many_list_items]
@@ -620,13 +634,13 @@ parse_list:
     jmp .fail
 
 .fit_list:
-    mov dword [r12 + LS_OPERATORS_OFF + rcx*4], r8d
+    mov dword [r15 + LS_OPERATORS_OFF + rcx*4], r8d
     mov rdi, rbx
     call parse_pipeline
     test rax, rax
     jz .fail
-    mov [r12 + LS_PIPELINES_OFF + rcx*8], rax
-    inc dword [r12 + LS_COUNT_OFF]
+    mov [r15 + LS_PIPELINES_OFF + rcx*8], rax
+    inc dword [r15 + LS_COUNT_OFF]
     jmp .list_loop
 
 .eof_after_op:
@@ -636,21 +650,28 @@ parse_list:
     jmp .fail
 
 .ok:
-    mov rax, r12
+    mov rax, r15
     jmp .ret
 .fail:
     xor eax, eax
 .ret:
+    add rsp, 8
+    pop r15
     pop r13
     pop r12
     pop rbx
+    pop rsi
+    pop rdi
     ret
 
 ; parser_init(arena_ptr, lexer_ptr) -> rax=parser_ptr or 0
 parser_init:
+    push rdi
+    push rsi
     push rbx
     push r12
     push r13
+    sub rsp, 16
 
     test rdi, rdi
     jz .fail
@@ -665,26 +686,31 @@ parser_init:
     test rax, rax
     jz .fail
     mov rbx, rax
+    mov [rsp], rbx
 
     mov [rbx + PS_ARENA_PTR_OFF], r12
     mov [rbx + PS_LEXER_PTR_OFF], r13
     mov qword [rbx + PS_POS_OFF], 0
     mov qword [rbx + PS_ERROR_MSG_OFF], 0
 
-    mov rdi, r13
+    mov rbx, [rsp]
+    mov rdi, [rbx + PS_LEXER_PTR_OFF]
     call lexer_get_tokens
     test rax, rax
     jz .fail_msg
+    mov rbx, [rsp]
     mov [rbx + PS_TOKENS_OFF], rax
 
-    mov rdi, r13
+    mov rdi, [rbx + PS_LEXER_PTR_OFF]
     call lexer_get_count
+    mov rbx, [rsp]
     mov [rbx + PS_TOKEN_COUNT_OFF], rax
 
     mov rax, rbx
     jmp .ret
 
 .fail_msg:
+    mov rbx, [rsp]
     lea rdx, [rel err_unexpected_eof]
     mov [rbx + PS_ERROR_MSG_OFF], rdx
     xor eax, eax
@@ -692,13 +718,18 @@ parser_init:
 .fail:
     xor eax, eax
 .ret:
+    add rsp, 16
     pop r13
     pop r12
     pop rbx
+    pop rsi
+    pop rdi
     ret
 
 ; parser_parse(parser_ptr) -> rax=root(ListNode*) or 0
 parser_parse:
+    push rdi
+    push rsi
     push rbx
     mov rbx, rdi
     test rbx, rbx
@@ -713,26 +744,32 @@ parser_parse:
     jz .fail
     mov r8, rax
 
-    mov rdi, rbx
+    mov rdi, [rsp + 16]
     call peek_token
     test rax, rax
     jz .ok
     cmp dword [rax + TOKEN_TYPE_OFF], TOK_EOF
     je .ok
     lea rsi, [rel err_unexpected_token]
-    mov rdi, rbx
+    mov rdi, [rsp + 16]
     call set_error
     xor eax, eax
     pop rbx
+    pop rsi
+    pop rdi
     ret
 
 .ok:
     mov rax, r8
     pop rbx
+    pop rsi
+    pop rdi
     ret
 .fail:
     xor eax, eax
     pop rbx
+    pop rsi
+    pop rdi
     ret
 
 ; parser_get_error(parser_ptr) -> rax=msg ptr or 0

@@ -41,6 +41,7 @@ global repl_cursor_blink
 global repl_draw
 global repl_set_font
 global repl_set_colors
+global repl_last_fail_stage
 
 %define HIST_MAX_LINES                  1000
 %define INPUT_BUF_CAP                   1024
@@ -58,6 +59,7 @@ global repl_set_colors
 %define KEY_HOME                        102
 %define KEY_END                         107
 %define KEY_DELETE                      111
+%define KEY_ENTER                       28
 %define KEY_C                           46
 %define KEY_L                           38
 
@@ -95,6 +97,8 @@ global repl_set_colors
 section .data
     repl_prompt_default                 db "aura> "
     repl_prompt_default_len             equ $ - repl_prompt_default
+    repl_mode_label                     db "[REPL]",0
+    repl_mode_label_len                 equ 6
     repl_welcome                        db "Aura Shell v0.1 - Phase 0",10,10
     repl_welcome_len                    equ $ - repl_welcome
     repl_newline                        db 10
@@ -116,7 +120,9 @@ section .bss
     repl_arena_ptr                      resq 1
     repl_exec_arena_ptr                 resq 1
     repl_envp_ptr                       resq 1
+    repl_self_ptr                       resq 1
     repl_instance                       resb R_STRUCT_SIZE
+    repl_last_fail_stage                resd 1
 
 section .text
 
@@ -274,6 +280,9 @@ repl_init:
     push r14
     push r15
 
+    mov dword [rel repl_last_fail_stage], 0
+    xor rax, rax
+    mov [rel repl_self_ptr], rax
     test rdi, rdi
     jz .fail
     mov rbx, rdi
@@ -290,11 +299,11 @@ repl_init:
     mov rdi, rbx
     call window_get_canvas
     test rax, rax
-    jz .fail_pop
+    jz .f1
     mov [r12 + R_CANVAS_PTR_OFF], rax
 
-    mov r13, [rax + CANVAS_WIDTH_OFF]
-    mov r14, [rax + CANVAS_HEIGHT_OFF]
+    mov r13d, [rax + CANVAS_WIDTH_OFF]
+    mov r14d, [rax + CANVAS_HEIGHT_OFF]
 
     pop rax
     pop rcx
@@ -310,34 +319,34 @@ repl_init:
     mov [r12 + R_CELL_H_OFF], eax
     mov r15d, ecx
     test r15d, r15d
-    jz .fail
+    jz .f2
     xor rdx, rdx
     mov rax, r13
     mov rcx, r15
     div rcx
     cmp rax, 8
-    jb .fail
+    jb .f3
     mov [r12 + R_SCREEN_COLS_OFF], rax
 
     mov ecx, [r12 + R_CELL_H_OFF]
     test ecx, ecx
-    jz .fail
+    jz .f4
     xor rdx, rdx
     mov rax, r14
     div rcx
     cmp rax, 2
-    jb .fail
+    jb .f5
     mov [r12 + R_SCREEN_LINES_OFF], rax
 
     mov rdi, [rel repl_arena_ptr]
     test rdi, rdi
-    jz .fail
+    jz .f6
     mov rax, [r12 + R_SCREEN_COLS_OFF]
     imul rax, HIST_MAX_LINES
     mov rsi, rax
     call arena_alloc
     test rax, rax
-    jz .fail
+    jz .f7
     mov [r12 + R_SCREEN_BUF_OFF], rax
 
     mov qword [r12 + R_INPUT_LEN_OFF], 0
@@ -363,7 +372,7 @@ repl_init:
     mov rdi, 1048576
     call arena_init
     test rax, rax
-    jz .fail
+    jz .f8
     mov [rel repl_exec_arena_ptr], rax
     call hal_getenv_raw
     mov [rel repl_envp_ptr], rax
@@ -389,6 +398,7 @@ repl_init:
     call repl_print
 
     mov rax, r12
+    mov [rel repl_self_ptr], rax
     jmp .ret
 .fail_pop:
     pop rax
@@ -402,6 +412,31 @@ repl_init:
     pop r12
     pop rbx
     ret
+
+.f1:
+    mov dword [rel repl_last_fail_stage], 1
+    jmp .fail_pop
+.f2:
+    mov dword [rel repl_last_fail_stage], 2
+    jmp .fail
+.f3:
+    mov dword [rel repl_last_fail_stage], 3
+    jmp .fail
+.f4:
+    mov dword [rel repl_last_fail_stage], 4
+    jmp .fail
+.f5:
+    mov dword [rel repl_last_fail_stage], 5
+    jmp .fail
+.f6:
+    mov dword [rel repl_last_fail_stage], 6
+    jmp .fail
+.f7:
+    mov dword [rel repl_last_fail_stage], 7
+    jmp .fail
+.f8:
+    mov dword [rel repl_last_fail_stage], 8
+    jmp .fail
 
 ; repl_print(repl_ptr, str_ptr, str_len)
 repl_print:
@@ -482,10 +517,17 @@ repl_line_len:
 
 ; repl_execute(repl_ptr)
 repl_execute:
+    push rdi
+    push rsi
     push rbx
     push r12
     push r13
 
+    mov rax, [rel repl_self_ptr]
+    test rax, rax
+    jz .keep_exec_arg
+    mov rdi, rax
+.keep_exec_arg:
     test rdi, rdi
     jz .ret
     mov rbx, rdi
@@ -607,15 +649,25 @@ repl_execute:
     pop r13
     pop r12
     pop rbx
+    pop rsi
+    pop rdi
     ret
 
 ; repl_handle_key(repl_ptr, input_event_ptr)
 repl_handle_key:
+    push rdi
+    push rsi
     push rbx
     push r12
     push r13
     push r14
+    sub rsp, 8
 
+    mov rax, [rel repl_self_ptr]
+    test rax, rax
+    jz .keep_key_arg
+    mov rdi, rax
+.keep_key_arg:
     test rdi, rdi
     jz .ret
     test rsi, rsi
@@ -701,8 +753,15 @@ repl_handle_key:
 
     cmp al, 10                          ; Enter
     jne .check_backspace
-    mov rdi, rbx
-    call repl_execute
+    ; On current Win native path only Linux-style scancode ENTER is accepted.
+    ; This prevents accidental command execution from mismapped VK/CHAR events.
+    cmp r13d, KEY_ENTER
+    jne .ret
+.do_enter:
+    ; Win native stabilization: keep REPL input/editing active, but
+    ; temporarily disable command execution path (lexer/parser/executor)
+    ; until parser-chain crashes are fully eliminated.
+    jmp .ret
     jmp .ret
 
 .check_backspace:
@@ -758,10 +817,13 @@ repl_handle_key:
     mov byte [rbx + R_INPUT_BUF_OFF + rax], 0
 
 .ret:
+    add rsp, 8
     pop r14
     pop r13
     pop r12
     pop rbx
+    pop rsi
+    pop rdi
     ret
 
 ; repl_set_font(repl*, font*, size)
@@ -792,6 +854,11 @@ repl_draw:
     push r14
     push r15
     sub rsp, 16
+    mov rax, [rel repl_self_ptr]
+    test rax, rax
+    jz .keep_draw_arg
+    mov rdi, rax
+.keep_draw_arg:
     test rdi, rdi
     jz .ret
     test rsi, rsi
@@ -817,9 +884,19 @@ repl_draw:
     call canvas_clear
 
 .draw_text:
-    cmp qword [rbx + R_FONT_PTR_OFF], 0
-    je .bm_hist
-    jmp .tt_hist
+    ; Win native stabilization: render the active input line with bitmap
+    ; path only. This avoids fragile mixed TT/history path on current build.
+    mov rdi, r12
+    mov esi, 8
+    mov edx, 8
+    lea rcx, [rel repl_mode_label]
+    mov r8, repl_mode_label_len
+    mov r9d, [rbx + R_COLOR_PROMPT_OFF]
+    sub rsp, 8
+    mov qword [rsp], 0
+    call canvas_draw_string
+    add rsp, 8
+    jmp .bm_in
 
 .tt_hist:
     mov r13, [rbx + R_SCREEN_LINES_OFF]

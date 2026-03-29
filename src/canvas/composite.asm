@@ -12,6 +12,8 @@ global canvas_fill_rect_alpha
 
 ; canvas_composite(dst, src, x, y) — rdi rsi rdx rcx
 canvas_composite:
+    push rdi
+    push rsi
     push rbx
     push r12
     push r13
@@ -160,6 +162,8 @@ canvas_composite:
     pop r13
     pop r12
     pop rbx
+    pop rsi
+    pop rdi
     ret
 .bad:
     mov rax, -1
@@ -168,16 +172,21 @@ canvas_composite:
     pop r13
     pop r12
     pop rbx
+    pop rsi
+    pop rdi
     ret
 
 ; canvas_fill_rect_alpha(canvas,x,y,w,h,color)
 canvas_fill_rect_alpha:
+    push rdi
+    push rsi
     push rbx
     push rbp
     push r12
     push r13
     push r14
     push r15
+    sub rsp, 8
 
     test rdi, rdi
     jz .fbad
@@ -293,19 +302,25 @@ canvas_fill_rect_alpha:
 
 .fok:
     xor eax, eax
+    add rsp, 8
     pop r15
     pop r14
     pop r13
     pop r12
     pop rbp
     pop rbx
+    pop rsi
+    pop rdi
     ret
 .fbad:
     mov rax, -1
+    add rsp, 8
     pop r15
     pop r14
     pop r13
     pop r12
     pop rbp
     pop rbx
+    pop rsi
+    pop rdi
     ret
