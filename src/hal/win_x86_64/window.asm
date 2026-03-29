@@ -36,6 +36,9 @@ extern win32_SelectObject
 extern win32_BitBlt
 extern win32_DeleteObject
 extern win32_DeleteDC
+extern win32_SetBkMode
+extern win32_SetTextColor
+extern win32_TextOutA
 
 section .data
     win_class_name               db "AuraShellClass",0
@@ -101,6 +104,7 @@ global window_enum_windows
 global window_send_test_keydown
 global window_manage_hwnd
 global window_subclass_hwnd
+global window_draw_text_overlay
 
 win_push_event:
     ; rdi=event_type, rsi=key/button, rdx=state, rcx=x, r8=y, r9=scroll_y
@@ -818,6 +822,77 @@ window_present_win32:
 
 window_present:
     jmp window_present_win32
+
+window_draw_text_overlay:
+    ; (x rdi, y rsi, text rdx, len ecx, color r8d) -> eax 0/-1
+    push rbx
+    push r12
+    push r13
+    push r14
+    push r15
+    test rdx, rdx
+    jz .txt_fail
+    test ecx, ecx
+    jle .txt_fail
+    mov ebx, edi                        ; x
+    mov r12d, esi                       ; y
+    mov r14, rdx                        ; text ptr (non-volatile)
+    mov r15d, ecx                       ; len (non-volatile)
+    mov r10d, r8d                       ; color (saved for next call)
+    mov rax, [rel win_single_ctx]
+    test rax, rax
+    jz .txt_fail
+    mov r13, [rax + W_MEMDC_OFF]          ; keep HDC across calls
+    test r13, r13
+    jz .txt_fail
+
+    ; SetBkMode(hdc, TRANSPARENT)
+    mov rcx, r13
+    mov rdx, 1
+    mov rax, [rel win32_SetBkMode]
+    test rax, rax
+    jz .txt_fail
+    sub rsp, 32
+    call rax
+    add rsp, 32
+
+    ; SetTextColor(hdc, color)
+    mov rcx, r13
+    mov rax, [rel win32_SetTextColor]
+    test rax, rax
+    jz .txt_fail
+    mov edx, r10d
+    sub rsp, 32
+    call rax
+    add rsp, 32
+
+    ; TextOutA(hdc, x, y, str, len)
+    mov rcx, r13
+    mov rax, [rel win32_TextOutA]
+    test rax, rax
+    jz .txt_fail
+    mov rdx, rbx
+    mov r8, r12
+    mov r9, r14
+    sub rsp, 48
+    mov dword [rsp + 32], r15d
+    call rax
+    add rsp, 48
+    xor eax, eax
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    pop rbx
+    ret
+.txt_fail:
+    mov eax, -1
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    pop rbx
+    ret
 
 window_get_canvas:
     test rdi, rdi

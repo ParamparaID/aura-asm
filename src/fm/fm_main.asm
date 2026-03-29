@@ -11,6 +11,7 @@ extern panel_load
 extern panel_go_path
 extern panel_toggle_mark
 extern file_panel_create
+extern window_draw_text_overlay
 extern font_draw_string
 extern canvas_draw_string
 extern canvas_fill_rect
@@ -168,6 +169,7 @@ section .bss
     fm_threadpool_ptr              resq 1
     fm_async_task                  resq 8
     fm_progress_owner              resq 1
+    fm_name_draw_buf              resb 64
 
 section .text
 global fm_init
@@ -1531,15 +1533,15 @@ fm_render:
     mov rdi, r12
     mov esi, 20
     mov edx, eax
-    imul edx, 14
-    add edx, 44
+    imul edx, 20
+    add edx, 36
     mov ecx, [rsp + 0]
     sub ecx, 36
     mov r10d, eax
     and r10d, 3
     shl r10d, 4
     sub ecx, r10d
-    mov r8d, 6
+    mov r8d, 18
     mov r9d, 0xFF6F7F99
     mov r11, [rbx + FM_LEFT_PANEL_OFF]
     test r11, r11
@@ -1550,6 +1552,84 @@ fm_render:
     mov r9d, 0xFFB8C6DD
 .fb_left_draw:
     call canvas_fill_rect_alpha
+    ; Draw left filename for current row (guarded by entry_count).
+    mov r11, [rbx + FM_LEFT_PANEL_OFF]
+    test r11, r11
+    jz .fb_left_next
+    mov eax, [rsp + 8]
+    cmp eax, [r11 + P_ENTRY_COUNT_OFF]
+    jge .fb_left_next
+    imul eax, DIR_ENTRY_SIZE
+    lea rdx, [r11 + P_ENTRIES_BUF_OFF + rax + DE_NAME_OFF]
+    mov ecx, [r11 + P_ENTRIES_BUF_OFF + rax + DE_NAME_LEN_OFF]
+    cmp ecx, 1
+    jge .fb_left_len_ok
+    mov ecx, 1
+.fb_left_len_ok:
+    ; Dynamic char cap from current row width.
+    mov r9d, [rsp + 0]                  ; half width
+    sub r9d, 36
+    mov r10d, [rsp + 8]                 ; row index
+    and r10d, 3
+    shl r10d, 4                         ; same shortening as row bg
+    sub r9d, r10d
+    sub r9d, 16                         ; inner horizontal padding
+    cmp r9d, 8
+    jge .fb_left_px_ok
+    mov r9d, 8
+.fb_left_px_ok:
+    shr r9d, 3                          ; ~8 px per glyph
+    cmp r9d, 1
+    jge .fb_left_chars_ok
+    mov r9d, 1
+.fb_left_chars_ok:
+    cmp ecx, r9d
+    jle .fb_left_len_cap
+    ; Need truncation: if room >= 4, keep head + "...".
+    cmp r9d, 4
+    jl .fb_left_trunc_hard
+    mov r10d, r9d
+    sub r10d, 3
+    lea r8, [rel fm_name_draw_buf]
+    mov rsi, rdx
+    mov rdi, r8
+    mov ecx, r10d
+    rep movsb
+    mov byte [r8 + r10], '.'
+    mov byte [r8 + r10 + 1], '.'
+    mov byte [r8 + r10 + 2], '.'
+    mov byte [r8 + r10 + 3], 0
+    mov rdx, r8
+    mov ecx, r9d
+    jmp .fb_left_len_cap
+.fb_left_trunc_hard:
+    lea r8, [rel fm_name_draw_buf]
+    mov rsi, rdx
+    mov rdi, r8
+    mov ecx, r9d
+    rep movsb
+    mov byte [r8 + r9], 0
+    mov rdx, r8
+    mov ecx, r9d
+.fb_left_len_cap:
+    mov r8d, 0xFFE6EDF7
+    mov eax, [rsp + 8]
+    imul eax, DIR_ENTRY_SIZE
+    cmp dword [r11 + P_ENTRIES_BUF_OFF + rax + DE_TYPE_OFF], DT_DIR
+    jne .fb_left_txt_sel
+    mov r8d, 0xFF9BD0FF
+.fb_left_txt_sel:
+    mov r10d, [r11 + P_SELECTED_IDX_OFF]
+    cmp r10d, [rsp + 8]
+    jne .fb_left_txt_draw
+    mov r8d, 0xFFFFFFFF
+.fb_left_txt_draw:
+    mov edi, 24
+    mov esi, [rsp + 8]
+    imul esi, 20
+    add esi, 38
+    call window_draw_text_overlay
+.fb_left_next:
     inc dword [rsp + 8]
     jmp .fb_left_rows_loop
 
@@ -1578,8 +1658,8 @@ fm_render:
     mov esi, [rsp + 0]
     add esi, 16
     mov edx, eax
-    imul edx, 14
-    add edx, 44
+    imul edx, 20
+    add edx, 36
     mov ecx, [r12 + CV_WIDTH_OFF]
     sub ecx, esi
     sub ecx, 20
@@ -1587,7 +1667,7 @@ fm_render:
     and r10d, 3
     shl r10d, 4
     sub ecx, r10d
-    mov r8d, 6
+    mov r8d, 18
     mov r9d, 0xFF8EA2BF
     mov r11, [rbx + FM_RIGHT_PANEL_OFF]
     test r11, r11
@@ -1598,6 +1678,87 @@ fm_render:
     mov r9d, 0xFFD2DEEE
 .fb_right_draw:
     call canvas_fill_rect_alpha
+    ; Draw right filename for current row (guarded by entry_count).
+    mov r11, [rbx + FM_RIGHT_PANEL_OFF]
+    test r11, r11
+    jz .fb_right_next
+    mov eax, [rsp + 8]
+    cmp eax, [r11 + P_ENTRY_COUNT_OFF]
+    jge .fb_right_next
+    imul eax, DIR_ENTRY_SIZE
+    lea rdx, [r11 + P_ENTRIES_BUF_OFF + rax + DE_NAME_OFF]
+    mov ecx, [r11 + P_ENTRIES_BUF_OFF + rax + DE_NAME_LEN_OFF]
+    cmp ecx, 1
+    jge .fb_right_len_ok
+    mov ecx, 1
+.fb_right_len_ok:
+    ; Dynamic char cap from current row width.
+    mov r9d, [r12 + CV_WIDTH_OFF]
+    mov r10d, [rsp + 0]                 ; half width
+    sub r9d, r10d
+    sub r9d, 36
+    mov r10d, [rsp + 8]                 ; row index
+    and r10d, 3
+    shl r10d, 4                         ; same shortening as row bg
+    sub r9d, r10d
+    sub r9d, 16                         ; inner horizontal padding
+    cmp r9d, 8
+    jge .fb_right_px_ok
+    mov r9d, 8
+.fb_right_px_ok:
+    shr r9d, 3                          ; ~8 px per glyph
+    cmp r9d, 1
+    jge .fb_right_chars_ok
+    mov r9d, 1
+.fb_right_chars_ok:
+    cmp ecx, r9d
+    jle .fb_right_len_cap
+    ; Need truncation: if room >= 4, keep head + "...".
+    cmp r9d, 4
+    jl .fb_right_trunc_hard
+    mov r10d, r9d
+    sub r10d, 3
+    lea r8, [rel fm_name_draw_buf]
+    mov rsi, rdx
+    mov rdi, r8
+    mov ecx, r10d
+    rep movsb
+    mov byte [r8 + r10], '.'
+    mov byte [r8 + r10 + 1], '.'
+    mov byte [r8 + r10 + 2], '.'
+    mov byte [r8 + r10 + 3], 0
+    mov rdx, r8
+    mov ecx, r9d
+    jmp .fb_right_len_cap
+.fb_right_trunc_hard:
+    lea r8, [rel fm_name_draw_buf]
+    mov rsi, rdx
+    mov rdi, r8
+    mov ecx, r9d
+    rep movsb
+    mov byte [r8 + r9], 0
+    mov rdx, r8
+    mov ecx, r9d
+.fb_right_len_cap:
+    mov r8d, 0xFFE6EDF7
+    mov eax, [rsp + 8]
+    imul eax, DIR_ENTRY_SIZE
+    cmp dword [r11 + P_ENTRIES_BUF_OFF + rax + DE_TYPE_OFF], DT_DIR
+    jne .fb_right_txt_sel
+    mov r8d, 0xFF9BD0FF
+.fb_right_txt_sel:
+    mov r10d, [r11 + P_SELECTED_IDX_OFF]
+    cmp r10d, [rsp + 8]
+    jne .fb_right_txt_draw
+    mov r8d, 0xFFFFFFFF
+.fb_right_txt_draw:
+    mov edi, [rsp + 0]
+    add edi, 20
+    mov esi, [rsp + 8]
+    imul esi, 20
+    add esi, 38
+    call window_draw_text_overlay
+.fb_right_next:
     inc dword [rsp + 8]
     jmp .fb_right_rows_loop
 .fb_rows_done:
@@ -2329,6 +2490,14 @@ fm_handle_input:
     je .tab
     cmp eax, 0x09                    ; raw VK_TAB fallback
     je .tab
+    cmp eax, KEY_UP
+    je .nav_up
+    cmp eax, KEY_DOWN
+    je .nav_down
+    cmp eax, KEY_ENTER
+    je .nav_enter
+    cmp eax, KEY_BACKSPACE
+    je .nav_parent
     cmp eax, KEY_F1
     je .cons
     cmp eax, KEY_F2
@@ -2381,6 +2550,46 @@ fm_handle_input:
     mov dword [rax + P_ACTIVE_OFF], 1
     mov rax, [rbx + FM_RIGHT_PANEL_OFF]
     mov dword [rax + P_ACTIVE_OFF], 0
+    jmp .cons
+.nav_up:
+    mov rdi, [rbx + FM_ACTIVE_PANEL_OFF]
+    test rdi, rdi
+    jz .cons
+    mov eax, [rdi + P_SELECTED_IDX_OFF]
+    cmp eax, 0
+    jle .cons
+    dec eax
+    mov [rdi + P_SELECTED_IDX_OFF], eax
+    jmp .cons
+.nav_down:
+    mov rdi, [rbx + FM_ACTIVE_PANEL_OFF]
+    test rdi, rdi
+    jz .cons
+    mov eax, [rdi + P_SELECTED_IDX_OFF]
+    mov ecx, [rdi + P_ENTRY_COUNT_OFF]
+    cmp ecx, 1
+    jle .cons
+    inc eax
+    cmp eax, ecx
+    jl .nav_down_store
+    dec ecx
+    mov eax, ecx
+.nav_down_store:
+    mov [rdi + P_SELECTED_IDX_OFF], eax
+    jmp .cons
+.nav_enter:
+    mov rdi, [rbx + FM_ACTIVE_PANEL_OFF]
+    test rdi, rdi
+    jz .cons
+    mov esi, [rdi + P_SELECTED_IDX_OFF]
+    call panel_navigate
+    ; Keep Enter stable in FM mode: navigation only, no viewer open on file yet.
+    jmp .cons
+.nav_parent:
+    mov rdi, [rbx + FM_ACTIVE_PANEL_OFF]
+    test rdi, rdi
+    jz .cons
+    call panel_go_parent
     jmp .cons
 .f5:
     mov dword [rbx + FM_PROGRESS_ACTIVE_OFF], 1

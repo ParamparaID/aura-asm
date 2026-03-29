@@ -456,6 +456,12 @@ panel_load:
     mov eax, r14d
     imul eax, DIR_ENTRY_SIZE
     lea rsi, [rbx + P_ENTRIES_BUF_OFF + rax]
+    ; Always skip current-directory alias "." in list rendering/navigation.
+    cmp dword [rsi + DE_NAME_LEN_OFF], 1
+    jne .hidden
+    cmp byte [rsi + DE_NAME_OFF], '.'
+    je .skip
+.hidden:
     ; hidden filter
     cmp dword [rbx + P_SHOW_HIDDEN_OFF], 0
     jne .flt
@@ -522,6 +528,25 @@ panel_navigate:
     lea rdx, [rbx + P_ENTRIES_BUF_OFF + rax]
     cmp dword [rdx + DE_TYPE_OFF], DT_DIR
     jne .file
+    ; "." -> consume as no-op, ".." -> go parent.
+    cmp dword [rdx + DE_NAME_LEN_OFF], 1
+    jne .check_parent
+    cmp byte [rdx + DE_NAME_OFF], '.'
+    jne .check_parent
+    mov eax, 1
+    jmp .out
+.check_parent:
+    cmp dword [rdx + DE_NAME_LEN_OFF], 2
+    jne .join
+    cmp byte [rdx + DE_NAME_OFF], '.'
+    jne .join
+    cmp byte [rdx + DE_NAME_OFF + 1], '.'
+    jne .join
+    mov rdi, rbx
+    call panel_go_parent
+    mov eax, 1
+    jmp .out
+.join:
     mov r9, rdx
     lea rdi, [rbx + P_TMP_PATH_OFF]
     lea rsi, [rbx + P_PATH_OFF]

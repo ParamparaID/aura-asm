@@ -15,6 +15,9 @@ section .data
     win32_ReadFile                   dq 0
     win32_WriteFile                  dq 0
     win32_CloseHandle                dq 0
+    win32_FindFirstFileA             dq 0
+    win32_FindNextFileA              dq 0
+    win32_FindClose                  dq 0
     win32_VirtualAlloc               dq 0
     win32_VirtualFree                dq 0
     win32_VirtualProtect             dq 0
@@ -75,6 +78,9 @@ section .data
     win32_BitBlt                     dq 0
     win32_DeleteObject               dq 0
     win32_DeleteDC                   dq 0
+    win32_SetBkMode                  dq 0
+    win32_SetTextColor               dq 0
+    win32_TextOutA                   dq 0
 
     bootstrap_ready                  dd 0
     bootstrap_pad                    dd 0
@@ -91,6 +97,9 @@ section .data
     s_ReadFile                       db "ReadFile",0
     s_WriteFile                      db "WriteFile",0
     s_CloseHandle                    db "CloseHandle",0
+    s_FindFirstFileA                 db "FindFirstFileA",0
+    s_FindNextFileA                  db "FindNextFileA",0
+    s_FindClose                      db "FindClose",0
     s_VirtualAlloc                   db "VirtualAlloc",0
     s_VirtualFree                    db "VirtualFree",0
     s_VirtualProtect                 db "VirtualProtect",0
@@ -151,6 +160,9 @@ section .data
     s_BitBlt                         db "BitBlt",0
     s_DeleteObject                   db "DeleteObject",0
     s_DeleteDC                       db "DeleteDC",0
+    s_SetBkMode                      db "SetBkMode",0
+    s_SetTextColor                   db "SetTextColor",0
+    s_TextOutA                       db "TextOutA",0
 
 section .bss
     wsadata_buf                      resb WSADATA_SIZE
@@ -158,6 +170,7 @@ section .bss
 section .text
 global bootstrap_init
 global boot_find_export_hash
+global boot_find_export_name
 global boot_hash_name
 
 global win_mod_kernel32
@@ -171,6 +184,9 @@ global win32_CreateFileA
 global win32_ReadFile
 global win32_WriteFile
 global win32_CloseHandle
+global win32_FindFirstFileA
+global win32_FindNextFileA
+global win32_FindClose
 global win32_VirtualAlloc
 global win32_VirtualFree
 global win32_VirtualProtect
@@ -229,8 +245,11 @@ global win32_SelectObject
 global win32_BitBlt
 global win32_DeleteObject
 global win32_DeleteDC
+global win32_SetBkMode
+global win32_SetTextColor
+global win32_TextOutA
 
-%define HASH_GetProcAddress         0xCF31BB1F
+%define HASH_GetProcAddress         0x82172F7F
 
 boot_hash_name:
     ; rdi = zero-terminated ascii, returns eax hash (djb2, case-insensitive)
@@ -246,8 +265,8 @@ boot_hash_name:
     ja .mix
     add dl, 32
 .mix:
-    lea eax, [rax + rax*4]          ; hash * 5
-    lea eax, [rdx + rax*8]          ; hash * 33 + c
+    imul eax, eax, 33               ; hash * 33
+    add eax, edx                    ; + c
     inc rdi
     jmp .h_loop
 .out:
@@ -255,24 +274,80 @@ boot_hash_name:
 
 boot_find_kernel32:
     ; returns rax = kernel32 base or 0
+    ; Robust walk of PEB Ldr InMemoryOrder list by BaseDllName.
     mov rax, [gs:0x60]              ; PEB*
     test rax, rax
     jz .fail
     mov rax, [rax + 0x18]           ; PEB_LDR_DATA*
     test rax, rax
     jz .fail
-    mov rax, [rax + 0x20]           ; InMemoryOrderModuleList.Flink (1st)
-    test rax, rax
+    lea r11, [rax + 0x20]           ; LIST_ENTRY head
+    mov r10, [r11]                  ; first entry
+    test r10, r10
     jz .fail
-    mov rax, [rax]                  ; 2nd
-    test rax, rax
-    jz .fail
-    mov rax, [rax]                  ; 3rd
-    test rax, rax
-    jz .fail
-    sub rax, 0x10                   ; LIST_ENTRY -> LDR_DATA_TABLE_ENTRY base
-    mov rax, [rax + 0x20]           ; DllBase (per project spec)
+.scan:
+    cmp r10, r11
+    je .fail
+    mov r8, r10
+    sub r8, 0x10                    ; InMemoryOrderLinks -> LDR_DATA_TABLE_ENTRY
+    movzx ecx, word [r8 + 0x58]     ; BaseDllName.Length (bytes)
+    cmp ecx, 24                     ; "kernel32.dll" UTF-16 length
+    jne .next
+    mov rdi, [r8 + 0x60]            ; BaseDllName.Buffer (PWSTR)
+    test rdi, rdi
+    jz .next
+    ; k e r n e l 3 2 . d l l (case-insensitive for letters)
+    movzx eax, word [rdi + 0]
+    or al, 32
+    cmp al, 'k'
+    jne .next
+    movzx eax, word [rdi + 2]
+    or al, 32
+    cmp al, 'e'
+    jne .next
+    movzx eax, word [rdi + 4]
+    or al, 32
+    cmp al, 'r'
+    jne .next
+    movzx eax, word [rdi + 6]
+    or al, 32
+    cmp al, 'n'
+    jne .next
+    movzx eax, word [rdi + 8]
+    or al, 32
+    cmp al, 'e'
+    jne .next
+    movzx eax, word [rdi + 10]
+    or al, 32
+    cmp al, 'l'
+    jne .next
+    movzx eax, word [rdi + 12]
+    cmp al, '3'
+    jne .next
+    movzx eax, word [rdi + 14]
+    cmp al, '2'
+    jne .next
+    movzx eax, word [rdi + 16]
+    cmp al, '.'
+    jne .next
+    movzx eax, word [rdi + 18]
+    or al, 32
+    cmp al, 'd'
+    jne .next
+    movzx eax, word [rdi + 20]
+    or al, 32
+    cmp al, 'l'
+    jne .next
+    movzx eax, word [rdi + 22]
+    or al, 32
+    cmp al, 'l'
+    jne .next
+
+    mov rax, [r8 + 0x30]            ; DllBase
     ret
+.next:
+    mov r10, [r10]
+    jmp .scan
 .fail:
     xor eax, eax
     ret
@@ -289,8 +364,12 @@ boot_find_export_hash:
 
     test r12, r12
     jz .fail
+    cmp word [r12], 0x5A4D          ; "MZ"
+    jne .fail
     mov eax, [r12 + 0x3C]           ; e_lfanew
     lea r14, [r12 + rax]            ; nt headers
+    cmp dword [r14], 0x00004550     ; "PE\0\0"
+    jne .fail
     mov eax, [r14 + 0x88]           ; export directory RVA (PE32+)
     test eax, eax
     jz .fail
@@ -335,17 +414,101 @@ boot_find_export_hash:
     pop rbx
     ret
 
+boot_zstreq:
+    ; (a rdi, b rsi) -> eax 1/0
+.zs_loop:
+    mov al, [rdi]
+    mov dl, [rsi]
+    cmp al, dl
+    jne .zs_no
+    test al, al
+    jz .zs_yes
+    inc rdi
+    inc rsi
+    jmp .zs_loop
+.zs_yes:
+    mov eax, 1
+    ret
+.zs_no:
+    xor eax, eax
+    ret
+
+boot_find_export_name:
+    ; (dll_base rdi, name_ptr rsi) -> rax function address or 0
+    push rbx
+    push r12
+    push r13
+    push r14
+    push r15
+    mov r12, rdi                    ; dll base
+    mov r13, rsi                    ; target name
+
+    test r12, r12
+    jz .fen_fail
+    cmp word [r12], 0x5A4D          ; "MZ"
+    jne .fen_fail
+    mov eax, [r12 + 0x3C]           ; e_lfanew
+    lea r14, [r12 + rax]            ; nt headers
+    cmp dword [r14], 0x00004550     ; "PE\0\0"
+    jne .fen_fail
+    mov eax, [r14 + 0x88]           ; export directory RVA (PE32+)
+    test eax, eax
+    jz .fen_fail
+    lea r15, [r12 + rax]            ; IMAGE_EXPORT_DIRECTORY*
+
+    mov ebx, [r15 + 0x18]           ; NumberOfNames
+    test ebx, ebx
+    jz .fen_fail
+
+    mov eax, [r15 + 0x20]           ; AddressOfNames RVA
+    lea r8, [r12 + rax]
+    mov eax, [r15 + 0x24]           ; AddressOfNameOrdinals RVA
+    lea r9, [r12 + rax]
+    mov eax, [r15 + 0x1C]           ; AddressOfFunctions RVA
+    lea r10, [r12 + rax]
+
+    xor ecx, ecx
+.fen_loop:
+    cmp ecx, ebx
+    jae .fen_fail
+    mov eax, [r8 + rcx*4]           ; name RVA
+    lea rdi, [r12 + rax]
+    mov rsi, r13
+    call boot_zstreq
+    cmp eax, 1
+    jne .fen_next
+
+    movzx eax, word [r9 + rcx*2]    ; ordinal
+    mov eax, [r10 + rax*4]          ; function RVA
+    lea rax, [r12 + rax]
+    jmp .fen_out
+.fen_next:
+    inc ecx
+    jmp .fen_loop
+
+.fen_fail:
+    xor eax, eax
+.fen_out:
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    pop rbx
+    ret
+
 boot_getproc:
     ; (module_base rdi, name_ptr rsi) -> rax or 0
     push rbx
-    mov rbx, [rel win32_GetProcAddress]
-    test rbx, rbx
+    mov rax, [rel win32_GetProcAddress]
+    test rax, rax
     jz .fail
     mov rcx, rdi
     mov rdx, rsi
-    sub rsp, 40
-    call rbx
-    add rsp, 40
+    mov rbx, rsp
+    and rsp, -16
+    sub rsp, 32
+    call rax
+    mov rsp, rbx
     pop rbx
     ret
 .fail:
@@ -356,13 +519,15 @@ boot_getproc:
 boot_loadlibrary:
     ; (name_ptr rdi) -> rax module base or 0
     push rbx
-    mov rbx, [rel win32_LoadLibraryA]
-    test rbx, rbx
+    mov rax, [rel win32_LoadLibraryA]
+    test rax, rax
     jz .fail
     mov rcx, rdi
-    sub rsp, 40
-    call rbx
-    add rsp, 40
+    mov rbx, rsp
+    and rsp, -16
+    sub rsp, 32
+    call rax
+    mov rsp, rbx
     pop rbx
     ret
 .fail:
@@ -381,8 +546,8 @@ bootstrap_init:
     mov [rel win_mod_kernel32], rax
 
     mov rdi, rax
-    mov esi, HASH_GetProcAddress
-    call boot_find_export_hash
+    lea rsi, [rel s_GetProcAddress]
+    call boot_find_export_name
     test rax, rax
     jz .fail
     mov [rel win32_GetProcAddress], rax
@@ -423,6 +588,18 @@ bootstrap_init:
     lea rsi, [rel s_CloseHandle]
     call boot_getproc
     mov [rel win32_CloseHandle], rax
+    mov rdi, [rel win_mod_kernel32]
+    lea rsi, [rel s_FindFirstFileA]
+    call boot_getproc
+    mov [rel win32_FindFirstFileA], rax
+    mov rdi, [rel win_mod_kernel32]
+    lea rsi, [rel s_FindNextFileA]
+    call boot_getproc
+    mov [rel win32_FindNextFileA], rax
+    mov rdi, [rel win_mod_kernel32]
+    lea rsi, [rel s_FindClose]
+    call boot_getproc
+    mov [rel win32_FindClose], rax
     mov rdi, [rel win_mod_kernel32]
     lea rsi, [rel s_VirtualAlloc]
     call boot_getproc
@@ -620,6 +797,18 @@ bootstrap_init:
     lea rsi, [rel s_DeleteDC]
     call boot_getproc
     mov [rel win32_DeleteDC], rax
+    mov rdi, [rel win_mod_gdi32]
+    lea rsi, [rel s_SetBkMode]
+    call boot_getproc
+    mov [rel win32_SetBkMode], rax
+    mov rdi, [rel win_mod_gdi32]
+    lea rsi, [rel s_SetTextColor]
+    call boot_getproc
+    mov [rel win32_SetTextColor], rax
+    mov rdi, [rel win_mod_gdi32]
+    lea rsi, [rel s_TextOutA]
+    call boot_getproc
+    mov [rel win32_TextOutA], rax
 .skip_gdi32:
 
     ; ws2_32 exports (optional but initialized for networking wrappers)
@@ -664,9 +853,13 @@ bootstrap_init:
     jz .finish
     mov ecx, 0x0202
     lea rdx, [rel wsadata_buf]
-    sub rsp, 40
+    push rbx
+    mov rbx, rsp
+    and rsp, -16
+    sub rsp, 32
     call rax
-    add rsp, 40
+    mov rsp, rbx
+    pop rbx
 
 .finish:
     ; minimum required for HAL write/read path
