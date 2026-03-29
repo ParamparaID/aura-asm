@@ -1,0 +1,8 @@
+set pagination off
+break keyboard_set_focus
+commands
+silent
+printf "kbd_focus: rdi=%p rsi=%p cs_kbf=%p\n", $rdi, $rsi, *(void**)($rdi+316)
+continue
+end
+run
