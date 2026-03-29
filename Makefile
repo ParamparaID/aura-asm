@@ -72,6 +72,8 @@ TEST_MACROS_BIN = $(BUILD_DIR)/test_macros
 TEST_WIN32_HAL_OBJ = $(WIN_BUILD_DIR)/test_win32_hal.obj
 TEST_WIN32_WINDOW_OBJ = $(WIN_BUILD_DIR)/test_win32_window.obj
 TEST_ARM64_HAL_BIN = $(ARM_BUILD_DIR)/test_arm64_hal
+TEST_ARM64_CANVAS_BIN = $(ARM_BUILD_DIR)/test_arm64_canvas
+TEST_ARM64_CODEGEN_BIN = $(ARM_BUILD_DIR)/test_arm64_codegen
 
 HAL_SYSCALL_OBJ = $(BUILD_DIR)/hal_syscall.o
 WIN_BOOTSTRAP_OBJ = $(WIN_BUILD_DIR)/bootstrap.obj
@@ -83,6 +85,10 @@ ARM_HAL_SYSCALL_OBJ = $(ARM_BUILD_DIR)/hal_syscall.o
 ARM_HAL_SYNC_OBJ = $(ARM_BUILD_DIR)/hal_sync.o
 ARM_HAL_THREADS_OBJ = $(ARM_BUILD_DIR)/hal_threads.o
 TEST_ARM64_HAL_OBJ = $(ARM_BUILD_DIR)/test_arm64_hal.o
+ARM_CANVAS_SIMD_OBJ = $(ARM_BUILD_DIR)/canvas_simd_neon.o
+ARM_AS_CODEGEN_OBJ = $(ARM_BUILD_DIR)/as_codegen_arm64.o
+TEST_ARM64_CANVAS_OBJ = $(ARM_BUILD_DIR)/test_arm64_canvas.o
+TEST_ARM64_CODEGEN_OBJ = $(ARM_BUILD_DIR)/test_arm64_codegen.o
 HAL_ERRNO_OBJ = $(BUILD_DIR)/hal_errno.o
 HAL_WAYLAND_OBJ = $(BUILD_DIR)/hal_wayland.o
 HAL_WAYLAND_INPUT_OBJ = $(BUILD_DIR)/hal_wayland_input.o
@@ -251,7 +257,7 @@ TEST_INPUT_ROUTING_OBJ = $(BUILD_DIR)/test_input_routing.o
 TEST_INPUT_ROUTING_BIN = $(BUILD_DIR)/test_input_routing
 WIDGET_TERMINAL_STUBS_OBJ = $(BUILD_DIR)/widget_terminal_stubs.o
 
-.PHONY: all test run demo clean test_nested_smoke test_nested_smoke_ci win_hal_check win_step61_check arm64_hal_check test_arm64_hal
+.PHONY: all test run demo clean test_nested_smoke test_nested_smoke_ci win_hal_check win_step61_check arm64_hal_check arm64_step63_check test_arm64_hal test_arm64_canvas test_arm64_codegen
 
 # Final binary
 all: $(AURA_SHELL_BIN)
@@ -412,8 +418,17 @@ win_step61_check: $(WIN_BOOTSTRAP_OBJ) $(WIN_SYSCALL_OBJ) $(WIN_WINDOW_OBJ) $(WI
 arm64_hal_check: $(ARM_HAL_SYSCALL_OBJ) $(ARM_HAL_SYNC_OBJ) $(ARM_HAL_THREADS_OBJ) $(TEST_ARM64_HAL_OBJ) $(TEST_ARM64_HAL_BIN)
 	@echo "linux_arm64 HAL objects assembled successfully."
 
+arm64_step63_check: arm64_hal_check $(ARM_CANVAS_SIMD_OBJ) $(ARM_AS_CODEGEN_OBJ) $(TEST_ARM64_CANVAS_OBJ) $(TEST_ARM64_CODEGEN_OBJ) $(TEST_ARM64_CANVAS_BIN) $(TEST_ARM64_CODEGEN_BIN)
+	@echo "linux_arm64 STEP63 objects assembled successfully."
+
 test_arm64_hal: arm64_hal_check
 	$(ARM_QEMU) $(TEST_ARM64_HAL_BIN)
+
+test_arm64_canvas: arm64_step63_check
+	$(ARM_QEMU) $(TEST_ARM64_CANVAS_BIN)
+
+test_arm64_codegen: arm64_step63_check
+	$(ARM_QEMU) $(TEST_ARM64_CODEGEN_BIN)
 
 $(HAL_SYSCALL_OBJ): src/hal/linux_x86_64/syscall.asm src/hal/linux_x86_64/defs.inc | $(BUILD_DIR)
 	$(NASM) $(NASM_FLAGS) $< -o $@
@@ -986,6 +1001,24 @@ $(TEST_ARM64_HAL_OBJ): tests/unit/test_arm64_hal.S src/hal/linux_arm64/defs.S | 
 	$(ARM_AS) $(ARM_AS_FLAGS) $< -o $@
 
 $(TEST_ARM64_HAL_BIN): $(ARM_HAL_SYSCALL_OBJ) $(TEST_ARM64_HAL_OBJ)
+	$(ARM_LD) $(ARM_LD_FLAGS) -o $@ $^
+
+$(ARM_CANVAS_SIMD_OBJ): src/canvas/simd_neon.S | $(ARM_BUILD_DIR)
+	$(ARM_AS) $(ARM_AS_FLAGS) $< -o $@
+
+$(ARM_AS_CODEGEN_OBJ): src/aurascript/codegen_arm64.S src/hal/linux_arm64/defs.S | $(ARM_BUILD_DIR)
+	$(ARM_AS) $(ARM_AS_FLAGS) $< -o $@
+
+$(TEST_ARM64_CANVAS_OBJ): tests/unit/test_arm64_canvas.S src/hal/linux_arm64/defs.S | $(ARM_BUILD_DIR)
+	$(ARM_AS) $(ARM_AS_FLAGS) $< -o $@
+
+$(TEST_ARM64_CODEGEN_OBJ): tests/unit/test_arm64_codegen.S src/hal/linux_arm64/defs.S | $(ARM_BUILD_DIR)
+	$(ARM_AS) $(ARM_AS_FLAGS) $< -o $@
+
+$(TEST_ARM64_CANVAS_BIN): $(ARM_HAL_SYSCALL_OBJ) $(ARM_CANVAS_SIMD_OBJ) $(TEST_ARM64_CANVAS_OBJ)
+	$(ARM_LD) $(ARM_LD_FLAGS) -o $@ $^
+
+$(TEST_ARM64_CODEGEN_BIN): $(ARM_HAL_SYSCALL_OBJ) $(ARM_AS_CODEGEN_OBJ) $(TEST_ARM64_CODEGEN_OBJ)
 	$(ARM_LD) $(ARM_LD_FLAGS) -o $@ $^
 
 $(TEST_INPUT_ROUTING_BIN): $(HAL_SYSCALL_OBJ) $(HAL_ERRNO_OBJ) $(CORE_MEMORY_OBJ) $(CORE_EVENT_OBJ) $(HAL_WAYLAND_OBJ) $(COMPOSITOR_PROTOCOL_OBJ) $(COMPOSITOR_REGISTRY_OBJ) $(COMPOSITOR_SERVER_OBJ) $(COMPOSITOR_SURFACE_OBJ) $(COMPOSITOR_SHM_OBJ) $(COMPOSITOR_XDG_OBJ) $(COMPOSITOR_INPUT_OBJS) $(CANVAS_RASTERIZER_OBJ) $(CANVAS_SIMD_OBJ) $(TEST_INPUT_ROUTING_OBJ)

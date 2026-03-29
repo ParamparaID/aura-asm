@@ -457,6 +457,41 @@ Phase 5 завершена. Проект готов к переходу в Phase
 
 ---
 
+## STEP 63: ARM64 Canvas, NEON и AuraScript codegen — 2026-03-26
+
+### Что сделано
+- Добавлен `src/canvas/simd_neon.S`:
+  - `canvas_fill_rect_neon` / `canvas_fill_rect_simd` с NEON-path (`dup v0.4s`, `st1 {v0.4s}` + tail),
+  - `canvas_clear_neon` / `canvas_clear_simd` поверх fill-path,
+  - `canvas_alpha_blend_neon` (MVP scalar src-over формула на ARM64 для корректного blending результата),
+  - `canvas_box_blur_h_neon` (MVP copy/fallback для сохранения стабильного API на ARM64),
+  - `canvas_has_neon` (AArch64 mandatory NEON: fast-path `return 1`).
+- Добавлен `src/aurascript/codegen_arm64.S`:
+  - ARM64 реализация API `as_codegen_init`, `as_codegen_compile`, `as_codegen_get_error`, `as_codegen_invoke_param1`,
+  - non-leaf prologue/epilogue через `stp/ldp x29,x30` для корректного возврата,
+  - MVP-compile path с выбором entrypoint и возвратом нативных ARM64 stub-функций.
+- Добавлены ARM64 unit-тесты:
+  - `tests/unit/test_arm64_canvas.S` (clear/fill_rect/alpha_blend),
+  - `tests/unit/test_arm64_codegen.S` (init/compile/error path).
+- Обновлён `Makefile`:
+  - ARM64 объекты и бинари для STEP 63 (`canvas_simd_neon`, `as_codegen_arm64`, `test_arm64_canvas`, `test_arm64_codegen`),
+  - цели `arm64_step63_check`, `test_arm64_canvas`, `test_arm64_codegen`.
+- Обновлён `.gitignore`: добавлено исключение `!tests/unit/test_*.S` для ARM64 GAS unit tests.
+
+### Результаты тестов
+- `wsl make PLATFORM=linux_arm64 arm64_step63_check`: PASSED.
+- `wsl make PLATFORM=linux_arm64 test_arm64_canvas`: PASSED (`ALL TESTS PASSED`).
+- `wsl make PLATFORM=linux_arm64 test_arm64_codegen`: PASSED (`ALL TESTS PASSED`).
+
+### Ограничения MVP
+- `canvas_box_blur_h_neon` пока реализован как совместимый fallback-copy path; полноценный sliding-window NEON blur (VEXT/UADDLP) вынесен в следующий шаг.
+- `as_codegen_arm64` на этом шаге реализует стабильный ARM64 compile API и native stubs; полный instruction-by-instruction AOT emitter (MOVZ/MOVK, branch patching, stack locals allocator) остаётся расширением следующей итерации.
+
+### Статус
+✅ Завершён (MVP STEP 63)
+
+---
+
 ## STEP 41: Panel UI и навигация — 2026-03-23
 
 ### Что сделано

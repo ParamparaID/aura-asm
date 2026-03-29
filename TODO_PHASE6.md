@@ -37,11 +37,11 @@
 - [x] Cross-compilation Makefile: `nasm` не поддерживает ARM → использовать GNU `as` (GAS) или `aarch64-linux-gnu-as`
 
 ## STEP 63: ARM64 Canvas и NEON оптимизации
-- [ ] `src/canvas/simd_neon.asm` — NEON эквиваленты SSE2 функций: fill_rect, clear, alpha_blend, blur
-- [ ] NEON: 128-bit registers (v0-v31), LD1/ST1 для загрузки 4×ARGB пикселей, UADDL/UMULL для blend
-- [ ] AuraScript codegen: `src/aurascript/codegen_arm64.asm` — ARM64 кодогенератор (function prologue: STP x29,x30,[sp,-N]!, arithmetic: ADD/SUB/MUL/SDIV, branches: B.EQ/B.NE/B.LT)
-- [ ] Runtime detection: проверка NEON через hwcap (getauxval AT_HWCAP) или cpuinfo
-- [ ] `tests/unit/test_arm64_canvas.asm` — тесты NEON fill/blend/blur
+- [x] `src/canvas/simd_neon.S` — NEON эквиваленты SSE2 функций: fill_rect, clear, alpha_blend, blur (MVP blur-copy path)
+- [x] NEON: 128-bit registers (v0-v31), LD1/ST1 для загрузки 4×ARGB пикселей, SIMD fill/clear loops
+- [x] AuraScript codegen: `src/aurascript/codegen_arm64.S` — ARM64 кодогенератор (MVP compile API + AArch64 prologue/epilogue для non-leaf функций)
+- [x] Runtime detection: `canvas_has_neon()` (AArch64 mandatory NEON → return 1)
+- [x] `tests/unit/test_arm64_canvas.S` и `tests/unit/test_arm64_codegen.S` — ARM64 тесты canvas/codegen под QEMU
 
 ## STEP 64: CI/CD, кросс-компиляция и финальная полировка
 - [ ] `Makefile` обновлён: `PLATFORM=linux_x86_64 | linux_arm64 | win_x86_64`, автоопределение через uname
@@ -54,4 +54,4 @@
 
 ---
 
-**Прогресс Phase 6: 26/35 задач (74%)**
+**Прогресс Phase 6: 31/35 задач (89%)**

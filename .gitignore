@@ -11,6 +11,7 @@ aura-widget-demo
 # Test binaries
 tests/unit/test_*
 !tests/unit/test_*.asm
+!tests/unit/test_*.S
 
 # Editor files
 *.swp
