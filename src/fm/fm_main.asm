@@ -156,6 +156,7 @@ section .rodata
     fm_bloom_8                     db "Extract Here",0
     fm_bloom_9                     db "Extract To...",0
     fm_status_todo                 db "Action is queued for Phase 5 polish",0
+    fm_unknown_name                db "?",0
 
 section .bss
     fm_pool                        resb FM_STRUCT_SIZE * FM_MAX_INSTANCES
@@ -1509,7 +1510,29 @@ fm_render:
     mov r9d, 0xFF1F2433
     call canvas_fill_rect_alpha
     ; Render rows from live panel model as geometry only (no text path).
-    ; Left panel rows.
+    ; Left panel rows: clamp by dynamic viewport height.
+    mov ecx, [rsp + 4]                    ; work height
+    sub ecx, 40                           ; top padding + safety margin
+    cmp ecx, 0
+    jg .fb_left_vis_div
+    mov ecx, 1
+    jmp .fb_left_vis_ready
+.fb_left_vis_div:
+    mov eax, ecx
+    xor edx, edx
+    mov ecx, 20                           ; row step
+    div ecx
+    inc eax
+    mov ecx, eax
+.fb_left_vis_ready:
+    cmp ecx, 1
+    jge .fb_left_vis_min_ok
+    mov ecx, 1
+.fb_left_vis_min_ok:
+    cmp ecx, 40
+    jle .fb_left_vis_max_ok
+    mov ecx, 40
+.fb_left_vis_max_ok:
     mov eax, 1
     mov r11, [rbx + FM_LEFT_PANEL_OFF]
     test r11, r11
@@ -1519,9 +1542,9 @@ fm_render:
     jge .fb_left_count_ready
     mov eax, 1
 .fb_left_count_ready:
-    cmp eax, 10
+    cmp eax, ecx
     jle .fb_left_count_clamped
-    mov eax, 10
+    mov eax, ecx
 .fb_left_count_clamped:
     mov [rsp + 12], eax
     xor eax, eax
@@ -1537,26 +1560,28 @@ fm_render:
     add edx, 36
     mov ecx, [rsp + 0]
     sub ecx, 36
-    mov r10d, eax
-    and r10d, 3
-    shl r10d, 4
-    sub ecx, r10d
     mov r8d, 18
     mov r9d, 0xFF6F7F99
     mov r11, [rbx + FM_LEFT_PANEL_OFF]
     test r11, r11
     jz .fb_left_draw
     mov r10d, [r11 + P_SELECTED_IDX_OFF]
-    cmp r10d, eax
+    mov ecx, [r11 + P_SCROLL_OFF]
+    add ecx, eax
+    cmp r10d, ecx
     jne .fb_left_draw
     mov r9d, 0xFFB8C6DD
 .fb_left_draw:
+    ; Restore row width after selection compare clobbered ecx.
+    mov ecx, [rsp + 0]
+    sub ecx, 36
     call canvas_fill_rect_alpha
     ; Draw left filename for current row (guarded by entry_count).
     mov r11, [rbx + FM_LEFT_PANEL_OFF]
     test r11, r11
     jz .fb_left_next
     mov eax, [rsp + 8]
+    add eax, [r11 + P_SCROLL_OFF]
     cmp eax, [r11 + P_ENTRY_COUNT_OFF]
     jge .fb_left_next
     imul eax, DIR_ENTRY_SIZE
@@ -1564,27 +1589,44 @@ fm_render:
     mov ecx, [r11 + P_ENTRIES_BUF_OFF + rax + DE_NAME_LEN_OFF]
     cmp ecx, 1
     jge .fb_left_len_ok
+    lea rdx, [rel fm_unknown_name]
     mov ecx, 1
 .fb_left_len_ok:
     ; Dynamic char cap from current row width.
     mov r9d, [rsp + 0]                  ; half width
     sub r9d, 36
-    mov r10d, [rsp + 8]                 ; row index
-    and r10d, 3
-    shl r10d, 4                         ; same shortening as row bg
-    sub r9d, r10d
     sub r9d, 16                         ; inner horizontal padding
     cmp r9d, 8
     jge .fb_left_px_ok
     mov r9d, 8
 .fb_left_px_ok:
-    shr r9d, 3                          ; ~8 px per glyph
+    mov eax, r9d
+    imul eax, 43                        ; ~ /6 without touching rdx name ptr
+    shr eax, 8
+    mov r9d, eax
     cmp r9d, 1
     jge .fb_left_chars_ok
     mov r9d, 1
 .fb_left_chars_ok:
+    cmp r9d, 63
+    jle .fb_left_chars_buf_ok
+    mov r9d, 63
+.fb_left_chars_buf_ok:
     cmp ecx, r9d
     jle .fb_left_len_cap
+    ; Avoid byte-level truncation for UTF-8 names (prevents mojibake).
+    mov r10d, ecx
+    mov rax, rdx
+.fb_left_utf8_scan:
+    test r10d, r10d
+    jz .fb_left_trunc_ascii
+    mov r11b, [rax]
+    test r11b, 0x80
+    jnz .fb_left_len_cap
+    inc rax
+    dec r10d
+    jmp .fb_left_utf8_scan
+.fb_left_trunc_ascii:
     ; Need truncation: if room >= 4, keep head + "...".
     cmp r9d, 4
     jl .fb_left_trunc_hard
@@ -1614,13 +1656,16 @@ fm_render:
 .fb_left_len_cap:
     mov r8d, 0xFFE6EDF7
     mov eax, [rsp + 8]
+    add eax, [r11 + P_SCROLL_OFF]
     imul eax, DIR_ENTRY_SIZE
     cmp dword [r11 + P_ENTRIES_BUF_OFF + rax + DE_TYPE_OFF], DT_DIR
     jne .fb_left_txt_sel
     mov r8d, 0xFF9BD0FF
 .fb_left_txt_sel:
     mov r10d, [r11 + P_SELECTED_IDX_OFF]
-    cmp r10d, [rsp + 8]
+    mov ecx, [rsp + 8]
+    add ecx, [r11 + P_SCROLL_OFF]
+    cmp r10d, ecx
     jne .fb_left_txt_draw
     mov r8d, 0xFFFFFFFF
 .fb_left_txt_draw:
@@ -1634,6 +1679,29 @@ fm_render:
     jmp .fb_left_rows_loop
 
 .fb_right_rows_start:
+    ; Right panel rows: clamp by dynamic viewport height.
+    mov ecx, [rsp + 4]                    ; work height
+    sub ecx, 40
+    cmp ecx, 0
+    jg .fb_right_vis_div
+    mov ecx, 1
+    jmp .fb_right_vis_ready
+.fb_right_vis_div:
+    mov eax, ecx
+    xor edx, edx
+    mov ecx, 20
+    div ecx
+    inc eax
+    mov ecx, eax
+.fb_right_vis_ready:
+    cmp ecx, 1
+    jge .fb_right_vis_min_ok
+    mov ecx, 1
+.fb_right_vis_min_ok:
+    cmp ecx, 40
+    jle .fb_right_vis_max_ok
+    mov ecx, 40
+.fb_right_vis_max_ok:
     mov eax, 1
     mov r11, [rbx + FM_RIGHT_PANEL_OFF]
     test r11, r11
@@ -1643,9 +1711,9 @@ fm_render:
     jge .fb_right_count_ready
     mov eax, 1
 .fb_right_count_ready:
-    cmp eax, 10
+    cmp eax, ecx
     jle .fb_right_count_clamped
-    mov eax, 10
+    mov eax, ecx
 .fb_right_count_clamped:
     mov [rsp + 12], eax
     xor eax, eax
@@ -1663,26 +1731,29 @@ fm_render:
     mov ecx, [r12 + CV_WIDTH_OFF]
     sub ecx, esi
     sub ecx, 20
-    mov r10d, eax
-    and r10d, 3
-    shl r10d, 4
-    sub ecx, r10d
     mov r8d, 18
     mov r9d, 0xFF8EA2BF
     mov r11, [rbx + FM_RIGHT_PANEL_OFF]
     test r11, r11
     jz .fb_right_draw
     mov r10d, [r11 + P_SELECTED_IDX_OFF]
-    cmp r10d, eax
+    mov ecx, [r11 + P_SCROLL_OFF]
+    add ecx, eax
+    cmp r10d, ecx
     jne .fb_right_draw
     mov r9d, 0xFFD2DEEE
 .fb_right_draw:
+    ; Restore row width after selection compare clobbered ecx.
+    mov ecx, [r12 + CV_WIDTH_OFF]
+    sub ecx, esi
+    sub ecx, 20
     call canvas_fill_rect_alpha
     ; Draw right filename for current row (guarded by entry_count).
     mov r11, [rbx + FM_RIGHT_PANEL_OFF]
     test r11, r11
     jz .fb_right_next
     mov eax, [rsp + 8]
+    add eax, [r11 + P_SCROLL_OFF]
     cmp eax, [r11 + P_ENTRY_COUNT_OFF]
     jge .fb_right_next
     imul eax, DIR_ENTRY_SIZE
@@ -1690,6 +1761,7 @@ fm_render:
     mov ecx, [r11 + P_ENTRIES_BUF_OFF + rax + DE_NAME_LEN_OFF]
     cmp ecx, 1
     jge .fb_right_len_ok
+    lea rdx, [rel fm_unknown_name]
     mov ecx, 1
 .fb_right_len_ok:
     ; Dynamic char cap from current row width.
@@ -1697,22 +1769,38 @@ fm_render:
     mov r10d, [rsp + 0]                 ; half width
     sub r9d, r10d
     sub r9d, 36
-    mov r10d, [rsp + 8]                 ; row index
-    and r10d, 3
-    shl r10d, 4                         ; same shortening as row bg
-    sub r9d, r10d
     sub r9d, 16                         ; inner horizontal padding
     cmp r9d, 8
     jge .fb_right_px_ok
     mov r9d, 8
 .fb_right_px_ok:
-    shr r9d, 3                          ; ~8 px per glyph
+    mov eax, r9d
+    imul eax, 43                        ; ~ /6 without touching rdx name ptr
+    shr eax, 8
+    mov r9d, eax
     cmp r9d, 1
     jge .fb_right_chars_ok
     mov r9d, 1
 .fb_right_chars_ok:
+    cmp r9d, 63
+    jle .fb_right_chars_buf_ok
+    mov r9d, 63
+.fb_right_chars_buf_ok:
     cmp ecx, r9d
     jle .fb_right_len_cap
+    ; Avoid byte-level truncation for UTF-8 names (prevents mojibake).
+    mov r10d, ecx
+    mov rax, rdx
+.fb_right_utf8_scan:
+    test r10d, r10d
+    jz .fb_right_trunc_ascii
+    mov r11b, [rax]
+    test r11b, 0x80
+    jnz .fb_right_len_cap
+    inc rax
+    dec r10d
+    jmp .fb_right_utf8_scan
+.fb_right_trunc_ascii:
     ; Need truncation: if room >= 4, keep head + "...".
     cmp r9d, 4
     jl .fb_right_trunc_hard
@@ -1742,13 +1830,16 @@ fm_render:
 .fb_right_len_cap:
     mov r8d, 0xFFE6EDF7
     mov eax, [rsp + 8]
+    add eax, [r11 + P_SCROLL_OFF]
     imul eax, DIR_ENTRY_SIZE
     cmp dword [r11 + P_ENTRIES_BUF_OFF + rax + DE_TYPE_OFF], DT_DIR
     jne .fb_right_txt_sel
     mov r8d, 0xFF9BD0FF
 .fb_right_txt_sel:
     mov r10d, [r11 + P_SELECTED_IDX_OFF]
-    cmp r10d, [rsp + 8]
+    mov ecx, [rsp + 8]
+    add ecx, [r11 + P_SCROLL_OFF]
+    cmp r10d, ecx
     jne .fb_right_txt_draw
     mov r8d, 0xFFFFFFFF
 .fb_right_txt_draw:
@@ -2560,6 +2651,10 @@ fm_handle_input:
     jle .cons
     dec eax
     mov [rdi + P_SELECTED_IDX_OFF], eax
+    mov ecx, [rdi + P_SCROLL_OFF]
+    cmp eax, ecx
+    jge .cons
+    mov [rdi + P_SCROLL_OFF], eax
     jmp .cons
 .nav_down:
     mov rdi, [rbx + FM_ACTIVE_PANEL_OFF]
@@ -2576,6 +2671,12 @@ fm_handle_input:
     mov eax, ecx
 .nav_down_store:
     mov [rdi + P_SELECTED_IDX_OFF], eax
+    mov edx, [rdi + P_SCROLL_OFF]
+    lea ecx, [edx + 9]                  ; viewport bottom for 10 rows
+    cmp eax, ecx
+    jle .cons
+    lea edx, [eax - 9]
+    mov [rdi + P_SCROLL_OFF], edx
     jmp .cons
 .nav_enter:
     mov rdi, [rbx + FM_ACTIVE_PANEL_OFF]

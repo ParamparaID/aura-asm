@@ -29,6 +29,9 @@ extern repl_cursor_blink
 extern fm_init
 extern fm_render
 extern fm_handle_input
+extern vfs_path_len
+extern win32_GetCurrentDirectoryA
+extern win32_GetModuleFileNameA
 
 section .data
     app_title          db "Aura Shell (Win32 Native)",0
@@ -53,6 +56,7 @@ section .bss
     fm_ptr             resq 1
     event_buf          resb 64
     mode_state         resd 1
+    fm_start_path      resb 1024
 
 section .text
 global _start
@@ -153,8 +157,36 @@ _start:
     mov r8d, [r10 + T_ACCENT_OFF]
     call repl_set_colors
 .after_repl_colors:
-    lea rdi, [rel fm_path_root]
-    mov esi, 1
+    ; Start FM from current drive root (e.g. C:/) for predictable Win behavior.
+    mov rax, [rel win32_GetCurrentDirectoryA]
+    test rax, rax
+    jz .fm_root_default
+    mov ecx, 1024
+    lea rdx, [rel fm_start_path]
+    sub rsp, 32
+    call rax
+    add rsp, 32
+    test eax, eax
+    jz .fm_root_default
+    cmp eax, 1024
+    jae .fm_root_default
+    cmp byte [rel fm_start_path + 1], ':'
+    jne .fm_root_default
+    mov al, [rel fm_start_path + 0]
+    mov [rel fm_start_path + 0], al
+    mov byte [rel fm_start_path + 1], ':'
+    mov byte [rel fm_start_path + 2], '/'
+    mov byte [rel fm_start_path + 3], 0
+    lea rdi, [rel fm_start_path]
+    jmp .fm_init_call
+.fm_root_default:
+    mov byte [rel fm_start_path + 0], 'C'
+    mov byte [rel fm_start_path + 1], ':'
+    mov byte [rel fm_start_path + 2], '/'
+    mov byte [rel fm_start_path + 3], 0
+    lea rdi, [rel fm_start_path]
+.fm_init_call:
+    mov esi, 1                           ; FM_DUAL_PANEL
     call fm_init
     test rax, rax
     jz .cleanup_fail

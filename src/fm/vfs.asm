@@ -6,9 +6,10 @@ extern sftp_provider_get
 extern archive_provider_get
 extern plugin_api_bind_vfs_register
 %ifidn __OUTPUT_FORMAT__,win64
-extern win32_FindFirstFileA
-extern win32_FindNextFileA
+extern win32_FindFirstFileW
+extern win32_FindNextFileW
 extern win32_FindClose
+extern win32_WideCharToMultiByte
 %endif
 
 %ifndef DT_DIR
@@ -17,11 +18,12 @@ extern win32_FindClose
 %ifndef DT_REG
 %define DT_REG                  8
 %endif
-%define WIN_FINDDATA_SIZE       320
+%define WIN_FINDDATA_SIZE       592
 %define WIN_FINDDATA_NAME_OFF   44
 %define WIN_FILE_ATTR_DIR       0x10
 %define WIN_FILE_ATTR_HIDDEN    0x02
 %define WIN_INVALID_HANDLE      -1
+%define WIN_CP_UTF8             65001
 
 section .bss
     vfs_providers            resq VFS_MAX_PROVIDERS
@@ -267,10 +269,10 @@ vfs_read_entries:
     push r14
     push r15
     ; locals:
-    ; [rsp + 0]    pattern buffer (1040 bytes)
-    ; [rsp + 1040] WIN32_FIND_DATAA
-    ; [rsp + 1360] find handle (qword)
-    sub rsp, 1392
+    ; [rsp + 0]    UTF-16 pattern buffer (520 WCHAR = 1040 bytes)
+    ; [rsp + 1040] WIN32_FIND_DATAW (592 bytes)
+    ; [rsp + 1632] find handle (qword)
+    sub rsp, 1664
 
     mov rbx, rdi                        ; path ptr
     mov r13d, esi                       ; path len
@@ -283,23 +285,24 @@ vfs_read_entries:
     test r14d, r14d
     jle .w_done
 
-    ; Build "<path>\\*" pattern into local buffer, converting '/' -> '\\'.
-    lea r10, [rsp]                      ; pattern ptr
-    xor ecx, ecx                        ; out index
-    xor edx, edx                        ; in index
+    ; Build UTF-16 "<path>\\*" pattern into local buffer.
+    lea r10, [rsp]                      ; pattern ptr (WCHAR*)
+    xor ecx, ecx                        ; out wchar index
+    xor edx, edx                        ; in byte index
     test r13d, r13d
     jle .w_pat_default
 .w_pat_copy:
     cmp edx, r13d
     jae .w_pat_copied
-    cmp ecx, 1036                       ; leave room for "\*"+NUL
+    cmp ecx, 516                        ; leave room for "\*"+NUL (wide)
     jae .w_pat_copied
     mov al, [rbx + rdx]
     cmp al, '/'
     jne .w_pat_store
     mov al, 92
 .w_pat_store:
-    mov [r10 + rcx], al
+    movzx eax, al
+    mov word [r10 + rcx*2], ax
     inc ecx
     inc edx
     jmp .w_pat_copy
@@ -307,54 +310,54 @@ vfs_read_entries:
     test ecx, ecx
     jnz .w_pat_append_star
 .w_pat_default:
-    mov byte [r10], '.'
+    mov word [r10], '.'
     mov ecx, 1
 .w_pat_append_star:
     mov eax, ecx
     dec eax
     js .w_pat_need_sep
-    cmp byte [r10 + rax], 92
+    cmp word [r10 + rax*2], 92
     je .w_pat_have_sep
 .w_pat_need_sep:
-    cmp ecx, 1037
+    cmp ecx, 517
     jae .w_pat_have_sep
-    mov byte [r10 + rcx], 92
+    mov word [r10 + rcx*2], 92
     inc ecx
 .w_pat_have_sep:
-    cmp ecx, 1038
+    cmp ecx, 518
     jae .w_pat_term
-    mov byte [r10 + rcx], '*'
+    mov word [r10 + rcx*2], '*'
     inc ecx
 .w_pat_term:
-    mov byte [r10 + rcx], 0
+    mov word [r10 + rcx*2], 0
 
-    ; FindFirstFileA(pattern, &finddata)
+    ; FindFirstFileW(pattern, &finddata)
     lea r11, [rsp + 1040]
     mov rcx, r10
     mov rdx, r11
-    mov rax, [rel win32_FindFirstFileA]
+    mov rax, [rel win32_FindFirstFileW]
     test rax, rax
     jz .w_done
     sub rsp, 32
     call rax
     add rsp, 32
-    mov [rsp + 1360], rax
+    mov [rsp + 1632], rax
     cmp rax, WIN_INVALID_HANDLE
     je .w_done
 
 .w_enum_cur:
     lea r11, [rsp + 1040]
     lea r8, [r11 + WIN_FINDDATA_NAME_OFF] ; cFileName
-    mov al, [r8]
-    test al, al
+    movzx eax, word [r8]
+    test eax, eax
     jz .w_enum_next
-    cmp al, '.'
+    cmp eax, '.'
     jne .w_accept
-    cmp byte [r8 + 1], 0
+    cmp word [r8 + 2], 0
     je .w_enum_next
-    cmp byte [r8 + 1], '.'
+    cmp word [r8 + 2], '.'
     jne .w_accept
-    cmp byte [r8 + 2], 0
+    cmp word [r8 + 4], 0
     je .w_enum_next
 
 .w_accept:
@@ -364,23 +367,35 @@ vfs_read_entries:
     mov eax, r15d
     imul eax, DIR_ENTRY_SIZE
     lea r9, [r12 + rax]
+    mov rbx, r9
 
-    ; Copy name (max 255 bytes + NUL)
-    xor ecx, ecx
-.w_name_loop:
-    cmp ecx, 255
-    jae .w_name_done
-    mov al, [r8 + rcx]
-    mov [r9 + DE_NAME_OFF + rcx], al
-    test al, al
-    jz .w_name_done
-    inc ecx
-    jmp .w_name_loop
-.w_name_done:
-    mov byte [r9 + DE_NAME_OFF + rcx], 0
-    mov [r9 + DE_NAME_LEN_OFF], ecx
+    ; Convert UTF-16 filename -> UTF-8 (max 255 bytes + NUL).
+    mov rax, [rel win32_WideCharToMultiByte]
+    test rax, rax
+    jz .w_enum_next
+    mov ecx, WIN_CP_UTF8
+    xor edx, edx
+    ; r8 already points to source UTF-16 name
+    mov r9d, -1
+    sub rsp, 64
+    lea rdi, [rbx + DE_NAME_OFF]
+    mov [rsp + 32], rdi
+    mov dword [rsp + 40], 256
+    mov qword [rsp + 48], 0
+    mov qword [rsp + 56], 0
+    call rax
+    add rsp, 64
+    mov r9, rbx
+    test eax, eax
+    jle .w_enum_next
+    dec eax
+    jns .w_name_len_ok
+    xor eax, eax
+.w_name_len_ok:
+    mov [r9 + DE_NAME_LEN_OFF], eax
 
     ; Type from dwFileAttributes.
+    lea r11, [rsp + 1040]
     mov eax, [r11 + 0]
     test eax, WIN_FILE_ATTR_DIR
     jz .w_type_reg
@@ -391,8 +406,8 @@ vfs_read_entries:
 .w_type_done:
 
     ; Size from nFileSizeHigh/Low.
-    mov eax, [r11 + 32]
-    mov edx, [r11 + 28]
+    mov eax, [r11 + 28]
+    mov edx, [r11 + 32]
     shl rdx, 32
     or rax, rdx
     mov [r9 + DE_SIZE_OFF], rax
@@ -414,9 +429,9 @@ vfs_read_entries:
     inc r15d
 
 .w_enum_next:
-    mov rcx, [rsp + 1360]
-    mov rdx, r11
-    mov rax, [rel win32_FindNextFileA]
+    mov rcx, [rsp + 1632]
+    lea rdx, [rsp + 1040]
+    mov rax, [rel win32_FindNextFileW]
     test rax, rax
     jz .w_close
     sub rsp, 32
@@ -426,7 +441,7 @@ vfs_read_entries:
     jnz .w_enum_cur
 
 .w_close:
-    mov rcx, [rsp + 1360]
+    mov rcx, [rsp + 1632]
     cmp rcx, WIN_INVALID_HANDLE
     je .w_done
     mov rax, [rel win32_FindClose]
@@ -438,7 +453,7 @@ vfs_read_entries:
 
 .w_done:
     mov eax, r15d
-    add rsp, 1392
+    add rsp, 1664
     pop r15
     pop r14
     pop r13

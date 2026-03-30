@@ -243,15 +243,16 @@ panel_filter_match:
 panel_compare_entries:
     ; rdi panel*, rsi a_ptr, rdx b_ptr -> eax >0 means a>b
     push rbx
-    mov ebx, [rdi + P_SORT_COLUMN_OFF]
-    cmp ebx, SORT_NAME
+    mov rbx, rdi
+    mov eax, [rbx + P_SORT_COLUMN_OFF]
+    cmp eax, SORT_NAME
     jne .size
     lea rdi, [rsi + DE_NAME_OFF]
     lea rsi, [rdx + DE_NAME_OFF]
     call panel_strcmp
     jmp .maybe_rev
 .size:
-    cmp ebx, SORT_SIZE
+    cmp eax, SORT_SIZE
     jne .date
     mov eax, [rsi + DE_TYPE_OFF]
     cmp eax, DT_DIR
@@ -266,7 +267,7 @@ panel_compare_entries:
     xor eax, eax
     jmp .maybe_rev
 .date:
-    cmp ebx, SORT_DATE
+    cmp eax, SORT_DATE
     jne .ext
     mov rax, [rsi + DE_MTIME_OFF]
     cmp rax, [rdx + DE_MTIME_OFF]
@@ -302,7 +303,7 @@ panel_compare_entries:
 .gt:
     mov eax, 1
 .maybe_rev:
-    cmp dword [rdi + P_SORT_ASC_OFF], 0
+    cmp dword [rbx + P_SORT_ASC_OFF], 0
     jne .out
     neg eax
 .out:
@@ -391,7 +392,7 @@ panel_init:
     mov dword [rdi + P_SORT_ASC_OFF], 1
     mov dword [rdi + P_SELECTED_IDX_OFF], 0
     mov dword [rdi + P_SCROLL_OFF], 0
-    mov dword [rdi + P_SHOW_HIDDEN_OFF], 0
+    mov dword [rdi + P_SHOW_HIDDEN_OFF], 1
     mov dword [rdi + P_ACTIVE_OFF], 0
     cmp esi, 0
     jne .copy
@@ -456,12 +457,6 @@ panel_load:
     mov eax, r14d
     imul eax, DIR_ENTRY_SIZE
     lea rsi, [rbx + P_ENTRIES_BUF_OFF + rax]
-    ; Always skip current-directory alias "." in list rendering/navigation.
-    cmp dword [rsi + DE_NAME_LEN_OFF], 1
-    jne .hidden
-    cmp byte [rsi + DE_NAME_OFF], '.'
-    je .skip
-.hidden:
     ; hidden filter
     cmp dword [rbx + P_SHOW_HIDDEN_OFF], 0
     jne .flt
@@ -495,6 +490,23 @@ panel_load:
     call panel_unmark_all
     mov rdi, rbx
     call panel_sort_entries
+    ; Clamp scroll into valid range after reload/filter/sort.
+    mov ecx, [rbx + P_SCROLL_OFF]
+    cmp ecx, 0
+    jge .scroll_nonneg
+    xor ecx, ecx
+    mov [rbx + P_SCROLL_OFF], ecx
+.scroll_nonneg:
+    mov eax, [rbx + P_ENTRY_COUNT_OFF]
+    dec eax
+    cmp eax, 0
+    jge .scroll_max_ok
+    xor eax, eax
+.scroll_max_ok:
+    cmp ecx, eax
+    jle .scroll_clamped
+    mov [rbx + P_SCROLL_OFF], eax
+.scroll_clamped:
     mov eax, [rbx + P_ENTRY_COUNT_OFF]
     test eax, eax
     jz .clamp_done
@@ -579,6 +591,18 @@ panel_go_parent:
     ; (panel* rdi) -> eax 0/-1
     push rbx
     mov rbx, rdi
+    ; Keep drive root stable on Windows-style paths (e.g. "C:/").
+    cmp dword [rbx + P_PATH_LEN_OFF], 3
+    jne .go_parent_generic
+    cmp byte [rbx + P_PATH_OFF + 1], ':'
+    jne .go_parent_generic
+    cmp byte [rbx + P_PATH_OFF + 2], '/'
+    jne .go_parent_generic
+    mov rdi, rbx
+    call panel_load
+    xor eax, eax
+    jmp .out
+.go_parent_generic:
     mov ecx, [rbx + P_PATH_LEN_OFF]
     cmp ecx, 1
     jle .root

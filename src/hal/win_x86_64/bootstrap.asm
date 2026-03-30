@@ -12,11 +12,15 @@ section .data
     win32_GetProcAddress             dq 0
     win32_LoadLibraryA               dq 0
     win32_CreateFileA                dq 0
+    win32_MultiByteToWideChar        dq 0
+    win32_WideCharToMultiByte        dq 0
     win32_ReadFile                   dq 0
     win32_WriteFile                  dq 0
     win32_CloseHandle                dq 0
     win32_FindFirstFileA             dq 0
     win32_FindNextFileA              dq 0
+    win32_FindFirstFileW             dq 0
+    win32_FindNextFileW              dq 0
     win32_FindClose                  dq 0
     win32_VirtualAlloc               dq 0
     win32_VirtualFree                dq 0
@@ -31,6 +35,8 @@ section .data
     win32_CreateProcessA             dq 0
     win32_GetExitCodeProcess         dq 0
     win32_GetEnvironmentVariableA    dq 0
+    win32_GetCurrentDirectoryA       dq 0
+    win32_GetModuleFileNameA         dq 0
     win32_GetModuleHandleA           dq 0
     win32_SetStdHandle               dq 0
     win32_AcquireSRWLockExclusive    dq 0
@@ -81,6 +87,8 @@ section .data
     win32_SetBkMode                  dq 0
     win32_SetTextColor               dq 0
     win32_TextOutA                   dq 0
+    win32_TextOutW                   dq 0
+    win32_CreateFontA                dq 0
 
     bootstrap_ready                  dd 0
     bootstrap_pad                    dd 0
@@ -94,11 +102,15 @@ section .data
     s_GetProcAddress                 db "GetProcAddress",0
     s_LoadLibraryA                   db "LoadLibraryA",0
     s_CreateFileA                    db "CreateFileA",0
+    s_MultiByteToWideChar            db "MultiByteToWideChar",0
+    s_WideCharToMultiByte            db "WideCharToMultiByte",0
     s_ReadFile                       db "ReadFile",0
     s_WriteFile                      db "WriteFile",0
     s_CloseHandle                    db "CloseHandle",0
     s_FindFirstFileA                 db "FindFirstFileA",0
     s_FindNextFileA                  db "FindNextFileA",0
+    s_FindFirstFileW                 db "FindFirstFileW",0
+    s_FindNextFileW                  db "FindNextFileW",0
     s_FindClose                      db "FindClose",0
     s_VirtualAlloc                   db "VirtualAlloc",0
     s_VirtualFree                    db "VirtualFree",0
@@ -113,6 +125,8 @@ section .data
     s_CreateProcessA                 db "CreateProcessA",0
     s_GetExitCodeProcess             db "GetExitCodeProcess",0
     s_GetEnvironmentVariableA        db "GetEnvironmentVariableA",0
+    s_GetCurrentDirectoryA           db "GetCurrentDirectoryA",0
+    s_GetModuleFileNameA             db "GetModuleFileNameA",0
     s_GetModuleHandleA               db "GetModuleHandleA",0
     s_SetStdHandle                   db "SetStdHandle",0
     s_AcquireSRWLockExclusive        db "AcquireSRWLockExclusive",0
@@ -163,6 +177,8 @@ section .data
     s_SetBkMode                      db "SetBkMode",0
     s_SetTextColor                   db "SetTextColor",0
     s_TextOutA                       db "TextOutA",0
+    s_TextOutW                       db "TextOutW",0
+    s_CreateFontA                    db "CreateFontA",0
 
 section .bss
     wsadata_buf                      resb WSADATA_SIZE
@@ -181,11 +197,15 @@ global win_mod_gdi32
 global win32_GetProcAddress
 global win32_LoadLibraryA
 global win32_CreateFileA
+global win32_MultiByteToWideChar
+global win32_WideCharToMultiByte
 global win32_ReadFile
 global win32_WriteFile
 global win32_CloseHandle
 global win32_FindFirstFileA
 global win32_FindNextFileA
+global win32_FindFirstFileW
+global win32_FindNextFileW
 global win32_FindClose
 global win32_VirtualAlloc
 global win32_VirtualFree
@@ -200,6 +220,8 @@ global win32_CreatePipe
 global win32_CreateProcessA
 global win32_GetExitCodeProcess
 global win32_GetEnvironmentVariableA
+global win32_GetCurrentDirectoryA
+global win32_GetModuleFileNameA
 global win32_GetModuleHandleA
 global win32_SetStdHandle
 global win32_AcquireSRWLockExclusive
@@ -248,6 +270,8 @@ global win32_DeleteDC
 global win32_SetBkMode
 global win32_SetTextColor
 global win32_TextOutA
+global win32_TextOutW
+global win32_CreateFontA
 
 %define HASH_GetProcAddress         0x82172F7F
 
@@ -577,6 +601,14 @@ bootstrap_init:
     call boot_getproc
     mov [rel win32_CreateFileA], rax
     mov rdi, [rel win_mod_kernel32]
+    lea rsi, [rel s_MultiByteToWideChar]
+    call boot_getproc
+    mov [rel win32_MultiByteToWideChar], rax
+    mov rdi, [rel win_mod_kernel32]
+    lea rsi, [rel s_WideCharToMultiByte]
+    call boot_getproc
+    mov [rel win32_WideCharToMultiByte], rax
+    mov rdi, [rel win_mod_kernel32]
     lea rsi, [rel s_ReadFile]
     call boot_getproc
     mov [rel win32_ReadFile], rax
@@ -596,6 +628,14 @@ bootstrap_init:
     lea rsi, [rel s_FindNextFileA]
     call boot_getproc
     mov [rel win32_FindNextFileA], rax
+    mov rdi, [rel win_mod_kernel32]
+    lea rsi, [rel s_FindFirstFileW]
+    call boot_getproc
+    mov [rel win32_FindFirstFileW], rax
+    mov rdi, [rel win_mod_kernel32]
+    lea rsi, [rel s_FindNextFileW]
+    call boot_getproc
+    mov [rel win32_FindNextFileW], rax
     mov rdi, [rel win_mod_kernel32]
     lea rsi, [rel s_FindClose]
     call boot_getproc
@@ -652,6 +692,14 @@ bootstrap_init:
     lea rsi, [rel s_GetEnvironmentVariableA]
     call boot_getproc
     mov [rel win32_GetEnvironmentVariableA], rax
+    mov rdi, [rel win_mod_kernel32]
+    lea rsi, [rel s_GetCurrentDirectoryA]
+    call boot_getproc
+    mov [rel win32_GetCurrentDirectoryA], rax
+    mov rdi, [rel win_mod_kernel32]
+    lea rsi, [rel s_GetModuleFileNameA]
+    call boot_getproc
+    mov [rel win32_GetModuleFileNameA], rax
     mov rdi, [rel win_mod_kernel32]
     lea rsi, [rel s_GetModuleHandleA]
     call boot_getproc
@@ -809,6 +857,14 @@ bootstrap_init:
     lea rsi, [rel s_TextOutA]
     call boot_getproc
     mov [rel win32_TextOutA], rax
+    mov rdi, [rel win_mod_gdi32]
+    lea rsi, [rel s_TextOutW]
+    call boot_getproc
+    mov [rel win32_TextOutW], rax
+    mov rdi, [rel win_mod_gdi32]
+    lea rsi, [rel s_CreateFontA]
+    call boot_getproc
+    mov [rel win32_CreateFontA], rax
 .skip_gdi32:
 
     ; ws2_32 exports (optional but initialized for networking wrappers)

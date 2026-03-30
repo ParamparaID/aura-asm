@@ -39,6 +39,8 @@ extern win32_DeleteDC
 extern win32_SetBkMode
 extern win32_SetTextColor
 extern win32_TextOutA
+extern win32_TextOutW
+extern win32_MultiByteToWideChar
 
 section .data
     win_class_name               db "AuraShellClass",0
@@ -87,6 +89,7 @@ section .bss
 %define KEY_PRESSED              1
 %define MOUSE_LEFT               0x110
 %define MOUSE_RIGHT              0x111
+%define MB_ERR_INVALID_CHARS     0x00000008
 
 section .text
 global window_create
@@ -824,7 +827,7 @@ window_present:
     jmp window_present_win32
 
 window_draw_text_overlay:
-    ; (x rdi, y rsi, text rdx, len ecx, color r8d) -> eax 0/-1
+    ; (x rdi, y rsi, utf8_text rdx, len ecx, color r8d) -> eax 0/-1
     push rbx
     push r12
     push r13
@@ -852,9 +855,9 @@ window_draw_text_overlay:
     mov rax, [rel win32_SetBkMode]
     test rax, rax
     jz .txt_fail
-    sub rsp, 32
+    sub rsp, 40
     call rax
-    add rsp, 32
+    add rsp, 40
 
     ; SetTextColor(hdc, color)
     mov rcx, r13
@@ -862,11 +865,11 @@ window_draw_text_overlay:
     test rax, rax
     jz .txt_fail
     mov edx, r10d
-    sub rsp, 32
+    sub rsp, 40
     call rax
-    add rsp, 32
+    add rsp, 40
 
-    ; TextOutA(hdc, x, y, str, len)
+    ; Stable path: draw with TextOutA (ANSI bytes).
     mov rcx, r13
     mov rax, [rel win32_TextOutA]
     test rax, rax
