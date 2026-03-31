@@ -157,6 +157,9 @@ section .rodata
     fm_bloom_9                     db "Extract To...",0
     fm_status_todo                 db "Action is queued for Phase 5 polish",0
     fm_unknown_name                db "?",0
+    fm_dbg_no_entry                db "DBG no-entry",0
+    fm_dbg_template                db "DBG len=00000 b=00 00 00 00 00 00 00 00",0
+    fm_hex_digits                  db "0123456789ABCDEF",0
 
 section .bss
     fm_pool                        resb FM_STRUCT_SIZE * FM_MAX_INSTANCES
@@ -171,6 +174,7 @@ section .bss
     fm_async_task                  resq 8
     fm_progress_owner              resq 1
     fm_name_draw_buf              resb 64
+    fm_debug_line_buf             resb 96
 
 section .text
 global fm_init
@@ -629,6 +633,124 @@ fm_progress_cb:
     jz .out
     mov [rax + FM_PROGRESS_PERCENT_OFF], edi
 .out:
+    ret
+
+fm_build_debug_line_active:
+    ; (fm rdi) -> eax len or -1, fills fm_debug_line_buf
+    push rbx
+    push r12
+    push r13
+    push r14
+    push r15
+    mov rbx, rdi
+    mov r12, [rbx + FM_ACTIVE_PANEL_OFF]
+    test r12, r12
+    jz .no_entry
+    mov r13d, [r12 + P_ENTRY_COUNT_OFF]
+    cmp r13d, 1
+    jl .no_entry
+    mov r14d, [r12 + P_SELECTED_IDX_OFF]
+    cmp r14d, 0
+    jge .idx_nonneg
+    xor r14d, r14d
+.idx_nonneg:
+    cmp r14d, r13d
+    jl .idx_ok
+    mov r14d, r13d
+    dec r14d
+.idx_ok:
+    imul r14d, DIR_ENTRY_SIZE
+    lea r15, [r12 + P_ENTRIES_BUF_OFF + r14]
+
+    ; copy template
+    lea rsi, [rel fm_dbg_template]
+    lea rdi, [rel fm_debug_line_buf]
+.tpl_cp:
+    mov al, [rsi]
+    mov [rdi], al
+    inc rsi
+    inc rdi
+    test al, al
+    jnz .tpl_cp
+
+    ; write len as 5 decimal digits at offsets [8..12]
+    mov eax, [r15 + DE_NAME_LEN_OFF]
+    cmp eax, 0
+    jge .len_nonneg
+    xor eax, eax
+.len_nonneg:
+    cmp eax, 99999
+    jle .len_cap_ok
+    mov eax, 99999
+.len_cap_ok:
+    lea rsi, [rel fm_debug_line_buf]
+    mov r10d, 12
+.len_loop:
+    xor edx, edx
+    mov ecx, 10
+    div ecx
+    add dl, '0'
+    mov [rsi + r10], dl
+    dec r10d
+    cmp r10d, 8
+    jge .len_loop
+
+    ; write first 8 bytes as hex at offsets 16,19,22,...
+    mov r11d, [r15 + DE_NAME_LEN_OFF]
+    cmp r11d, 0
+    jge .b_len_nonneg
+    xor r11d, r11d
+.b_len_nonneg:
+    cmp r11d, 8
+    jle .b_len_ok
+    mov r11d, 8
+.b_len_ok:
+    lea rsi, [rel fm_debug_line_buf]
+    xor r10d, r10d
+.byte_loop:
+    cmp r10d, 8
+    jge .done
+    mov ecx, r10d
+    lea ecx, [rcx + rcx*2]
+    add ecx, 16
+    cmp r10d, r11d
+    jl .byte_have
+    mov byte [rsi + rcx], '-'
+    mov byte [rsi + rcx + 1], '-'
+    jmp .byte_next
+.byte_have:
+    movzx eax, byte [r15 + DE_NAME_OFF + r10]
+    mov edx, eax
+    shr eax, 4
+    and edx, 0x0F
+    mov r8b, [rel fm_hex_digits + rax]
+    mov r9b, [rel fm_hex_digits + rdx]
+    mov [rsi + rcx], r8b
+    mov [rsi + rcx + 1], r9b
+.byte_next:
+    inc r10d
+    jmp .byte_loop
+
+.done:
+    lea rdi, [rel fm_debug_line_buf]
+    call fm_cstr_len
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    pop rbx
+    ret
+
+.no_entry:
+    mov rdi, fm_dbg_no_entry
+    lea rsi, [rel fm_debug_line_buf]
+    mov edx, 96
+    call fm_copy_cstr
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    pop rbx
     ret
 
 fm_connect_open:
@@ -1620,8 +1742,8 @@ fm_render:
 .fb_left_utf8_scan:
     test r10d, r10d
     jz .fb_left_trunc_ascii
-    mov r11b, [rax]
-    test r11b, 0x80
+    mov al, [rax]
+    test al, 0x80
     jnz .fb_left_len_cap
     inc rax
     dec r10d
@@ -1794,8 +1916,8 @@ fm_render:
 .fb_right_utf8_scan:
     test r10d, r10d
     jz .fb_right_trunc_ascii
-    mov r11b, [rax]
-    test r11b, 0x80
+    mov al, [rax]
+    test al, 0x80
     jnz .fb_right_len_cap
     inc rax
     dec r10d
@@ -1853,6 +1975,20 @@ fm_render:
     inc dword [rsp + 8]
     jmp .fb_right_rows_loop
 .fb_rows_done:
+    ; Runtime diagnostics for selected active entry:
+    ; shows source len and first 8 bytes in hex.
+    mov rdi, rbx
+    call fm_build_debug_line_active
+    cmp eax, 1
+    jl .fb_dbg_done
+    mov edi, 12
+    mov esi, [r12 + CV_HEIGHT_OFF]
+    sub esi, 16
+    lea rdx, [rel fm_debug_line_buf]
+    mov ecx, eax
+    mov r8d, 0xFF7EDB8A
+    call window_draw_text_overlay
+.fb_dbg_done:
     jmp .out
 
     mov rax, [rbx + FM_SPLIT_PANE_OFF]

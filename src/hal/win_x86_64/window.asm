@@ -877,10 +877,10 @@ window_draw_text_overlay:
     mov rdx, rbx
     mov r8, r12
     mov r9, r14
-    sub rsp, 48
+    sub rsp, 40
     mov dword [rsp + 32], r15d
     call rax
-    add rsp, 48
+    add rsp, 40
     xor eax, eax
     pop r15
     pop r14
