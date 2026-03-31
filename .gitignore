@@ -27,3 +27,5 @@ Thumbs.db
 # Debug
 /core
 *.dSYM/
+debug.log
+myeasylog.log
