@@ -1,36 +1,48 @@
 # Security Policy
 
-## Supported Versions
+Aura Shell is early-stage systems software. Please report security issues responsibly.
 
-| Version | Supported |
+## Supported Branch
+
+| Branch | Supported |
 |---|---|
-| `main` | ✅ |
+| `main` | Yes |
 
-## Reporting a Vulnerability
+## How to Report
 
-Please **do not** open public issues for security vulnerabilities.
+Do **not** open a public issue for a suspected vulnerability.
 
-Instead, report vulnerabilities privately by email:
+Use a private maintainer contact channel available in this repository (private security report/email configured by maintainers). If no private channel is currently configured, open a minimal public issue without exploit details and request a private handoff.
 
-- `security@aurashell.dev` *(placeholder security inbox)*
+## What to Include
 
-Expected response time: **within 72 hours**.
+- commit/branch tested,
+- impacted platform (Linux/Windows) and architecture,
+- reproduction steps,
+- expected vs actual behavior,
+- impact assessment,
+- proof-of-concept details (if safe to share privately),
+- logs/crash traces/offsets.
 
-Please include:
+## Focus Areas
 
-- affected version, branch, or commit
-- reproduction steps or proof-of-concept
-- potential impact and severity assessment
-- relevant logs, traces, or crash data
+Reports are especially valuable for:
 
-We appreciate responsible disclosure. Security researchers who report valid findings may be acknowledged in
-`CHANGELOG` (with permission).
+- memory corruption or out-of-bounds behavior,
+- ABI misuse that can produce control-flow instability,
+- parser/input handling issues with untrusted data,
+- plugin boundary and privilege model weaknesses,
+- file parsing flaws (including image/asset pipelines).
 
-## Scope
+## Disclosure Process
 
-We are especially interested in reports related to:
+- We aim to acknowledge reports quickly.
+- We may ask for additional validation details.
+- We will coordinate disclosure timing after a fix lands.
 
-- memory corruption in allocator or memory-management paths
-- buffer overflows in rendering pipelines (including fonts and PNG handling)
-- privilege escalation through plugin interfaces
-- Wayland protocol violations that can compromise stability or safety
+## Current Security TODOs
+
+- Define and publish a canonical private reporting address.
+- Add a `SECURITY_CONTACT` section to project metadata.
+- Document supported-version policy once release channels exist.
+- Add security regression checks for high-risk parsing paths.

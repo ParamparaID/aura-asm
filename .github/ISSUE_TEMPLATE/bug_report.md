@@ -6,34 +6,44 @@ labels: bug
 assignees: ''
 ---
 
-## Describe the bug
+## Summary
 
-A clear and concise description of what the bug is.
+Clear, concise description of the bug.
 
-## To Reproduce
+## Reproduction Steps
 
-Steps to reproduce the behavior:
-
-1. Go to `...`
-2. Run `...`
-3. Perform `...`
-4. See error
+1.
+2.
+3.
 
 ## Expected behavior
 
-A clear and concise description of what you expected to happen.
+What should happen.
+
+## Actual behavior
+
+What actually happens.
 
 ## Environment
 
 - OS:
-- Wayland compositor:
+- Architecture:
+- Build/toolchain details:
 - NASM version:
-- CPU architecture:
+- Runtime mode (Linux/Windows path):
 
-## Screenshots
+## Logs / traces / crash data
 
-If applicable, add screenshots to help explain your problem.
+Paste relevant output. For crash cases include addresses/offsets if available.
+
+## Regression check
+
+- [ ] This worked before
+- [ ] I know the last working commit
+- [ ] Not sure
+
+If known, provide the last working commit/hash:
 
 ## Additional context
 
-Add any other context here, such as logs, trace output, or `strace` snippets.
+Anything else that helps reproduce or triage quickly.

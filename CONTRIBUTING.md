@@ -1,146 +1,113 @@
 # Contributing to Aura Shell
 
-## Welcome
+Thank you for helping move Aura Shell forward. The project is promising and real, but still unstable in several areas. This guide is optimized for practical contribution in the current state.
 
-Thank you for your interest in Aura Shell.
+## Start Here
 
-The project is still in an early phase, and that is exactly why contributions matter so much right now. If you join
-at this stage, your ideas and code can directly shape architecture, module boundaries, and long-term developer
-experience.
+Before opening a PR, read these files:
+
+- [`README.md`](README.md)
+- [`docs/development-status.md`](docs/development-status.md)
+- [`docs/roadmap.md`](docs/roadmap.md)
+- [`docs/architecture.md`](docs/architecture.md)
+
+## Current Priority Tracks
+
+If you want high-impact work, choose one of these:
+
+1. **Windows FM stability and Unicode rendering**
+2. **Win64 ABI correctness hardening**
+3. **VFS correctness and path/name edge cases**
+4. **Automated tests for platform-specific regressions**
+5. **Documentation and onboarding quality**
 
 ## Ways to Contribute
 
-- 🐛 **Report bugs** - Open a bug report in [GitHub Issues](https://github.com/OWNER/aura-shell/issues).
-- 💡 **Suggest features** - Start a discussion in
-  [GitHub Discussions](https://github.com/OWNER/aura-shell/discussions).
-- 📝 **Improve documentation** - Update `docs/`, `README.md`, or code comments.
-- 🧪 **Write tests** - Add test coverage in `tests/unit/` and `tests/integration/`.
-- 🔧 **Write code** - Implement asm modules, improve existing features, or fix defects.
-- 🎨 **Design themes** - Create `.auratheme` files for the visual system.
-- 🔌 **Create plugins** - Plugin development opens after Phase 5 milestones.
+- Report reproducible bugs (prefer one bug per issue).
+- Propose implementation-focused feature requests.
+- Submit assembly, tests, tooling, or docs improvements.
+- Improve diagnostics and reproducible debug workflows.
 
-## Development Setup
+## Development Environment
 
-### System requirements
+### Linux path
 
-- Linux x86_64
-- Wayland compositor (for example: Sway, GNOME, KDE)
-
-### Tooling
-
-- `nasm >= 2.15`
-- `binutils` (`ld`)
+- `nasm`
+- `ld` (binutils)
 - `make`
 - `git`
 
-Optional but strongly recommended:
-
-- `gdb` for debugging
-- `strace` for syscall tracing
-- `weston` as a reference/test Wayland compositor
-
-### Setup steps
+Run:
 
 ```bash
-git clone https://github.com/<your-username>/aura-shell.git
-cd aura-shell
 make
 make test
 ```
 
-## Code Style Guide
+### Windows path
 
-- Use NASM syntax (Intel style).
-- Start every file with a header comment including file name, purpose, author, and date.
-- Mark all public functions with `global` and include parameter/return documentation.
-- Use snake_case naming: `module_function_name`.
-  - Examples: `canvas_fill_rect`, `hal_write`, `ring_push`.
-- Document register usage before each function.
-- Keep sections cleanly separated:
-  - `.text` for executable code
-  - `.data` for initialized data
-  - `.rodata` for constants
-  - `.bss` for uninitialized data
-- Use 4 spaces for instruction indentation (no tabs). Labels should have no indentation.
-- Keep line length at or below 100 characters.
-- Write comments in English.
+Windows work commonly uses NASM + MSVC linker toolchain components. If your change is Win32/Win64-specific, include:
 
-Example of a well-documented function:
+- exact OS version,
+- toolchain versions,
+- full reproduction steps,
+- crash offset or trace, if available.
 
-```nasm
-; canvas_fill_rect - Fill a rectangle with a solid color
-;
-; Parameters:
-;   rdi - pointer to Canvas struct
-;   esi - x coordinate (top-left)
-;   edx - y coordinate (top-left)
-;   ecx - width
-;   r8d - height
-;   r9d - color (ARGB32)
-;
-; Returns:
-;   None
-;
-; Clobbers:
-;   rax, rcx, rdx, r10, r11
-global canvas_fill_rect
-canvas_fill_rect:
-    push rbp
-    mov rbp, rsp
-    ; ... implementation ...
-    pop rbp
-    ret
-```
+## Assembly Rules That Matter Most
 
-## Commit Messages
+- Follow NASM Intel syntax.
+- Document non-trivial routines (params, returns, clobbers).
+- Preserve non-volatile registers correctly.
+- Keep 16-byte stack alignment before every call.
+- Reserve required Win64 shadow space for Windows ABI calls.
+- Keep HAL/platform wrappers separated from module logic.
 
-Use Conventional Commits:
+For Windows calling-convention-sensitive files (`src/hal/win_x86_64/*`, parts of `src/fm/*`), correctness beats micro-optimizations.
 
-```text
-type(scope): short description
+## Testing Expectations
 
-Longer description if needed.
-```
+- Add or update tests when behavior changes.
+- Prefer minimal, deterministic tests over broad flaky coverage.
+- For FM/VFS fixes, include fixture-driven unit coverage if possible.
+- For Windows bug fixes, include a short manual test protocol in the PR.
 
-### Types
+## Pull Request Checklist
 
-`feat`, `fix`, `docs`, `test`, `refactor`, `style`, `build`
+- Scope is focused and reviewable.
+- Commit messages are clear and meaningful.
+- Documentation is updated for behavior/contract changes.
+- New TODOs are added where work is intentionally deferred.
+- Test evidence is included (automated and/or manual steps).
 
-### Scopes
+Use the PR template in `.github/PULL_REQUEST_TEMPLATE.md`.
 
-`hal`, `core`, `shell`, `canvas`, `gui`, `fm`, `plugins`, `aurascript`
+## Detailed TODOs for Contributors
 
-### Examples
+### TODO: Windows text rendering stabilization
 
-- `feat(hal): add clock_gettime syscall wrapper`
-- `fix(canvas): clipping overflow in fill_rect`
-- `test(core): add stress test for slab allocator`
-- `docs: update roadmap in README`
+- Add a runtime diagnostic mode that prints selected entry length and first bytes/UTF-16 units.
+- Compare bytes at VFS output, FM truncation buffer, and draw call boundary.
+- Build a safe, isolated UTF-8 -> UTF-16 path with strict ABI checks.
+- Add regression tests for non-ASCII filenames.
 
-## Pull Request Process
+### TODO: FM resilience
 
-1. Fork the repository.
-2. Create a feature branch from `main`: `git checkout -b feat/my-feature`.
-3. Write code and tests.
-4. Ensure `make test` passes.
-5. Commit with a valid Conventional Commit message.
-6. Open a PR and explain what changed, why it changed, and how to test it.
-7. A maintainer reviews the PR.
-8. After approval, the PR is squash-merged into `main`.
+- Add guardrails for panel state transitions.
+- Expand parent-directory/root-path test coverage.
+- Verify behavior on deep paths and very long filenames.
 
-## Architecture Decision Records
+### TODO: Docs and process
 
-Major architecture decisions are discussed in GitHub Discussions under the **Architecture** category before
-implementation. This includes decisions like introducing new modules, changing ABI contracts, or adding new syscall
-strategies.
+- Keep `docs/development-status.md` synchronized with real behavior.
+- Keep `docs/roadmap.md` updated as tracks are completed or split.
+- Convert ad-hoc debugging notes into stable docs or issue records.
 
-## Testing
+## Communication
 
-- Every new `.asm` module should include corresponding tests.
-- Unit test naming convention: `tests/unit/test_<module>.asm`.
-- Run `make test` before opening a PR.
-- GUI changes should include screenshot-style rendering tests (buffer render + reference comparison) when applicable.
+- Use issue discussions for implementation detail and trade-offs.
+- Keep reports factual and reproducible.
+- Mention assumptions explicitly.
 
 ## Code of Conduct
 
-Please read [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md) before contributing.
+By participating, you agree to [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md).

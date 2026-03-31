@@ -1,23 +1,50 @@
-## What does this PR do?
+## What changed
 
-Provide a short description of the change.
+Describe the change in 3-6 concise bullets.
 
-## Related Issue
+## Why
 
-`Closes #XX` or `Related to #XX`
+What problem does this solve? What regression or gap does it address?
 
-## Type of change
+## Scope
 
 - [ ] Bug fix
-- [ ] New feature
-- [ ] Breaking change
-- [ ] Documentation update
+- [ ] Feature
+- [ ] Refactor
+- [ ] Docs
 - [ ] Tests
+- [ ] Platform-specific change (Linux/Windows)
 
-## Checklist
+## Validation
 
-- [ ] Code follows the project style guide.
-- [ ] `make test` passes.
-- [ ] New tests added for new functionality.
-- [ ] Documentation updated.
-- [ ] Commit messages follow Conventional Commits format.
+List exactly how this was tested.
+
+### Automated
+
+- [ ] `make test`
+- [ ] relevant unit tests added/updated
+
+### Manual
+
+Provide reproducible manual steps and observed result.
+
+## Risk and rollback
+
+- Risk level: Low / Medium / High
+- If high or medium, what is the rollback plan?
+
+## ABI/low-level checklist (required for Win64 call-site changes)
+
+- [ ] Stack is 16-byte aligned at every `call`
+- [ ] Required shadow space is reserved
+- [ ] Non-volatile registers are preserved
+- [ ] Call arguments are passed per ABI contract
+
+## Docs and TODO updates
+
+- [ ] Updated relevant docs (`README`, status, roadmap, architecture, or contributing)
+- [ ] Added TODO notes for deferred follow-up work
+
+## Related issue
+
+`Closes #...` or `Related #...`

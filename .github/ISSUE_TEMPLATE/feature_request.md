@@ -6,22 +6,36 @@ labels: enhancement
 assignees: ''
 ---
 
-## Problem
+## Problem statement
 
-What problem does this feature solve?
+What concrete problem does this solve?
 
 ## Proposed Solution
 
-Describe the solution and how it should work from a user and implementation perspective.
+Describe expected behavior and implementation direction.
 
 ## Alternatives Considered
 
-Describe alternatives you considered and why they were not selected.
+What alternatives were considered and why not chosen?
 
-## Phase
+## Impacted areas
 
-Which roadmap phase does this belong to? (Phase 0-6 or a new proposed phase)
+- [ ] shell
+- [ ] gui/compositor
+- [ ] fm/vfs
+- [ ] hal-linux
+- [ ] hal-windows
+- [ ] tests/tooling
+- [ ] docs
+
+## Acceptance criteria
+
+Define minimal conditions for considering this complete.
+
+## Risks and trade-offs
+
+Any complexity, compatibility, or stability risks?
 
 ## Additional context
 
-Add any extra context, examples, links, mockups, or references.
+Links, examples, mockups, references.
