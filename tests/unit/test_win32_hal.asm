@@ -136,6 +136,7 @@ _start:
     lea rdi, [rel cmdline]
     xor rsi, rsi
     xor rdx, rdx
+    xor rcx, rcx
     call hal_spawn
     cmp rax, -1
     je fail

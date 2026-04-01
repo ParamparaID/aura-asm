@@ -15,6 +15,7 @@ section .data
     win32_MultiByteToWideChar        dq 0
     win32_WideCharToMultiByte        dq 0
     win32_ReadFile                   dq 0
+    win32_GetLastError               dq 0
     win32_WriteFile                  dq 0
     win32_CloseHandle                dq 0
     win32_FindFirstFileA             dq 0
@@ -40,6 +41,7 @@ section .data
     win32_GetModuleFileNameA         dq 0
     win32_GetModuleHandleA           dq 0
     win32_SetStdHandle               dq 0
+    win32_SetHandleInformation       dq 0
     win32_AcquireSRWLockExclusive    dq 0
     win32_ReleaseSRWLockExclusive    dq 0
     win32_InterlockedIncrement64     dq 0
@@ -110,6 +112,7 @@ section .data
     s_MultiByteToWideChar            db "MultiByteToWideChar",0
     s_WideCharToMultiByte            db "WideCharToMultiByte",0
     s_ReadFile                       db "ReadFile",0
+    s_GetLastError                   db "GetLastError",0
     s_WriteFile                      db "WriteFile",0
     s_CloseHandle                    db "CloseHandle",0
     s_FindFirstFileA                 db "FindFirstFileA",0
@@ -135,6 +138,7 @@ section .data
     s_GetModuleFileNameA             db "GetModuleFileNameA",0
     s_GetModuleHandleA               db "GetModuleHandleA",0
     s_SetStdHandle                   db "SetStdHandle",0
+    s_SetHandleInformation           db "SetHandleInformation",0
     s_AcquireSRWLockExclusive        db "AcquireSRWLockExclusive",0
     s_ReleaseSRWLockExclusive        db "ReleaseSRWLockExclusive",0
     s_InterlockedIncrement64         db "InterlockedIncrement64",0
@@ -212,6 +216,7 @@ global win32_CreateFileA
 global win32_MultiByteToWideChar
 global win32_WideCharToMultiByte
 global win32_ReadFile
+global win32_GetLastError
 global win32_WriteFile
 global win32_CloseHandle
 global win32_FindFirstFileA
@@ -237,6 +242,7 @@ global win32_GetCurrentDirectoryA
 global win32_GetModuleFileNameA
 global win32_GetModuleHandleA
 global win32_SetStdHandle
+global win32_SetHandleInformation
 global win32_AcquireSRWLockExclusive
 global win32_ReleaseSRWLockExclusive
 global win32_InterlockedIncrement64
@@ -628,6 +634,8 @@ bootstrap_init:
     mov rdi, [rel win_mod_kernel32]
     lea rsi, [rel s_CreateFileA]
     call boot_getproc
+    test rax, rax
+    jz .fail
     mov [rel win32_CreateFileA], rax
     mov rdi, [rel win_mod_kernel32]
     lea rsi, [rel s_MultiByteToWideChar]
@@ -641,6 +649,10 @@ bootstrap_init:
     lea rsi, [rel s_ReadFile]
     call boot_getproc
     mov [rel win32_ReadFile], rax
+    mov rdi, [rel win_mod_kernel32]
+    lea rsi, [rel s_GetLastError]
+    call boot_getproc
+    mov [rel win32_GetLastError], rax
     mov rdi, [rel win_mod_kernel32]
     lea rsi, [rel s_WriteFile]
     call boot_getproc
@@ -741,6 +753,10 @@ bootstrap_init:
     lea rsi, [rel s_SetStdHandle]
     call boot_getproc
     mov [rel win32_SetStdHandle], rax
+    mov rdi, [rel win_mod_kernel32]
+    lea rsi, [rel s_SetHandleInformation]
+    call boot_getproc
+    mov [rel win32_SetHandleInformation], rax
     mov rdi, [rel win_mod_kernel32]
     lea rsi, [rel s_AcquireSRWLockExclusive]
     call boot_getproc
@@ -989,6 +1005,10 @@ bootstrap_init:
     cmp qword [rel win32_ReadFile], 0
     je .fail
     cmp qword [rel win32_CloseHandle], 0
+    je .fail
+    cmp qword [rel win32_CreatePipe], 0
+    je .fail
+    cmp qword [rel win32_CreateProcessA], 0
     je .fail
 
     mov dword [rel bootstrap_ready], 1

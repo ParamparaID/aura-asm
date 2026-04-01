@@ -7,6 +7,7 @@
 
 ; std handles
 %define INVALID_HANDLE_VALUE      -1
+%define HANDLE_FLAG_INHERIT       0x00000001
 %define STD_INPUT_HANDLE          -10
 %define STD_OUTPUT_HANDLE         -11
 %define STD_ERROR_HANDLE          -12

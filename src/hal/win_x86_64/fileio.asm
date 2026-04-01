@@ -38,12 +38,12 @@ global hal_close
 global hal_getdents64
 
 win_pick_handle:
-    cmp edi, 1
-    je .stdout
-    cmp edi, 2
-    je .stderr
-    cmp edi, 0
+    cmp rdi, 0
     je .stdin
+    cmp rdi, 1
+    je .stdout
+    cmp rdi, 2
+    je .stderr
     mov rax, rdi
     ret
 .stdout:

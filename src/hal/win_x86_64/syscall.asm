@@ -7,9 +7,9 @@ extern win32_CloseHandle
 extern win32_VirtualFree
 extern win32_ExitProcess
 extern win32_GetStdHandle
-extern win32_CreatePipe
-extern win32_CreateProcessA
-extern win32_GetExitCodeProcess
+extern hal_spawn
+extern hal_pipe
+extern hal_waitpid
 extern win32_GetEnvironmentVariableA
 extern win32_SetStdHandle
 extern win32_WaitForSingleObject
@@ -29,10 +29,7 @@ global hal_getenv
 global hal_getenv_raw
 global hal_fork
 global hal_execve
-global hal_pipe
 global hal_dup2
-global hal_spawn
-global hal_waitpid
 global hal_socket
 global hal_connect
 global hal_bind
@@ -62,8 +59,6 @@ global hal_tcsetpgrp
 global global_envp
 
 section .bss
-    win_spawn_si                     resb STARTUPINFOA_SIZE
-    win_spawn_pi                     resb PROCESS_INFORMATION_SIZE
     global_envp                      resq 1
 
 section .text
@@ -109,133 +104,8 @@ hal_fork:
     mov eax, -1
     ret
 
-hal_spawn:
-    ; (cmdline, stdin_h, stdout_h) -> process handle or -1
-    ; cmdline must be mutable buffer for CreateProcessA.
-    push rdi
-    push rsi
-    push rbx
-    push r12
-    push r13
-    mov rbx, rdi                     ; cmdline
-    mov r12, rsi                     ; stdin
-    mov r13, rdx                     ; stdout
-    call win_bootstrap_ensure
-    test eax, eax
-    js .fail
-
-    test r12, r12
-    jnz .have_stdin
-    mov ecx, STD_INPUT_HANDLE
-    sub rsp, 32
-    mov rax, [rel win32_GetStdHandle]
-    call rax
-    add rsp, 32
-    mov r12, rax
-.have_stdin:
-    test r13, r13
-    jnz .have_stdout
-    mov ecx, STD_OUTPUT_HANDLE
-    sub rsp, 32
-    mov rax, [rel win32_GetStdHandle]
-    call rax
-    add rsp, 32
-    mov r13, rax
-.have_stdout:
-    ; zero static STARTUPINFOA/PROCESS_INFORMATION buffers
-    lea rdi, [rel win_spawn_si]
-    mov ecx, STARTUPINFOA_SIZE
-    xor eax, eax
-    rep stosb
-    lea rdi, [rel win_spawn_pi]
-    mov ecx, PROCESS_INFORMATION_SIZE
-    xor eax, eax
-    rep stosb
-    mov dword [rel win_spawn_si + 0], STARTUPINFOA_SIZE
-    mov dword [rel win_spawn_si + STARTUPINFOA_DWFLAGS_OFF], STARTF_USESTDHANDLES
-    mov [rel win_spawn_si + STARTUPINFOA_HSTDIN_OFF], r12
-    mov [rel win_spawn_si + STARTUPINFOA_HSTDOUT_OFF], r13
-    mov [rel win_spawn_si + STARTUPINFOA_HSTDERR_OFF], r13
-
-    ; BOOL CreateProcessA(lpAppName, lpCmdLine, lpProcAttr, lpThreadAttr,
-    ;   bInheritHandles, dwCreationFlags, lpEnv, lpCwd, lpStartupInfo, lpProcessInfo)
-    sub rsp, 96
-    mov qword [rsp + 32], 1          ; bInheritHandles
-    mov qword [rsp + 40], 0          ; dwCreationFlags
-    mov qword [rsp + 48], 0          ; lpEnvironment
-    mov qword [rsp + 56], 0          ; lpCurrentDirectory
-    lea rax, [rel win_spawn_si]      ; STARTUPINFOA
-    mov [rsp + 64], rax              ; 9th arg
-    lea rax, [rel win_spawn_pi]      ; PROCESS_INFORMATION
-    mov [rsp + 72], rax              ; 10th arg
-    mov rcx, 0
-    mov rdx, rbx
-    mov r8, 0
-    mov r9, 0
-    mov rax, [rel win32_CreateProcessA]
-    call rax
-    test eax, eax
-    jz .spawn_fail
-
-    ; close thread handle, return process handle
-    mov rcx, [rel win_spawn_pi + PROCINFO_HTHREAD_OFF]
-    mov rax, [rel win32_CloseHandle]
-    sub rsp, 32
-    call rax
-    add rsp, 32
-    mov rax, [rel win_spawn_pi + PROCINFO_HPROCESS_OFF]
-    add rsp, 96
-    pop r13
-    pop r12
-    pop rbx
-    pop rsi
-    pop rdi
-    ret
-
-.spawn_fail:
-    add rsp, 96
-.fail:
-    mov rax, -1
-    pop r13
-    pop r12
-    pop rbx
-    pop rsi
-    pop rdi
-    ret
-
 hal_execve:
     ; (path, argv, envp) -> -1 (use hal_spawn in Windows path)
-    mov eax, -1
-    ret
-
-hal_pipe:
-    ; (ptr_to_two_handles) -> 0/-1
-    push rdi
-    push rsi
-    call win_bootstrap_ensure
-    test eax, eax
-    js .fail
-    ; SECURITY_ATTRIBUTES with bInheritHandle=TRUE
-    sub rsp, 104
-    mov dword [rsp + 32], 24           ; nLength
-    mov qword [rsp + 40], 0            ; lpSecurityDescriptor
-    mov dword [rsp + 48], 1            ; bInheritHandle
-    mov rcx, rdi
-    lea rdx, [rdi + 8]
-    lea r8, [rsp + 32]
-    mov r9d, 0
-    mov rax, [rel win32_CreatePipe]
-    call rax
-    add rsp, 104
-    test eax, eax
-    jz .fail
-    pop rsi
-    pop rdi
-    xor eax, eax
-    ret
-.fail:
-    pop rsi
-    pop rdi
     mov eax, -1
     ret
 
@@ -277,77 +147,6 @@ hal_dup2:
     pop rsi
     pop rdi
     mov eax, -1
-    ret
-
-hal_waitpid:
-    ; (process_handle, status_ptr, options_ignored) -> 0/-1
-    ; Windows HANDLE wait + exit code retrieval.
-    push rdi
-    push rsi
-    push rbx
-    push r12
-    mov rbx, rdi                      ; process handle
-    mov r12, rsi                      ; status_ptr (optional)
-    test rbx, rbx
-    jz .fail
-    call win_bootstrap_ensure
-    test eax, eax
-    js .fail
-
-    ; WaitForSingleObject(process, INFINITE)
-    mov rcx, rbx
-    mov edx, 0xFFFFFFFF
-    sub rsp, 40
-    mov rax, [rel win32_WaitForSingleObject]
-    call rax
-    add rsp, 40
-    cmp eax, 0xFFFFFFFF               ; WAIT_FAILED
-    je .close_fail
-
-    ; GetExitCodeProcess(process, &code)
-    sub rsp, 48
-    mov rcx, rbx
-    lea rdx, [rsp + 32]
-    mov rax, [rel win32_GetExitCodeProcess]
-    call rax
-    test eax, eax
-    jz .getcode_fail
-
-    test r12, r12
-    jz .close_ok
-    mov eax, [rsp + 32]
-    mov [r12], eax
-
-.close_ok:
-    add rsp, 48
-    mov rcx, rbx
-    sub rsp, 40
-    mov rax, [rel win32_CloseHandle]
-    call rax
-    add rsp, 40
-    test eax, eax
-    jz .fail
-    xor eax, eax
-    pop r12
-    pop rbx
-    pop rsi
-    pop rdi
-    ret
-
-.getcode_fail:
-    add rsp, 48
-.close_fail:
-    mov rcx, rbx
-    sub rsp, 40
-    mov rax, [rel win32_CloseHandle]
-    call rax
-    add rsp, 40
-.fail:
-    mov eax, -1
-    pop r12
-    pop rbx
-    pop rsi
-    pop rdi
     ret
 
 hal_socket:

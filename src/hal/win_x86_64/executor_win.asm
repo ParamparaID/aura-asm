@@ -4,6 +4,7 @@
 extern hal_pipe
 extern hal_spawn
 extern hal_waitpid
+extern hal_spawn_wait
 extern hal_read
 extern hal_close
 extern hal_write
@@ -18,31 +19,9 @@ section .bss
     reg_cmd_buf      resb 1024
 
 section .text
-global hal_spawn_wait
 global exec_pipeline_win
 global win_capture_cmd_output
 global shell_replacement_register
-
-hal_spawn_wait:
-    ; (process_handle) -> exit_code or -1
-    push rbx
-    mov rbx, rdi
-    sub rsp, 16
-    mov rdi, rbx
-    lea rsi, [rsp]
-    xor edx, edx
-    call hal_waitpid
-    cmp eax, 0
-    jne .fail
-    mov eax, [rsp]
-    add rsp, 16
-    pop rbx
-    ret
-.fail:
-    add rsp, 16
-    mov eax, -1
-    pop rbx
-    ret
 
 exec_pipeline_win:
     ; (cmd_ptr_array rdi, count esi) -> 0/-1
@@ -64,6 +43,7 @@ exec_pipeline_win:
     jz .fail
     xor rsi, rsi
     xor rdx, rdx
+    xor rcx, rcx
     call hal_spawn
     cmp rax, -1
     je .fail
@@ -112,6 +92,7 @@ win_capture_cmd_output:
     mov rdi, rbx
     xor rsi, rsi
     mov rdx, [rsp + 8]
+    mov rcx, rdx
     call hal_spawn
     cmp rax, -1
     je .cleanup_fail
@@ -213,6 +194,7 @@ shell_replacement_register:
     lea rdi, [rel reg_cmd_buf]
     xor rsi, rsi
     xor rdx, rdx
+    xor rcx, rcx
     call hal_spawn
     cmp rax, -1
     je .fail

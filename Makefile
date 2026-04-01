@@ -84,6 +84,8 @@ TEST_WIN64_HAL_CORE_OBJ = $(WIN_BUILD_DIR)/test_win64_hal_core.obj
 TEST_WIN64_HAL_CORE_BIN = $(WIN_BUILD_DIR)/test_win64_hal_core.exe
 TEST_WIN64_HAL_FILEIO_OBJ = $(WIN_BUILD_DIR)/test_win64_hal_fileio.obj
 TEST_WIN64_HAL_FILEIO_BIN = $(WIN_BUILD_DIR)/test_win64_hal_fileio.exe
+TEST_WIN64_HAL_PROCESS_OBJ = $(WIN_BUILD_DIR)/test_win64_hal_process.obj
+TEST_WIN64_HAL_PROCESS_BIN = $(WIN_BUILD_DIR)/test_win64_hal_process.exe
 # Windows PE tests: MSVC link.exe (run from "x64 Native Tools" or after vcvars64.bat), or MinGW.
 ifeq ($(OS),Windows_NT)
 WIN_PE_LINKER ?= msvc
@@ -109,6 +111,7 @@ WIN_THREADS_OBJ = $(WIN_BUILD_DIR)/threads.obj
 WIN_WINDOW_OBJ = $(WIN_BUILD_DIR)/window.obj
 WIN_GDI_OBJ = $(WIN_BUILD_DIR)/gdi.obj
 WIN_EXECUTOR_WIN_OBJ = $(WIN_BUILD_DIR)/executor_win.obj
+WIN_PROCESS_OBJ = $(WIN_BUILD_DIR)/process.obj
 ARM_HAL_SYSCALL_OBJ = $(ARM_BUILD_DIR)/hal_syscall.o
 ARM_HAL_SYNC_OBJ = $(ARM_BUILD_DIR)/hal_sync.o
 ARM_HAL_THREADS_OBJ = $(ARM_BUILD_DIR)/hal_threads.o
@@ -285,7 +288,7 @@ TEST_INPUT_ROUTING_OBJ = $(BUILD_DIR)/test_input_routing.o
 TEST_INPUT_ROUTING_BIN = $(BUILD_DIR)/test_input_routing
 WIDGET_TERMINAL_STUBS_OBJ = $(BUILD_DIR)/widget_terminal_stubs.o
 
-.PHONY: all test run demo clean test_nested_smoke test_nested_smoke_ci win_hal_check win_step60a_check test_win64_abi win_step60b_check test_win64_hal_core win_step60c_check test_win64_hal_fileio win_step61_check arm64_hal_check arm64_step63_check test_arm64_hal test_arm64_canvas test_arm64_codegen aura_shell_win
+.PHONY: all test run demo clean test_nested_smoke test_nested_smoke_ci win_hal_check win_step60a_check test_win64_abi win_step60b_check test_win64_hal_core win_step60c_check test_win64_hal_fileio win_step60d_check test_win64_hal_process win_step61_check arm64_hal_check arm64_step63_check test_arm64_hal test_arm64_canvas test_arm64_codegen aura_shell_win
 
 # Windows native shell (MSVC + NASM): produces aura_shell_win.exe in repo root
 ifeq ($(OS),Windows_NT)
@@ -443,7 +446,7 @@ $(WIN_BUILD_DIR):
 $(ARM_BUILD_DIR):
 	mkdir -p $(ARM_BUILD_DIR)
 
-win_hal_check: $(WIN_BOOTSTRAP_OBJ) $(WIN_SYSCALL_OBJ) $(WIN_ABI_OBJ) $(WIN_MEMORY_OBJ) $(WIN_TIME_OBJ) $(WIN_THREADS_OBJ) $(TEST_WIN32_HAL_OBJ)
+win_hal_check: $(WIN_BOOTSTRAP_OBJ) $(WIN_SYSCALL_OBJ) $(WIN_FILEIO_OBJ) $(WIN_PROCESS_OBJ) $(WIN_ABI_OBJ) $(WIN_MEMORY_OBJ) $(WIN_TIME_OBJ) $(WIN_THREADS_OBJ) $(TEST_WIN32_HAL_OBJ)
 	@echo "win_x86_64 HAL objects assembled successfully."
 
 win_step60a_check: $(TEST_WIN64_ABI_BIN)
@@ -464,7 +467,13 @@ win_step60c_check: $(TEST_WIN64_HAL_FILEIO_BIN)
 test_win64_hal_fileio: $(TEST_WIN64_HAL_FILEIO_BIN)
 	@echo "Run on Windows (or Wine): $(TEST_WIN64_HAL_FILEIO_BIN)"
 
-win_step61_check: $(WIN_BOOTSTRAP_OBJ) $(WIN_SYSCALL_OBJ) $(WIN_FILEIO_OBJ) $(WIN_MEMORY_OBJ) $(WIN_TIME_OBJ) $(WIN_THREADS_OBJ) $(WIN_ABI_OBJ) $(WIN_WINDOW_OBJ) $(WIN_GDI_OBJ) $(WIN_EXECUTOR_WIN_OBJ) $(TEST_WIN32_HAL_OBJ) $(TEST_WIN32_WINDOW_OBJ)
+win_step60d_check: $(TEST_WIN64_HAL_PROCESS_BIN)
+	@echo "STEP 60D: $(TEST_WIN64_HAL_PROCESS_BIN) linked. Run on Windows to verify output."
+
+test_win64_hal_process: $(TEST_WIN64_HAL_PROCESS_BIN)
+	@echo "Run on Windows (or Wine): $(TEST_WIN64_HAL_PROCESS_BIN)"
+
+win_step61_check: $(WIN_BOOTSTRAP_OBJ) $(WIN_SYSCALL_OBJ) $(WIN_FILEIO_OBJ) $(WIN_PROCESS_OBJ) $(WIN_MEMORY_OBJ) $(WIN_TIME_OBJ) $(WIN_THREADS_OBJ) $(WIN_ABI_OBJ) $(WIN_WINDOW_OBJ) $(WIN_GDI_OBJ) $(WIN_EXECUTOR_WIN_OBJ) $(TEST_WIN32_HAL_OBJ) $(TEST_WIN32_WINDOW_OBJ)
 	@echo "win_x86_64 STEP61 objects assembled successfully."
 
 arm64_hal_check: $(ARM_HAL_SYSCALL_OBJ) $(ARM_HAL_SYNC_OBJ) $(ARM_HAL_THREADS_OBJ) $(TEST_ARM64_HAL_OBJ) $(TEST_ARM64_HAL_BIN)
@@ -1046,6 +1055,9 @@ $(WIN_GDI_OBJ): src/hal/win_x86_64/gdi.asm src/hal/win_x86_64/defs.inc | $(WIN_B
 $(WIN_EXECUTOR_WIN_OBJ): src/hal/win_x86_64/executor_win.asm src/hal/win_x86_64/defs.inc | $(WIN_BUILD_DIR)
 	$(NASM_WIN) $(NASM_WIN_FLAGS) $< -o $@
 
+$(WIN_PROCESS_OBJ): src/hal/win_x86_64/process.asm src/hal/win_x86_64/defs.inc | $(WIN_BUILD_DIR)
+	$(NASM_WIN) $(NASM_WIN_FLAGS) $< -o $@
+
 $(TEST_WIN32_HAL_OBJ): tests/unit/test_win32_hal.asm src/hal/win_x86_64/defs.inc | $(WIN_BUILD_DIR)
 	$(NASM_WIN) $(NASM_WIN_FLAGS) $< -o $@
 
@@ -1085,6 +1097,17 @@ $(TEST_WIN64_HAL_FILEIO_BIN): $(TEST_WIN64_HAL_FILEIO_OBJ) $(WIN_BOOTSTRAP_OBJ) 
 	$(WIN_LINK) $(WIN_PE_LINK_FLAGS) /OUT:$@ $^ $(WIN_PE_LIBS)
 else
 $(TEST_WIN64_HAL_FILEIO_BIN): $(TEST_WIN64_HAL_FILEIO_OBJ) $(WIN_BOOTSTRAP_OBJ) $(WIN_ABI_OBJ) $(WIN_FILEIO_OBJ) $(WIN_SYSCALL_OBJ)
+	$(WIN_LD) $(WIN_LD_FLAGS) -o $@ $^
+endif
+
+$(TEST_WIN64_HAL_PROCESS_OBJ): tests/unit/test_win64_hal_process.asm src/hal/win_x86_64/defs.inc | $(WIN_BUILD_DIR)
+	$(NASM_WIN) $(NASM_WIN_FLAGS) $< -o $@
+
+ifeq ($(WIN_PE_LINKER),msvc)
+$(TEST_WIN64_HAL_PROCESS_BIN): $(TEST_WIN64_HAL_PROCESS_OBJ) $(WIN_BOOTSTRAP_OBJ) $(WIN_ABI_OBJ) $(WIN_FILEIO_OBJ) $(WIN_PROCESS_OBJ)
+	$(WIN_LINK) $(WIN_PE_LINK_FLAGS) /OUT:$@ $^ $(WIN_PE_LIBS)
+else
+$(TEST_WIN64_HAL_PROCESS_BIN): $(TEST_WIN64_HAL_PROCESS_OBJ) $(WIN_BOOTSTRAP_OBJ) $(WIN_ABI_OBJ) $(WIN_FILEIO_OBJ) $(WIN_PROCESS_OBJ)
 	$(WIN_LD) $(WIN_LD_FLAGS) -o $@ $^
 endif
 
