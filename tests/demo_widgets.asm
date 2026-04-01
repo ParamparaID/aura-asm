@@ -1,7 +1,7 @@
 ; demo_widgets.asm — interactive showcase (manual): 1024x768, tokyo-night theme,
 ; full-window REPL terminal, tab bar, scrollable list (inertia), demo button, status bar.
 ; Build: aura-widget-demo (see Makefile target demo).
-%include "src/hal/linux_x86_64/defs.inc"
+%include "src/hal/platform_defs.inc"
 %include "src/gui/widget.inc"
 %include "src/gui/theme.inc"
 %include "src/core/gesture.inc"

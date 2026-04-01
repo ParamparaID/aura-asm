@@ -1,7 +1,7 @@
 ; repl.asm
 ; Minimal Aura Shell REPL for Phase 0
 
-%include "src/hal/linux_x86_64/defs.inc"
+%include "src/hal/platform_defs.inc"
 
 extern arena_alloc
 extern arena_init
@@ -54,6 +54,16 @@ global repl_last_fail_stage
 
 %define MOD_CTRL                        0x02
 
+%ifdef AURA_WIN64
+%define KEY_LEFT                        0x25
+%define KEY_RIGHT                       0x27
+%define KEY_HOME                        0x24
+%define KEY_END                         0x23
+%define KEY_DELETE                      0x2E
+%define KEY_ENTER                       0x0D
+%define KEY_C                           0x43
+%define KEY_L                           0x4C
+%else
 %define KEY_LEFT                        105
 %define KEY_RIGHT                       106
 %define KEY_HOME                        102
@@ -62,6 +72,7 @@ global repl_last_fail_stage
 %define KEY_ENTER                       28
 %define KEY_C                           46
 %define KEY_L                           38
+%endif
 
 %define COLOR_BG                        0xFF1A1B26
 %define COLOR_FG                        0xFFC0CAF5

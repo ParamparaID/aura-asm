@@ -1,5 +1,5 @@
 ; test_plugin_host.asm — STEP 50 plugin host smoke tests
-%include "src/hal/linux_x86_64/defs.inc"
+%include "src/hal/platform_defs.inc"
 
 extern hal_write
 extern hal_exit

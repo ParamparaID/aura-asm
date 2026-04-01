@@ -1,5 +1,5 @@
 ; test_vfs.asm — unit tests for Phase 4 STEP 40
-%include "src/hal/linux_x86_64/defs.inc"
+%include "src/hal/platform_defs.inc"
 %include "src/fm/vfs.inc"
 
 extern hal_write

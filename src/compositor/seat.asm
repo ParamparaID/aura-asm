@@ -1,5 +1,5 @@
 ; seat.asm — wl_seat: bind announcements + get_pointer/get_keyboard/get_touch
-%include "src/hal/linux_x86_64/defs.inc"
+%include "src/hal/platform_defs.inc"
 %include "src/compositor/compositor.inc"
 
 extern proto_send_event

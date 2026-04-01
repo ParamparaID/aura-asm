@@ -1,5 +1,5 @@
 ; file_panel.asm — custom file manager panel widget
-%include "src/hal/linux_x86_64/defs.inc"
+%include "src/hal/platform_defs.inc"
 %include "src/gui/widget.inc"
 %include "src/fm/panel.inc"
 
@@ -13,12 +13,28 @@ extern panel_toggle_mark
 extern panel_mark_all
 extern panel_unmark_all
 
+%ifdef AURA_WIN64
+; Win32 path: window.asm passes virtual-key codes in key events.
+%define KEY_UP                      0x26
+%define KEY_DOWN                    0x28
+%define KEY_HOME                    0x24
+%define KEY_END                     0x23
+%define KEY_ENTER                   0x0D
+%define KEY_BACKSPACE               0x08
+%define KEY_SPACE                   0x20
+%define KEY_TAB                     0x09
+%define KEY_A                       0x41
+%else
 %define KEY_UP                      103
 %define KEY_DOWN                    108
+%define KEY_HOME                    102
+%define KEY_END                     107
 %define KEY_ENTER                   28
 %define KEY_BACKSPACE               14
 %define KEY_SPACE                   57
 %define KEY_TAB                     15
+%define KEY_A                       30
+%endif
 %define INPUT_EVENT_MODIFIERS_OFF   24
 %define MOD_CTRL                    0x02
 

@@ -1,5 +1,5 @@
 ; archive.asm — tar/tar.gz/zip helpers for FM/VFS
-%include "src/hal/linux_x86_64/defs.inc"
+%include "src/hal/platform_defs.inc"
 %include "src/fm/vfs.inc"
 
 extern hal_open

@@ -1,5 +1,5 @@
 ; test_gesture.asm — tap, swipe, long press
-%include "src/hal/linux_x86_64/defs.inc"
+%include "src/hal/platform_defs.inc"
 %include "src/core/gesture.inc"
 
 extern hal_write

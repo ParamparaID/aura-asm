@@ -1,5 +1,5 @@
 ; Plugin registry / marketplace (MVP, local-only core)
-%include "src/hal/linux_x86_64/defs.inc"
+%include "src/hal/platform_defs.inc"
 
 section .text
 global http_get

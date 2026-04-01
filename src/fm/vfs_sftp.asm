@@ -1,5 +1,5 @@
 ; vfs_sftp.asm — SFTP provider over system ssh (MVP)
-%include "src/hal/linux_x86_64/defs.inc"
+%include "src/hal/platform_defs.inc"
 %include "src/fm/vfs.inc"
 
 extern ssh_exec_command

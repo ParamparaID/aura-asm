@@ -1,5 +1,5 @@
 ; test_decorations.asm — decorations/cursor/compositor_render integration
-%include "src/hal/linux_x86_64/defs.inc"
+%include "src/hal/platform_defs.inc"
 %include "src/compositor/compositor.inc"
 %include "src/canvas/canvas.inc"
 

@@ -1,5 +1,5 @@
 ; split_pane.asm — vertical split + draggable divider (children 0=left 1=right)
-%include "src/hal/linux_x86_64/defs.inc"
+%include "src/hal/platform_defs.inc"
 %include "src/gui/widget.inc"
 
 %define MOUSE_LEFT 0x110

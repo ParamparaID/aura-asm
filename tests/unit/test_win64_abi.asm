@@ -30,6 +30,12 @@ msg_fail_null   db "FAIL: NULL function ptr", 13, 10
 msg_fail_null_len equ $ - msg_fail_null
 msg_fail_clobber db "FAIL: callee-saved clobbered", 13, 10
 msg_fail_clobber_len equ $ - msg_fail_clobber
+; 64-bit immediates for cmp (avoid NASM imm32 truncation / warnings)
+mag_rbx  dq 0x1111111111111111
+mag_r12  dq 0x4444444444444444
+mag_r13  dq 0x5555555555555555
+mag_r14  dq 0x6666666666666666
+mag_r15  dq 0x7777777777777777
 
 section .text
 global _start
@@ -107,17 +113,19 @@ _start:
     cmp byte [rax], 0
     je .fail
 
-    ; === Test 6: callee-saved registers after Win32 call ===
-    mov rbx, 0x1111111111111111
-    mov rdi, 0x2222222222222222
-    mov rsi, 0x3333333333333333
-    mov r12, 0x4444444444444444
-    mov r13, 0x5555555555555555
-    mov r14, 0x6666666666666666
-    mov r15, 0x7777777777777777
+    ; === Test 6: callee-saved (rbx,r12–r15); rdi/rsi restored to adapter args ===
+    mov rbx, [rel mag_rbx]
+    mov r12, [rel mag_r12]
+    mov r13, [rel mag_r13]
+    mov r14, [rel mag_r14]
+    mov r15, [rel mag_r15]
+    mov rax, [rel win32_WriteFile]
+    push rax
+    mov rax, [rel stdout_handle]
+    push rax
     sub rsp, 24
-    mov rdi, [rel win32_WriteFile]
-    mov rsi, [rel stdout_handle]
+    mov rdi, [rsp+32]
+    mov rsi, [rsp+24]
     lea rdx, [rel msg_t5_data]
     mov ecx, msg_t5_len
     lea r8, [rsp+16]
@@ -125,21 +133,30 @@ _start:
     call win64_call_5
     add rsp, 24
     test eax, eax
-    jz .fail
-    cmp rbx, 0x1111111111111111
+    jz .fail_t6
+    cmp rdi, [rsp+8]
+    jne .fail_t6_cl
+    cmp rsi, [rsp+0]
+    jne .fail_t6_cl
+    add rsp, 16
+    cmp rbx, [rel mag_rbx]
     jne .fail_clobber
-    cmp rdi, 0x2222222222222222
+    cmp r12, [rel mag_r12]
     jne .fail_clobber
-    cmp rsi, 0x3333333333333333
+    cmp r13, [rel mag_r13]
     jne .fail_clobber
-    cmp r12, 0x4444444444444444
+    cmp r14, [rel mag_r14]
     jne .fail_clobber
-    cmp r13, 0x5555555555555555
+    cmp r15, [rel mag_r15]
     jne .fail_clobber
-    cmp r14, 0x6666666666666666
-    jne .fail_clobber
-    cmp r15, 0x7777777777777777
-    jne .fail_clobber
+    jmp .after_t6
+.fail_t6_cl:
+    add rsp, 16
+    jmp .fail_clobber
+.fail_t6:
+    add rsp, 16
+    jmp .fail
+.after_t6:
 
     ; === ALL PASSED ===
     sub rsp, 24

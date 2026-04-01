@@ -1,5 +1,5 @@
 ; test_widgets.asm — STEP 24 widget system smoke tests
-%include "src/hal/linux_x86_64/defs.inc"
+%include "src/hal/platform_defs.inc"
 %include "src/gui/widget.inc"
 
 extern hal_write

@@ -1,28 +1,19 @@
 ; syscall.asm - Win32 HAL wrappers with SysV-compatible entry ABI
 %include "src/hal/win_x86_64/defs.inc"
 
-extern bootstrap_init
-
 extern win32_CreateFileA
 extern win32_ReadFile
 extern win32_WriteFile
 extern win32_CloseHandle
-extern win32_VirtualAlloc
 extern win32_VirtualFree
 extern win32_ExitProcess
 extern win32_GetStdHandle
-extern win32_QueryPerformanceCounter
-extern win32_QueryPerformanceFrequency
-extern win32_CreateThread
 extern win32_CreatePipe
 extern win32_CreateProcessA
 extern win32_GetExitCodeProcess
 extern win32_GetEnvironmentVariableA
 extern win32_SetStdHandle
 extern win32_WaitForSingleObject
-extern win32_AcquireSRWLockExclusive
-extern win32_ReleaseSRWLockExclusive
-extern win32_InterlockedIncrement64
 extern win32_WSAPoll
 extern win32_Sleep
 extern win32_socket
@@ -31,16 +22,14 @@ extern win32_bind
 extern win32_listen
 extern win32_accept
 extern win32_closesocket
+extern win32_GetCurrentDirectoryA
 
 section .text
 global hal_write
 global hal_read
 global hal_open
 global hal_close
-global hal_mmap
-global hal_munmap
 global hal_exit
-global hal_clock_gettime
 global hal_getenv
 global hal_getenv_raw
 global hal_fork
@@ -57,17 +46,11 @@ global hal_accept4
 global hal_sleep_ms
 global hal_wsapoll
 global hal_event_poll
-global hal_thread_create
-global hal_thread_join
-global hal_mutex_init
-global hal_mutex_lock
-global hal_mutex_unlock
-global hal_mutex_destroy
-global hal_atomic_inc
 global hal_sigaction
 global hal_sigreturn_restorer
 global hal_access
 global hal_chdir
+global hal_getcwd
 global hal_getdents64
 global hal_stat
 global hal_lstat
@@ -82,7 +65,6 @@ global hal_kill
 global hal_getpid
 global hal_tcsetpgrp
 global global_envp
-global hal_mprotect
 
 section .bss
     win_spawn_si                     resb STARTUPINFOA_SIZE
@@ -90,54 +72,8 @@ section .bss
     global_envp                      resq 1
 
 section .text
-win_thread_entry:
-    ; rcx = ctx ptr {fn,arg}
-    ; Preserve all Win64 non-volatile registers because we call SysV code.
-    push rbp
-    push rbx
-    push rdi
-    push rsi
-    push r12
-    push r13
-    push r14
-    push r15
-    mov rbx, rcx
-    mov rax, [rbx]
-    mov rdi, [rbx + 8]
-    call rax
-    ; release temporary thread context allocated in hal_thread_create
-    mov rcx, rbx
-    xor edx, edx
-    mov r8d, MEM_RELEASE
-    sub rsp, 40
-    mov rax, [rel win32_VirtualFree]
-    test rax, rax
-    jz .skip_free
-    call rax
-.skip_free:
-    add rsp, 40
-    xor eax, eax
-    pop r15
-    pop r14
-    pop r13
-    pop r12
-    pop rsi
-    pop rdi
-    pop rbx
-    pop rbp
-    ret
 
-section .text
-
-win_bootstrap_ensure:
-    call bootstrap_init
-    cmp eax, 1
-    jne .fail
-    xor eax, eax
-    ret
-.fail:
-    mov eax, -1
-    ret
+extern win_bootstrap_ensure
 
 win_pick_handle:
     ; rdi = linux fd or native HANDLE, returns rax handle
@@ -298,63 +234,6 @@ hal_close:
     mov eax, -1
     ret
 
-hal_mmap:
-    ; (addr, len, prot, flags, fd, off) -> ptr or -1
-    ; MVP supports anonymous allocation via VirtualAlloc.
-    push rbx
-    mov rbx, rsi                     ; len
-    mov r10d, edx                    ; prot
-    call win_bootstrap_ensure
-    test eax, eax
-    js .fail
-
-    mov r9d, PAGE_READWRITE
-    test r10d, PROT_EXEC
-    jz .alloc
-    test r10d, PROT_WRITE
-    jz .exec_ro
-    mov r9d, PAGE_EXECUTE_READWRITE
-    jmp .alloc
-.exec_ro:
-    mov r9d, PAGE_EXECUTE_READ
-
-.alloc:
-    mov rcx, 0
-    mov rdx, rbx
-    mov r8d, MEM_COMMIT | MEM_RESERVE
-    sub rsp, 32
-    mov rax, [rel win32_VirtualAlloc]
-    call rax
-    add rsp, 32
-    test rax, rax
-    jz .fail
-    pop rbx
-    ret
-.fail:
-    mov rax, -1
-    pop rbx
-    ret
-
-hal_munmap:
-    ; (addr, len) -> 0/-1
-    call win_bootstrap_ensure
-    test eax, eax
-    js .fail
-    mov rcx, rdi
-    mov rdx, 0
-    mov r8d, MEM_RELEASE
-    sub rsp, 32
-    mov rax, [rel win32_VirtualFree]
-    call rax
-    add rsp, 32
-    test eax, eax
-    jz .fail
-    xor eax, eax
-    ret
-.fail:
-    mov eax, -1
-    ret
-
 hal_exit:
     ; (code)
     call win_bootstrap_ensure
@@ -364,56 +243,6 @@ hal_exit:
     call rax
     add rsp, 40
     hlt
-
-hal_clock_gettime:
-    ; (clock_id, timespec*) -> 0/-1
-    ; timespec: [0]=sec, [8]=nsec
-    push rbx
-    push r12
-    mov r12, rsi
-    call win_bootstrap_ensure
-    test eax, eax
-    js .fail
-
-    sub rsp, 72
-    lea rcx, [rsp + 48]              ; counter (LARGE_INTEGER)
-    mov rax, [rel win32_QueryPerformanceCounter]
-    call rax
-    test eax, eax
-    jz .err
-    lea rcx, [rsp + 56]              ; freq (LARGE_INTEGER)
-    mov rax, [rel win32_QueryPerformanceFrequency]
-    call rax
-    test eax, eax
-    jz .err
-
-    mov rax, [rsp + 48]              ; ticks
-    xor edx, edx
-    mov rbx, [rsp + 56]              ; ticks/sec
-    test rbx, rbx
-    jz .err
-    div rbx                          ; rax=sec, rdx=rem
-    mov [r12 + TIMESPEC_SEC_OFF], rax
-
-    mov rax, rdx
-    mov rbx, NSECS_PER_SEC
-    mul rbx
-    mov rbx, [rsp + 56]
-    xor edx, edx
-    div rbx
-    mov [r12 + TIMESPEC_NSEC_OFF], rax
-    add rsp, 72
-    xor eax, eax
-    pop r12
-    pop rbx
-    ret
-.err:
-    add rsp, 72
-.fail:
-    mov eax, -1
-    pop r12
-    pop rbx
-    ret
 
 hal_getenv:
     ; (name, out, out_cap) -> len or -1
@@ -829,185 +658,6 @@ hal_event_poll:
     ; alias to WSAPoll-based event polling
     jmp hal_wsapoll
 
-hal_thread_create:
-    ; (fn_ptr, arg_ptr, stack_size) -> handle or -1
-    push rbx
-    push r12
-    push r13
-    mov rbx, rdi                      ; fn_ptr
-    mov r12, rsi                      ; arg_ptr
-    mov r13, rdx                      ; stack_size
-    test rbx, rbx
-    jz .fail
-    call win_bootstrap_ensure
-    test eax, eax
-    js .fail
-
-    ; allocate tiny ctx {fn,arg}
-    xor rcx, rcx
-    mov edx, 16
-    mov r8d, MEM_COMMIT | MEM_RESERVE
-    mov r9d, PAGE_READWRITE
-    sub rsp, 32
-    mov rax, [rel win32_VirtualAlloc]
-    call rax
-    add rsp, 32
-    test rax, rax
-    jz .fail
-    mov [rax], rbx
-    mov [rax + 8], r12
-    mov r12, rax                      ; ctx ptr
-
-    ; CreateThread(NULL, stack_size, win_thread_entry, ctx, 0, NULL)
-    sub rsp, 48
-    mov qword [rsp + 32], 0
-    mov qword [rsp + 40], 0
-    xor rcx, rcx
-    mov rdx, r13
-    lea r8, [rel win_thread_entry]
-    mov r9, r12
-    mov rax, [rel win32_CreateThread]
-    call rax
-    add rsp, 48
-    test rax, rax
-    jz .free_ctx_fail
-    pop r13
-    pop r12
-    pop rbx
-    ret
-
-.free_ctx_fail:
-    mov rcx, r12
-    xor edx, edx
-    mov r8d, MEM_RELEASE
-    sub rsp, 32
-    mov rax, [rel win32_VirtualFree]
-    call rax
-    add rsp, 32
-.fail:
-    mov rax, -1
-    pop r13
-    pop r12
-    pop rbx
-    ret
-
-hal_thread_join:
-    ; (thread_handle) -> 0/-1
-    push rbx
-    mov rbx, rdi
-    test rbx, rbx
-    jz .fail
-    call win_bootstrap_ensure
-    test eax, eax
-    js .fail
-
-    mov rcx, rbx
-    mov edx, INFINITE
-    sub rsp, 32
-    mov rax, [rel win32_WaitForSingleObject]
-    call rax
-    add rsp, 32
-    cmp eax, 0xFFFFFFFF               ; WAIT_FAILED
-    je .close_fail
-
-    mov rcx, rbx
-    sub rsp, 32
-    mov rax, [rel win32_CloseHandle]
-    call rax
-    add rsp, 32
-    test eax, eax
-    jz .fail
-    xor eax, eax
-    pop rbx
-    ret
-
-.close_fail:
-    mov rcx, rbx
-    sub rsp, 32
-    mov rax, [rel win32_CloseHandle]
-    call rax
-    add rsp, 32
-.fail:
-    mov eax, -1
-    pop rbx
-    ret
-
-hal_mutex_init:
-    ; (mutex_ptr) -> 0/-1, SRWLOCK init is zero
-    test rdi, rdi
-    jz .fail
-    mov qword [rdi], 0
-    xor eax, eax
-    ret
-.fail:
-    mov eax, -1
-    ret
-
-hal_mutex_lock:
-    ; (mutex_ptr) -> 0/-1
-    test rdi, rdi
-    jz .fail
-    call win_bootstrap_ensure
-    test eax, eax
-    js .fail
-    mov rcx, rdi
-    sub rsp, 40
-    mov rax, [rel win32_AcquireSRWLockExclusive]
-    test rax, rax
-    jz .err
-    call rax
-    add rsp, 40
-    xor eax, eax
-    ret
-.err:
-    add rsp, 40
-    mov eax, -1
-    ret
-.fail:
-    mov eax, -1
-    ret
-
-hal_mutex_unlock:
-    ; (mutex_ptr) -> 0/-1
-    test rdi, rdi
-    jz .fail
-    call win_bootstrap_ensure
-    test eax, eax
-    js .fail
-    mov rcx, rdi
-    sub rsp, 40
-    mov rax, [rel win32_ReleaseSRWLockExclusive]
-    test rax, rax
-    jz .err
-    call rax
-    add rsp, 40
-    xor eax, eax
-    ret
-.err:
-    add rsp, 40
-    mov eax, -1
-    ret
-.fail:
-    mov eax, -1
-    ret
-
-hal_mutex_destroy:
-    ; SRWLOCK has no destroy
-    xor eax, eax
-    ret
-
-hal_atomic_inc:
-    ; (ptr qword*) -> new value or -1
-    test rdi, rdi
-    jz .fail
-    mov rax, 1
-    lock xadd [rdi], rax
-    add rax, 1
-    ret
-.fail:
-    mov rax, -1
-    ret
-
 hal_sigaction:
     ; Windows no-op compatibility for REPL signal setup.
     xor eax, eax
@@ -1049,6 +699,35 @@ hal_chdir:
     ret
 .fail:
     mov eax, -1
+    ret
+
+; hal_getcwd(buf rdi, size rsi) -> rax buf or -1 (Linux-compatible)
+hal_getcwd:
+    push rbx
+    mov rbx, rdi
+    test rbx, rbx
+    jz .gc_fail
+    test rsi, rsi
+    jz .gc_fail
+    call win_bootstrap_ensure
+    test eax, eax
+    js .gc_fail
+    mov rax, [rel win32_GetCurrentDirectoryA]
+    test rax, rax
+    jz .gc_fail
+    mov ecx, esi
+    mov rdx, rbx
+    sub rsp, 32
+    call rax
+    add rsp, 32
+    test eax, eax
+    jz .gc_fail
+    mov rax, rbx
+    pop rbx
+    ret
+.gc_fail:
+    mov rax, -1
+    pop rbx
     ret
 
 hal_getdents64:
@@ -1172,11 +851,5 @@ hal_getpid:
 
 hal_tcsetpgrp:
     ; (fd, pgid) -> 0/-1
-    xor eax, eax
-    ret
-
-hal_mprotect:
-    ; (addr, len, prot) -> 0/-1
-    ; Best-effort compatibility shim for plugin host.
     xor eax, eax
     ret

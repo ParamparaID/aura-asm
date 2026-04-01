@@ -1,7 +1,7 @@
 ; truetype.asm
 ; TrueType loader and glyph rasterization (Phase 2, partial)
 
-%include "src/hal/linux_x86_64/defs.inc"
+%include "src/hal/platform_defs.inc"
 %include "src/canvas/canvas.inc"
 
 extern hal_open

@@ -1,5 +1,5 @@
 ; registry.asm — wl_display / wl_registry (compositor server)
-%include "src/hal/linux_x86_64/defs.inc"
+%include "src/hal/platform_defs.inc"
 %include "src/compositor/compositor.inc"
 
 extern proto_send_event

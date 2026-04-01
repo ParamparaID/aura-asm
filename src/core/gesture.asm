@@ -1,5 +1,5 @@
 ; gesture.asm — touch gesture state machine (MVP: tap, long press, swipe, pinch stub)
-%include "src/hal/linux_x86_64/defs.inc"
+%include "src/hal/platform_defs.inc"
 %include "src/core/gesture.inc"
 
 section .text

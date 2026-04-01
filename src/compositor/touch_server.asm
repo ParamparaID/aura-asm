@@ -1,5 +1,5 @@
 ; touch_server.asm — wl_touch routing (down/motion/up/frame), up to 16 slots
-%include "src/hal/linux_x86_64/defs.inc"
+%include "src/hal/platform_defs.inc"
 %include "src/compositor/compositor.inc"
 
 extern surface_hit_test

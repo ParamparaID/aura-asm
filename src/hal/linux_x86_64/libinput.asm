@@ -1,5 +1,5 @@
 ; libinput.asm — standalone evdev scan + read (MVP; not libinput library)
-%include "src/hal/linux_x86_64/defs.inc"
+%include "src/hal/platform_defs.inc"
 
 extern hal_open
 extern hal_close

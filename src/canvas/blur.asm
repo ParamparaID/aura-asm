@@ -1,6 +1,6 @@
 ; blur.asm — 2D box blur with edge clamp (tmp + out buffer)
 
-%include "src/hal/linux_x86_64/defs.inc"
+%include "src/hal/platform_defs.inc"
 %include "src/canvas/canvas.inc"
 
 extern hal_mmap

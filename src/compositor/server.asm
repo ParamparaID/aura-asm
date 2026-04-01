@@ -1,5 +1,5 @@
 ; server.asm — Wayland compositor: Unix socket, clients, epoll
-%include "src/hal/linux_x86_64/defs.inc"
+%include "src/hal/platform_defs.inc"
 %include "src/compositor/compositor.inc"
 
 extern hal_socket

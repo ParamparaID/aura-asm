@@ -1,5 +1,5 @@
 ; main.asm — Aura Shell: widgets + TrueType theme + REPL terminal
-%include "src/hal/linux_x86_64/defs.inc"
+%include "src/hal/platform_defs.inc"
 %include "src/gui/widget.inc"
 %include "src/gui/theme.inc"
 %include "src/core/gesture.inc"

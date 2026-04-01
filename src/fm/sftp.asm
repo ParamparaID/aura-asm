@@ -1,5 +1,5 @@
 ; sftp.asm — minimal SFTP packet helpers (MVP)
-%include "src/hal/linux_x86_64/defs.inc"
+%include "src/hal/platform_defs.inc"
 %include "src/fm/vfs.inc"
 
 %define SSH_FXP_INIT                 1

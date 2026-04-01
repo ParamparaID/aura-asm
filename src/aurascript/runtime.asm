@@ -1,5 +1,5 @@
 ; AuraScript runtime helpers (MVP stubs)
-%include "src/hal/linux_x86_64/defs.inc"
+%include "src/hal/platform_defs.inc"
 
 extern hal_write
 

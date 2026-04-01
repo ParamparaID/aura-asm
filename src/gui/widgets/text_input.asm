@@ -1,5 +1,5 @@
 ; text_input.asm — single-line buffer + cursor
-%include "src/hal/linux_x86_64/defs.inc"
+%include "src/hal/platform_defs.inc"
 %include "src/gui/widget.inc"
 
 extern font_draw_string

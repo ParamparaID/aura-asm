@@ -1,5 +1,5 @@
 ; shm.asm — wl_shm / wl_shm_pool / wl_buffer (Phase 3)
-%include "src/hal/linux_x86_64/defs.inc"
+%include "src/hal/platform_defs.inc"
 %include "src/compositor/compositor.inc"
 
 extern arena_alloc

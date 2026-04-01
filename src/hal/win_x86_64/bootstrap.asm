@@ -45,6 +45,10 @@ section .data
     win32_InterlockedIncrement64     dq 0
     win32_GetTickCount64             dq 0
     win32_Sleep                      dq 0
+    win32_InitializeCriticalSection  dq 0
+    win32_EnterCriticalSection       dq 0
+    win32_LeaveCriticalSection       dq 0
+    win32_DeleteCriticalSection      dq 0
 
     ; winsock
     win32_WSAStartup                 dq 0
@@ -136,6 +140,10 @@ section .data
     s_InterlockedIncrement64         db "InterlockedIncrement64",0
     s_GetTickCount64                 db "GetTickCount64",0
     s_Sleep                          db "Sleep",0
+    s_InitializeCriticalSection      db "InitializeCriticalSection",0
+    s_EnterCriticalSection           db "EnterCriticalSection",0
+    s_LeaveCriticalSection           db "LeaveCriticalSection",0
+    s_DeleteCriticalSection          db "DeleteCriticalSection",0
 
     ; winsock names
     s_WSAStartup                     db "WSAStartup",0
@@ -188,6 +196,7 @@ section .bss
 
 section .text
 global bootstrap_init
+global win_bootstrap_ensure
 global boot_find_export_hash
 global boot_find_export_name
 global boot_hash_name
@@ -223,6 +232,7 @@ global win32_CreatePipe
 global win32_CreateProcessA
 global win32_GetExitCodeProcess
 global win32_GetEnvironmentVariableA
+global win32_GetCommandLineA
 global win32_GetCurrentDirectoryA
 global win32_GetModuleFileNameA
 global win32_GetModuleHandleA
@@ -232,6 +242,10 @@ global win32_ReleaseSRWLockExclusive
 global win32_InterlockedIncrement64
 global win32_GetTickCount64
 global win32_Sleep
+global win32_InitializeCriticalSection
+global win32_EnterCriticalSection
+global win32_LeaveCriticalSection
+global win32_DeleteCriticalSection
 
 global win32_WSAStartup
 global win32_WSAPoll
@@ -564,6 +578,16 @@ boot_loadlibrary:
     pop rbx
     ret
 
+win_bootstrap_ensure:
+    call bootstrap_init
+    cmp eax, 1
+    jne .wbf
+    xor eax, eax
+    ret
+.wbf:
+    mov eax, -1
+    ret
+
 bootstrap_init:
     ; returns eax = 1 success, 0 fail
     cmp dword [rel bootstrap_ready], 1
@@ -737,6 +761,22 @@ bootstrap_init:
     lea rsi, [rel s_Sleep]
     call boot_getproc
     mov [rel win32_Sleep], rax
+    mov rdi, [rel win_mod_kernel32]
+    lea rsi, [rel s_InitializeCriticalSection]
+    call boot_getproc
+    mov [rel win32_InitializeCriticalSection], rax
+    mov rdi, [rel win_mod_kernel32]
+    lea rsi, [rel s_EnterCriticalSection]
+    call boot_getproc
+    mov [rel win32_EnterCriticalSection], rax
+    mov rdi, [rel win_mod_kernel32]
+    lea rsi, [rel s_LeaveCriticalSection]
+    call boot_getproc
+    mov [rel win32_LeaveCriticalSection], rax
+    mov rdi, [rel win_mod_kernel32]
+    lea rsi, [rel s_DeleteCriticalSection]
+    call boot_getproc
+    mov [rel win32_DeleteCriticalSection], rax
 
     ; user32 exports
     mov rdi, [rel win_mod_user32]

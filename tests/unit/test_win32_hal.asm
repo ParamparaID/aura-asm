@@ -48,7 +48,7 @@ section .bss
     child_status      resd 1
     mmap_ptr          resq 1
     th_handle         resq 1
-    mutex_obj         resq 1
+    mutex_obj         resb CRITICAL_SECTION_SIZE
     atomic_val        resq 1
 
 section .text

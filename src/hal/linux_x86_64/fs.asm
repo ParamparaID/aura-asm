@@ -1,7 +1,7 @@
 ; fs.asm
 ; Extra filesystem syscall wrappers for Aura HAL
 
-%include "src/hal/linux_x86_64/defs.inc"
+%include "src/hal/platform_defs.inc"
 
 section .text
 

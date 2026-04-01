@@ -1,5 +1,5 @@
 ; fm_status_bar.asm — compact FM status line widget helper
-%include "src/hal/linux_x86_64/defs.inc"
+%include "src/hal/platform_defs.inc"
 %include "src/fm/panel.inc"
 %include "src/gui/widget.inc"
 

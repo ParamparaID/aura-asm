@@ -1,5 +1,5 @@
 ; widget.asm — base Widget tree, hit-test, dirty, focus, render dispatch
-%include "src/hal/linux_x86_64/defs.inc"
+%include "src/hal/platform_defs.inc"
 %include "src/gui/widget.inc"
 
 extern arena_init

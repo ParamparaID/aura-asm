@@ -1,7 +1,7 @@
 ; png.asm — PNG decode: chunks, zlib DEFLATE inflate, unfilter, ARGB32
 ; x86_64 Linux NASM. DEFLATE bit order: LSB first within bytes (RFC 1951).
 
-%include "src/hal/linux_x86_64/defs.inc"
+%include "src/hal/platform_defs.inc"
 
 extern hal_open
 extern hal_close

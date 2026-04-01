@@ -1,5 +1,5 @@
 ; operations.asm — High-level file operations over VFS
-%include "src/hal/linux_x86_64/defs.inc"
+%include "src/hal/platform_defs.inc"
 %include "src/fm/vfs.inc"
 
 extern vfs_path_len

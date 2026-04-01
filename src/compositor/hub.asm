@@ -1,5 +1,5 @@
 ; hub.asm — home screen (Hub) for Aura Shell compositor
-%include "src/hal/linux_x86_64/defs.inc"
+%include "src/hal/platform_defs.inc"
 %include "src/compositor/workspaces.inc"
 %include "src/gui/theme.inc"
 

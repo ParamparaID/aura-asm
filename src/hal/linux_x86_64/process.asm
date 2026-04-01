@@ -1,7 +1,7 @@
 ; process.asm
 ; Linux x86_64 process-related syscall wrappers for Aura HAL
 
-%include "src/hal/linux_x86_64/defs.inc"
+%include "src/hal/platform_defs.inc"
 
 section .text
 global global_envp

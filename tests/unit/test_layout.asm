@@ -1,5 +1,5 @@
 ; test_layout.asm — flex measure/arrange, grow, responsive
-%include "src/hal/linux_x86_64/defs.inc"
+%include "src/hal/platform_defs.inc"
 %include "src/gui/widget.inc"
 %include "src/gui/layout.inc"
 

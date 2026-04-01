@@ -1,5 +1,5 @@
 ; test_panel.asm — STEP 41 panel and file_panel tests
-%include "src/hal/linux_x86_64/defs.inc"
+%include "src/hal/platform_defs.inc"
 %include "src/gui/widget.inc"
 %include "src/fm/vfs.inc"
 %include "src/fm/panel.inc"

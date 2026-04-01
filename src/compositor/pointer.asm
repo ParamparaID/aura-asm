@@ -1,5 +1,5 @@
 ; pointer.asm — wl_pointer enter/leave/motion/button/axis + hit-test (Z-order)
-%include "src/hal/linux_x86_64/defs.inc"
+%include "src/hal/platform_defs.inc"
 %include "src/compositor/compositor.inc"
 
 extern proto_send_event

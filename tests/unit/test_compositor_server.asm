@@ -1,5 +1,5 @@
 ; test_compositor_server.asm — Wayland compositor socket + registry (Phase 3)
-%include "src/hal/linux_x86_64/defs.inc"
+%include "src/hal/platform_defs.inc"
 %include "src/compositor/compositor.inc"
 
 extern hal_write

@@ -1,5 +1,5 @@
 ; cursor.asm — compositor cursor (MVP default arrow)
-%include "src/hal/linux_x86_64/defs.inc"
+%include "src/hal/platform_defs.inc"
 
 extern canvas_draw_image_raw
 

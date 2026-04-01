@@ -1,7 +1,7 @@
 ; test_executor.asm
 ; Unit tests for shell executor (Aura Shell)
 
-%include "src/hal/linux_x86_64/defs.inc"
+%include "src/hal/platform_defs.inc"
 
 extern hal_write
 extern hal_read

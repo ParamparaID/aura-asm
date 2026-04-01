@@ -1,5 +1,5 @@
 ; dialog.asm — semi-transparent backdrop + centered panel
-%include "src/hal/linux_x86_64/defs.inc"
+%include "src/hal/platform_defs.inc"
 %include "src/gui/widget.inc"
 
 %define FP_DT_60 1092

@@ -1,5 +1,5 @@
 ; table.asm — header strip + zebra rows + tap header cycles sort column
-%include "src/hal/linux_x86_64/defs.inc"
+%include "src/hal/platform_defs.inc"
 %include "src/gui/widget.inc"
 
 %define MOUSE_LEFT 0x110

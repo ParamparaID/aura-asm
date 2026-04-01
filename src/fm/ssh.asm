@@ -1,5 +1,5 @@
 ; ssh.asm — minimal SSH helpers for FM (MVP exec path)
-%include "src/hal/linux_x86_64/defs.inc"
+%include "src/hal/platform_defs.inc"
 
 extern hal_socket
 extern hal_connect

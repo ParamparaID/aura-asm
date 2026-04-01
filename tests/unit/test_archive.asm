@@ -1,5 +1,5 @@
 ; test_archive.asm — unit tests for STEP 42 archive
-%include "src/hal/linux_x86_64/defs.inc"
+%include "src/hal/platform_defs.inc"
 %include "src/fm/vfs.inc"
 
 extern hal_write

@@ -1,7 +1,7 @@
 ; test_parser.asm
 ; Unit tests for shell parser/AST (Aura Shell)
 
-%include "src/hal/linux_x86_64/defs.inc"
+%include "src/hal/platform_defs.inc"
 
 extern hal_write
 extern hal_exit

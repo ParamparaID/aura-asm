@@ -3,7 +3,7 @@
 ; Author: Aura Shell Team
 ; Date: 2026-03-19
 
-%include "src/hal/linux_x86_64/defs.inc"
+%include "src/hal/platform_defs.inc"
 
 extern hal_mmap
 extern hal_munmap

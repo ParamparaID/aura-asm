@@ -1,5 +1,5 @@
 ; xdg.asm — xdg_wm_base / xdg_surface / xdg_toplevel (Phase 3)
-%include "src/hal/linux_x86_64/defs.inc"
+%include "src/hal/platform_defs.inc"
 %include "src/compositor/compositor.inc"
 
 extern client_resource_add

@@ -1,7 +1,7 @@
 ; signals.asm
 ; Linux x86_64 signal/process-group wrappers
 
-%include "src/hal/linux_x86_64/defs.inc"
+%include "src/hal/platform_defs.inc"
 
 section .text
 global hal_sigaction

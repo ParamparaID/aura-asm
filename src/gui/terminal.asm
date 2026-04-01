@@ -1,5 +1,5 @@
 ; terminal.asm — REPL surface inside widget tree (rounded bg, optional blur)
-%include "src/hal/linux_x86_64/defs.inc"
+%include "src/hal/platform_defs.inc"
 %include "src/gui/widget.inc"
 %include "src/gui/theme.inc"
 

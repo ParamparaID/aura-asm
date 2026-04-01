@@ -1,5 +1,5 @@
 ; keyboard.asm — wl_keyboard keymap, focus, key forwarding, modifiers (MVP)
-%include "src/hal/linux_x86_64/defs.inc"
+%include "src/hal/platform_defs.inc"
 %include "src/compositor/compositor.inc"
 
 extern hal_memfd_create

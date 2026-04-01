@@ -1,7 +1,7 @@
 ; builtins.asm
 ; Built-in command dispatcher and shell stores glue
 
-%include "src/hal/linux_x86_64/defs.inc"
+%include "src/hal/platform_defs.inc"
 
 extern hal_write
 extern hal_exit

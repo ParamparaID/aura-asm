@@ -1,5 +1,5 @@
 ; drm.asm — DRM/KMS dumb buffer + modeset (MVP, Linux uapi drm_mode.h layout)
-%include "src/hal/linux_x86_64/defs.inc"
+%include "src/hal/platform_defs.inc"
 %include "src/canvas/canvas.inc"
 
 extern hal_open

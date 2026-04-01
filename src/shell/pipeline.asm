@@ -1,7 +1,7 @@
 ; pipeline.asm
 ; Pipeline execution for Aura Shell Phase 1
 
-%include "src/hal/linux_x86_64/defs.inc"
+%include "src/hal/platform_defs.inc"
 
 extern arena_alloc
 extern hal_open

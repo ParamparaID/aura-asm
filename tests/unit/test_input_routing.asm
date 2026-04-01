@@ -1,5 +1,5 @@
 ; test_input_routing.asm — keyboard/pointer routing (Phase 3 STEP 32)
-%include "src/hal/linux_x86_64/defs.inc"
+%include "src/hal/platform_defs.inc"
 %include "src/compositor/compositor.inc"
 
 extern hal_write

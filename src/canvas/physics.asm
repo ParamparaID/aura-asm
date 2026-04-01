@@ -1,5 +1,5 @@
 ; physics.asm — UI animation: springs, inertia, snap, scheduler (fixed-point 16.16)
-%include "src/hal/linux_x86_64/defs.inc"
+%include "src/hal/platform_defs.inc"
 
 section .rodata
 FP_ONE      equ 0x00010000

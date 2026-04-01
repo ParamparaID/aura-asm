@@ -1,5 +1,5 @@
 ; test_surfaces.asm — SHM pools, surfaces, XDG, compositor_render (Phase 3)
-%include "src/hal/linux_x86_64/defs.inc"
+%include "src/hal/platform_defs.inc"
 %include "src/compositor/compositor.inc"
 %include "src/canvas/canvas.inc"
 

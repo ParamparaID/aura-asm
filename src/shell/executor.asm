@@ -1,7 +1,7 @@
 ; executor.asm
 ; AST executor for Aura Shell Phase 1 (Linux x86_64, NASM)
 
-%include "src/hal/linux_x86_64/defs.inc"
+%include "src/hal/platform_defs.inc"
 
 extern arena_alloc
 extern hal_write

@@ -1,5 +1,5 @@
 ; fm_main.asm — File Manager container/state
-%include "src/hal/linux_x86_64/defs.inc"
+%include "src/hal/platform_defs.inc"
 %include "src/gui/widget.inc"
 %include "src/fm/panel.inc"
 

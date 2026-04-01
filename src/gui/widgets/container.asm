@@ -1,5 +1,5 @@
 ; container.asm — generic grouping widget (no chrome)
-%include "src/hal/linux_x86_64/defs.inc"
+%include "src/hal/platform_defs.inc"
 %include "src/gui/widget.inc"
 
 section .text

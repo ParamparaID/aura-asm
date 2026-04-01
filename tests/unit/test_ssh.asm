@@ -1,5 +1,5 @@
 ; test_ssh.asm — unit tests for STEP 43 ssh/sftp MVP
-%include "src/hal/linux_x86_64/defs.inc"
+%include "src/hal/platform_defs.inc"
 %include "src/fm/vfs.inc"
 
 extern hal_write

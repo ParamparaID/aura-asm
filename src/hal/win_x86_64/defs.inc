@@ -1,5 +1,10 @@
 ; defs.inc - Windows x86_64 HAL constants for Aura Shell
 
+; Linux-style fds for hal_read/hal_write shims
+%define STDIN                     0
+%define STDOUT                    1
+%define STDERR                    2
+
 ; std handles
 %define INVALID_HANDLE_VALUE      -1
 %define STD_INPUT_HANDLE          -10
@@ -16,6 +21,7 @@
 %define FILE_ATTRIBUTE_NORMAL     0x80
 
 ; memory
+%define PAGE_READONLY             0x02
 %define PAGE_READWRITE            0x04
 %define PAGE_EXECUTE_READ         0x20
 %define PAGE_EXECUTE_READWRITE    0x40
@@ -34,25 +40,63 @@
 %define O_CREAT                   64
 %define O_TRUNC                   512
 %define O_APPEND                  1024
+%define O_DIRECTORY               65536
 
 %define PROT_READ                 1
 %define PROT_WRITE                2
 %define PROT_EXEC                 4
+
+; hal_access mode bits (Linux values; Win HAL may ignore)
+%define F_OK                      0
+%define X_OK                      1
+
+; st_mode file type masks (Linux layout used by stat shims)
+%define S_IFMT                    0xF000
+%define S_IFDIR                   0x4000
+
+; dirent.d_type (Linux values)
+%define DT_DIR                    4
+%define DT_REG                    8
+%define DT_LNK                    10
+%define MAP_PRIVATE               0x02
 %define MAP_ANONYMOUS             32
 
 ; winsock
 %define AF_INET                   2
 %define SOCK_STREAM               1
 %define WSADATA_SIZE              408
+%define SOCKADDR_IN_SIZE          16
+%define SIN_FAMILY_OFF            0
+%define SIN_PORT_OFF              2
+%define SIN_ADDR_OFF              4
+%define SIN_ZERO_OFF              8
 
 ; time
 %define CLOCK_REALTIME            0
 %define CLOCK_MONOTONIC           1
 %define NSECS_PER_SEC             1000000000
 
+; sigaction shape (repl.asm); Win HAL sigaction is a no-op
+%define SIG_DFL                   0
+%define SIG_IGN                   1
+%define SIGCHLD                   17
+%define SIGCONT                   18
+%define SIGTSTP                   20
+%define SIGTTIN                   21
+%define SIGTTOU                   22
+%define SA_NOCLDSTOP              0x00000001
+%define SA_RESTART                0x10000000
+%define SA_RESTORER               0x04000000
+%define WNOHANG                   1
+%define WUNTRACED                 2
+%define WCONTINUED                8
+
 ; minimal structure offsets
 %define TIMESPEC_SEC_OFF          0
 %define TIMESPEC_NSEC_OFF         8
+
+; Win32 RTL_CRITICAL_SECTION (x64)
+%define CRITICAL_SECTION_SIZE     40
 
 ; STARTUPINFOA / PROCESS_INFORMATION (x64)
 %define STARTUPINFOA_SIZE         104

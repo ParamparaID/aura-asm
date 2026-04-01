@@ -1,5 +1,5 @@
 ; text_area.asm — multiline buffer + scroll_y
-%include "src/hal/linux_x86_64/defs.inc"
+%include "src/hal/platform_defs.inc"
 %include "src/gui/widget.inc"
 
 %define MOUSE_LEFT 0x110

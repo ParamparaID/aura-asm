@@ -1,5 +1,5 @@
 ; AuraScript AOT codegen (MVP heuristics + native stubs)
-%include "src/hal/linux_x86_64/defs.inc"
+%include "src/hal/platform_defs.inc"
 
 extern arena_alloc
 extern hal_mmap
