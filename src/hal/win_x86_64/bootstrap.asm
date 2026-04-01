@@ -35,6 +35,7 @@ section .data
     win32_CreateProcessA             dq 0
     win32_GetExitCodeProcess         dq 0
     win32_GetEnvironmentVariableA    dq 0
+    win32_GetCommandLineA            dq 0
     win32_GetCurrentDirectoryA       dq 0
     win32_GetModuleFileNameA         dq 0
     win32_GetModuleHandleA           dq 0
@@ -125,6 +126,7 @@ section .data
     s_CreateProcessA                 db "CreateProcessA",0
     s_GetExitCodeProcess             db "GetExitCodeProcess",0
     s_GetEnvironmentVariableA        db "GetEnvironmentVariableA",0
+    s_GetCommandLineA                db "GetCommandLineA",0
     s_GetCurrentDirectoryA           db "GetCurrentDirectoryA",0
     s_GetModuleFileNameA             db "GetModuleFileNameA",0
     s_GetModuleHandleA               db "GetModuleHandleA",0
@@ -182,6 +184,7 @@ section .data
 
 section .bss
     wsadata_buf                      resb WSADATA_SIZE
+    stdout_handle                    resq 1
 
 section .text
 global bootstrap_init
@@ -272,6 +275,8 @@ global win32_SetTextColor
 global win32_TextOutA
 global win32_TextOutW
 global win32_CreateFontA
+
+global stdout_handle
 
 %define HASH_GetProcAddress         0x82172F7F
 
@@ -693,6 +698,10 @@ bootstrap_init:
     call boot_getproc
     mov [rel win32_GetEnvironmentVariableA], rax
     mov rdi, [rel win_mod_kernel32]
+    lea rsi, [rel s_GetCommandLineA]
+    call boot_getproc
+    mov [rel win32_GetCommandLineA], rax
+    mov rdi, [rel win_mod_kernel32]
     lea rsi, [rel s_GetCurrentDirectoryA]
     call boot_getproc
     mov [rel win32_GetCurrentDirectoryA], rax
@@ -918,6 +927,20 @@ bootstrap_init:
     pop rbx
 
 .finish:
+    ; Cache STD_OUTPUT_HANDLE for tests and diagnostics
+    mov rax, [rel win32_GetStdHandle]
+    test rax, rax
+    jz .skip_stdout
+    mov rcx, -11
+    push rbx
+    mov rbx, rsp
+    and rsp, -16
+    sub rsp, 32
+    call rax
+    mov rsp, rbx
+    pop rbx
+    mov [rel stdout_handle], rax
+.skip_stdout:
     ; minimum required for HAL write/read path
     cmp qword [rel win32_GetStdHandle], 0
     je .fail

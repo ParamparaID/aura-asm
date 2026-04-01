@@ -71,6 +71,11 @@ TEST_MARKETPLACE_BIN = $(BUILD_DIR)/test_marketplace
 TEST_MACROS_BIN = $(BUILD_DIR)/test_macros
 TEST_WIN32_HAL_OBJ = $(WIN_BUILD_DIR)/test_win32_hal.obj
 TEST_WIN32_WINDOW_OBJ = $(WIN_BUILD_DIR)/test_win32_window.obj
+WIN_ABI_OBJ = $(WIN_BUILD_DIR)/abi.obj
+TEST_WIN64_ABI_OBJ = $(WIN_BUILD_DIR)/test_win64_abi.obj
+TEST_WIN64_ABI_BIN = $(WIN_BUILD_DIR)/test_win64_abi.exe
+WIN_LD ?= x86_64-w64-mingw32-ld
+WIN_LD_FLAGS = -e _start --subsystem console
 TEST_ARM64_HAL_BIN = $(ARM_BUILD_DIR)/test_arm64_hal
 TEST_ARM64_CANVAS_BIN = $(ARM_BUILD_DIR)/test_arm64_canvas
 TEST_ARM64_CODEGEN_BIN = $(ARM_BUILD_DIR)/test_arm64_codegen
@@ -257,7 +262,7 @@ TEST_INPUT_ROUTING_OBJ = $(BUILD_DIR)/test_input_routing.o
 TEST_INPUT_ROUTING_BIN = $(BUILD_DIR)/test_input_routing
 WIDGET_TERMINAL_STUBS_OBJ = $(BUILD_DIR)/widget_terminal_stubs.o
 
-.PHONY: all test run demo clean test_nested_smoke test_nested_smoke_ci win_hal_check win_step61_check arm64_hal_check arm64_step63_check test_arm64_hal test_arm64_canvas test_arm64_codegen
+.PHONY: all test run demo clean test_nested_smoke test_nested_smoke_ci win_hal_check win_step60a_check test_win64_abi win_step61_check arm64_hal_check arm64_step63_check test_arm64_hal test_arm64_canvas test_arm64_codegen
 
 # Final binary
 all: $(AURA_SHELL_BIN)
@@ -409,8 +414,14 @@ $(WIN_BUILD_DIR):
 $(ARM_BUILD_DIR):
 	mkdir -p $(ARM_BUILD_DIR)
 
-win_hal_check: $(WIN_BOOTSTRAP_OBJ) $(WIN_SYSCALL_OBJ) $(TEST_WIN32_HAL_OBJ)
+win_hal_check: $(WIN_BOOTSTRAP_OBJ) $(WIN_SYSCALL_OBJ) $(WIN_ABI_OBJ) $(TEST_WIN32_HAL_OBJ)
 	@echo "win_x86_64 HAL objects assembled successfully."
+
+win_step60a_check: $(TEST_WIN64_ABI_BIN)
+	@echo "STEP 60A: $(TEST_WIN64_ABI_BIN) linked. Run on Windows to verify output."
+
+test_win64_abi: $(TEST_WIN64_ABI_BIN)
+	@echo "Run on Windows (or Wine): $(TEST_WIN64_ABI_BIN)"
 
 win_step61_check: $(WIN_BOOTSTRAP_OBJ) $(WIN_SYSCALL_OBJ) $(WIN_WINDOW_OBJ) $(WIN_GDI_OBJ) $(WIN_EXECUTOR_WIN_OBJ) $(TEST_WIN32_HAL_OBJ) $(TEST_WIN32_WINDOW_OBJ)
 	@echo "win_x86_64 STEP61 objects assembled successfully."
@@ -987,6 +998,15 @@ $(TEST_WIN32_HAL_OBJ): tests/unit/test_win32_hal.asm src/hal/win_x86_64/defs.inc
 
 $(TEST_WIN32_WINDOW_OBJ): tests/unit/test_win32_window.asm src/hal/win_x86_64/defs.inc src/canvas/canvas.inc | $(WIN_BUILD_DIR)
 	$(NASM_WIN) $(NASM_WIN_FLAGS) $< -o $@
+
+$(WIN_ABI_OBJ): src/hal/win_x86_64/abi.asm | $(WIN_BUILD_DIR)
+	$(NASM_WIN) $(NASM_WIN_FLAGS) $< -o $@
+
+$(TEST_WIN64_ABI_OBJ): tests/unit/test_win64_abi.asm src/hal/win_x86_64/defs.inc | $(WIN_BUILD_DIR)
+	$(NASM_WIN) $(NASM_WIN_FLAGS) $< -o $@
+
+$(TEST_WIN64_ABI_BIN): $(TEST_WIN64_ABI_OBJ) $(WIN_ABI_OBJ) $(WIN_BOOTSTRAP_OBJ)
+	$(WIN_LD) $(WIN_LD_FLAGS) -o $@ $^
 
 $(ARM_HAL_SYSCALL_OBJ): src/hal/linux_arm64/syscall.S src/hal/linux_arm64/defs.S | $(ARM_BUILD_DIR)
 	$(ARM_AS) $(ARM_AS_FLAGS) $< -o $@
