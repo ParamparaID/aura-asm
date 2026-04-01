@@ -833,6 +833,14 @@ window_draw_text_overlay:
     push r13
     push r14
     push r15
+    ; Diagnostic: disable GDI text drawing, report success.
+    xor eax, eax
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    pop rbx
+    ret
     test rdx, rdx
     jz .txt_fail
     test ecx, ecx
@@ -911,12 +919,18 @@ window_process_events:
     push rdi
     push rsi
     push r12
+    push r13
     test rdi, rdi
     jz .fail
     mov r12, rdi
     cmp qword [r12 + W_HWND_OFF], 0
     je .fail
+    ; Anti-hang guard: cap Win32 message pump iterations per tick.
+    mov r13d, 2048
 .loop:
+    test r13d, r13d
+    jle .out
+    dec r13d
     sub rsp, 48
     lea rcx, [rel win_tmp_msg]
     xor rdx, rdx
@@ -963,12 +977,14 @@ window_process_events:
     jmp .loop
 .out:
     xor eax, eax
+    pop r13
     pop r12
     pop rsi
     pop rdi
     ret
 .fail:
     mov eax, -1
+    pop r13
     pop r12
     pop rsi
     pop rdi

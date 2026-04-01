@@ -1744,7 +1744,13 @@ fm_render:
     jz .fb_left_trunc_ascii
     mov al, [rax]
     test al, 0x80
-    jnz .fb_left_len_cap
+    jz .fb_left_utf8_next
+    ; Non-ASCII detected: keep draw bounded for TextOutA path.
+    ; We intentionally cap byte length to current row budget to avoid
+    ; very large len values causing GDI stalls/hangs.
+    mov ecx, r9d
+    jmp .fb_left_len_cap
+.fb_left_utf8_next:
     inc rax
     dec r10d
     jmp .fb_left_utf8_scan
@@ -1918,7 +1924,13 @@ fm_render:
     jz .fb_right_trunc_ascii
     mov al, [rax]
     test al, 0x80
-    jnz .fb_right_len_cap
+    jz .fb_right_utf8_next
+    ; Non-ASCII detected: keep draw bounded for TextOutA path.
+    ; We intentionally cap byte length to current row budget to avoid
+    ; very large len values causing GDI stalls/hangs.
+    mov ecx, r9d
+    jmp .fb_right_len_cap
+.fb_right_utf8_next:
     inc rax
     dec r10d
     jmp .fb_right_utf8_scan

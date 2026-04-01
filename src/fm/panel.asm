@@ -444,7 +444,12 @@ panel_load:
     lea rdi, [rbx + P_PATH_OFF]
     mov esi, [rbx + P_PATH_LEN_OFF]
     lea rdx, [rbx + P_ENTRIES_BUF_OFF]
+%ifidn __OUTPUT_FORMAT__,win64
+    ; Win anti-freeze: keep initial/load-time panel work bounded.
+    mov ecx, 128
+%else
     mov ecx, VFS_MAX_DIR_ENTRIES
+%endif
     call vfs_read_entries
     test eax, eax
     js .fail
