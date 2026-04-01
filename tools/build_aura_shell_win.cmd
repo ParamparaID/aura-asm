@@ -34,6 +34,7 @@ echo === Assembling Win HAL ===
 "%NASM%" %FW% -o "build\win_x86_64\time.obj"           "src\hal\win_x86_64\time.asm"            || goto :fail
 "%NASM%" %FW% -o "build\win_x86_64\threads.obj"        "src\hal\win_x86_64\threads.asm"         || goto :fail
 "%NASM%" %FW% -o "build\win_x86_64\syscall.obj"        "src\hal\win_x86_64\syscall.asm"         || goto :fail
+"%NASM%" %FW% -o "build\win_x86_64\fileio.obj"         "src\hal\win_x86_64\fileio.asm"          || goto :fail
 "%NASM%" %FW% -o "build\win_x86_64\window.obj"         "src\hal\win_x86_64\window.asm"          || goto :fail
 "%NASM%" %FW% -o "build\win_x86_64\gdi.obj"            "src\hal\win_x86_64\gdi.asm"             || goto :fail
 "%NASM%" %FW% -o "build\win_x86_64\executor_win.obj"   "src\hal\win_x86_64\executor_win.asm"    || goto :fail
@@ -120,6 +121,7 @@ link %LFLAGS% /OUT:"aura_shell_win.exe" ^
   "build\win_x86_64\bootstrap.obj" ^
   "build\win_x86_64\abi.obj" ^
   "build\win_x86_64\syscall.obj" ^
+  "build\win_x86_64\fileio.obj" ^
   "build\win_x86_64\memory.obj" ^
   "build\win_x86_64\time.obj" ^
   "build\win_x86_64\threads.obj" ^

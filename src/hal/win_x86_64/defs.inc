@@ -18,7 +18,11 @@
 %define FILE_SHARE_WRITE          0x00000002
 %define OPEN_EXISTING             3
 %define CREATE_ALWAYS             2
+%define OPEN_ALWAYS               4
 %define FILE_ATTRIBUTE_NORMAL     0x80
+%define FILE_FLAG_BACKUP_SEMANTICS 0x02000000
+%define FILE_ATTRIBUTE_DIRECTORY  0x10
+%define FILE_SHARE_DELETE         0x00000004
 
 ; memory
 %define PAGE_READONLY             0x02

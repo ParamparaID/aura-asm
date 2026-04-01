@@ -1,9 +1,8 @@
 ; syscall.asm - Win32 HAL wrappers with SysV-compatible entry ABI
 %include "src/hal/win_x86_64/defs.inc"
 
-extern win32_CreateFileA
-extern win32_ReadFile
-extern win32_WriteFile
+extern hal_open
+extern hal_close
 extern win32_CloseHandle
 extern win32_VirtualFree
 extern win32_ExitProcess
@@ -25,10 +24,6 @@ extern win32_closesocket
 extern win32_GetCurrentDirectoryA
 
 section .text
-global hal_write
-global hal_read
-global hal_open
-global hal_close
 global hal_exit
 global hal_getenv
 global hal_getenv_raw
@@ -74,165 +69,6 @@ section .bss
 section .text
 
 extern win_bootstrap_ensure
-
-win_pick_handle:
-    ; rdi = linux fd or native HANDLE, returns rax handle
-    cmp edi, 1
-    je .stdout
-    cmp edi, 2
-    je .stderr
-    cmp edi, 0
-    je .stdin
-    mov rax, rdi
-    ret
-.stdout:
-    mov ecx, STD_OUTPUT_HANDLE
-    jmp .std
-.stderr:
-    mov ecx, STD_ERROR_HANDLE
-    jmp .std
-.stdin:
-    mov ecx, STD_INPUT_HANDLE
-.std:
-    mov rax, [rel win32_GetStdHandle]
-    sub rsp, 40
-    call rax
-    add rsp, 40
-    ret
-
-hal_write:
-    ; (fd, buf, len) -> bytes or -1
-    push rbx
-    mov rbx, rsi
-    mov r10d, edx
-    call win_bootstrap_ensure
-    test eax, eax
-    js .fail
-
-    call win_pick_handle
-    mov r11, rax
-    sub rsp, 80
-    lea r9, [rsp + 64]               ; DWORD bytesWritten
-    mov qword [rsp + 32], 0          ; OVERLAPPED = NULL
-    mov rcx, r11
-    mov rdx, rbx
-    mov r8d, r10d
-    mov rax, [rel win32_WriteFile]
-    call rax
-    test eax, eax
-    jz .err
-    mov eax, [rsp + 64]
-    add rsp, 80
-    pop rbx
-    ret
-.err:
-    add rsp, 80
-.fail:
-    mov eax, -1
-    pop rbx
-    ret
-
-hal_read:
-    ; (fd, buf, len) -> bytes or -1
-    push rbx
-    mov rbx, rsi
-    mov r10d, edx
-    call win_bootstrap_ensure
-    test eax, eax
-    js .fail
-
-    call win_pick_handle
-    mov r11, rax
-    sub rsp, 80
-    lea r9, [rsp + 64]               ; DWORD bytesRead
-    mov qword [rsp + 32], 0          ; OVERLAPPED = NULL
-    mov rcx, r11
-    mov rdx, rbx
-    mov r8d, r10d
-    mov rax, [rel win32_ReadFile]
-    call rax
-    test eax, eax
-    jz .err
-    mov eax, [rsp + 64]
-    add rsp, 80
-    pop rbx
-    ret
-.err:
-    add rsp, 80
-.fail:
-    mov eax, -1
-    pop rbx
-    ret
-
-hal_open:
-    ; (path, flags, mode) -> HANDLE or -1
-    push rbx
-    mov rbx, rdi
-    mov r10d, esi
-    call win_bootstrap_ensure
-    test eax, eax
-    js .fail
-
-    mov edx, GENERIC_READ            ; desired access
-    mov eax, r10d
-    test eax, O_WRONLY
-    jnz .wr
-    test eax, O_RDWR
-    jnz .rdwr
-    jmp .disp
-.wr:
-    mov edx, GENERIC_WRITE
-    jmp .disp
-.rdwr:
-    mov edx, GENERIC_READ | GENERIC_WRITE
-
-.disp:
-    mov r11d, OPEN_EXISTING
-    mov eax, r10d
-    test eax, O_CREAT
-    jz .call
-    test eax, O_TRUNC
-    jz .call
-    mov r11d, CREATE_ALWAYS
-
-.call:
-    sub rsp, 64
-    mov qword [rsp + 32], 0          ; lpSecurityAttributes
-    mov dword [rsp + 40], r11d       ; dwCreationDisposition
-    mov dword [rsp + 48], FILE_ATTRIBUTE_NORMAL
-    mov qword [rsp + 56], 0          ; hTemplateFile
-    mov rcx, rbx
-    mov r8d, FILE_SHARE_READ | FILE_SHARE_WRITE
-    mov r9, 0
-    mov rax, [rel win32_CreateFileA]
-    call rax
-    add rsp, 64
-    cmp rax, -1
-    je .fail
-    pop rbx
-    ret
-.fail:
-    mov eax, -1
-    pop rbx
-    ret
-
-hal_close:
-    ; (handle) -> 0/-1
-    call win_bootstrap_ensure
-    test eax, eax
-    js .fail
-    mov rcx, rdi
-    sub rsp, 40
-    mov rax, [rel win32_CloseHandle]
-    call rax
-    add rsp, 40
-    test eax, eax
-    jz .fail
-    xor eax, eax
-    ret
-.fail:
-    mov eax, -1
-    ret
 
 hal_exit:
     ; (code)
@@ -728,12 +564,6 @@ hal_getcwd:
 .gc_fail:
     mov rax, -1
     pop rbx
-    ret
-
-hal_getdents64:
-    ; (fd, buf, size) -> bytes or 0/-1
-    ; Minimal shim: no directory entries for now.
-    xor eax, eax
     ret
 
 hal_stat:
