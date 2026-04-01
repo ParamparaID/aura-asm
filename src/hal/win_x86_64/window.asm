@@ -46,6 +46,7 @@ section .data
     win_class_name               db "AuraShellClass",0
     win_class_registered         dd 0
     win_shell_replacement_mode   dd 0
+    win_text_experiment          dd 0
     win_default_title            db "Aura Shell",0
 
 section .bss
@@ -833,7 +834,10 @@ window_draw_text_overlay:
     push r13
     push r14
     push r15
-    ; Diagnostic: disable GDI text drawing, report success.
+    ; Stable default: text overlay disabled.
+    ; Enable experimental path by setting win_text_experiment=1 in debugger.
+    cmp dword [rel win_text_experiment], 1
+    je .txt_try
     xor eax, eax
     pop r15
     pop r14
@@ -841,6 +845,7 @@ window_draw_text_overlay:
     pop r12
     pop rbx
     ret
+.txt_try:
     test rdx, rdx
     jz .txt_fail
     test ecx, ecx
@@ -849,6 +854,23 @@ window_draw_text_overlay:
     mov r12d, esi                       ; y
     mov r14, rdx                        ; text ptr (non-volatile)
     mov r15d, ecx                       ; len (non-volatile)
+    ; Safe text mode for Win FM stabilization:
+    ; - hard cap draw length
+    ; - skip non-ASCII bytes to avoid GDI hangs on problematic data
+    cmp r15d, 96
+    jle .len_ok
+    mov r15d, 96
+.len_ok:
+    xor r11d, r11d
+.ascii_scan:
+    cmp r11d, r15d
+    jge .ascii_ok
+    mov al, [r14 + r11]
+    test al, 0x80
+    jnz .txt_skip
+    inc r11d
+    jmp .ascii_scan
+.ascii_ok:
     mov r10d, r8d                       ; color (saved for next call)
     mov rax, [rel win_single_ctx]
     test rax, rax
@@ -889,6 +911,14 @@ window_draw_text_overlay:
     mov dword [rsp + 32], r15d
     call rax
     add rsp, 40
+    xor eax, eax
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    pop rbx
+    ret
+.txt_skip:
     xor eax, eax
     pop r15
     pop r14
