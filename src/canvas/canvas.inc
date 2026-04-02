@@ -1,5 +1,9 @@
 ; canvas.inc — AuraCanvas layout (ARGB32 buffer + clip stack)
 ; Include after defs.inc where needed.
+;
+; Pixel words: portable drawing uses 0xAARRGGBB. On Win32, a 32-bpp BI_RGB
+; DIB stores bytes B,G,R,A in memory; the same 32-bit value still produces the
+; intended color when written through the canvas APIs (no extra swap at present).
 
 %define CV_BUFFER_OFF            0
 %define CV_WIDTH_OFF             8

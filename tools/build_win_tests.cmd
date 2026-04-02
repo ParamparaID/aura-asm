@@ -33,10 +33,16 @@ echo === Assembling ===
 "%NASM%" -f win64 -g -F cv8 -o "build\win_x86_64\syscall.obj"      "src\hal\win_x86_64\syscall.asm"       || goto :fail
 "%NASM%" -f win64 -g -F cv8 -o "build\win_x86_64\fileio.obj"       "src\hal\win_x86_64\fileio.asm"        || goto :fail
 "%NASM%" -f win64 -g -F cv8 -o "build\win_x86_64\process.obj"      "src\hal\win_x86_64\process.asm"       || goto :fail
+"%NASM%" -f win64 -g -F cv8 -o "build\win_x86_64\window.obj"       "src\hal\win_x86_64\window.asm"        || goto :fail
+set "FP=-f win64 -g -F cv8 -DAURA_WIN64"
+"%NASM%" %FP% -o "build\win_x86_64\core_input.obj"                 "src\core\input.asm"                   || goto :fail
+"%NASM%" %FP% -o "build\win_x86_64\canvas_rasterizer.obj"          "src\canvas\rasterizer.asm"              || goto :fail
+"%NASM%" %FP% -o "build\win_x86_64\canvas_simd.obj"                "src\canvas\simd.asm"                  || goto :fail
 "%NASM%" -f win64 -g -F cv8 -o "build\win_x86_64\test_win64_abi.obj"      "tests\unit\test_win64_abi.asm"      || goto :fail
 "%NASM%" -f win64 -g -F cv8 -o "build\win_x86_64\test_win64_hal_core.obj" "tests\unit\test_win64_hal_core.asm" || goto :fail
 "%NASM%" -f win64 -g -F cv8 -o "build\win_x86_64\test_win64_hal_fileio.obj" "tests\unit\test_win64_hal_fileio.asm" || goto :fail
 "%NASM%" -f win64 -g -F cv8 -o "build\win_x86_64\test_win64_hal_process.obj" "tests\unit\test_win64_hal_process.asm" || goto :fail
+"%NASM%" -f win64 -g -F cv8 -o "build\win_x86_64\test_win64_window.obj"     "tests\unit\test_win64_window.asm"     || goto :fail
 
 set "LFLAGS=/NOLOGO /MACHINE:X64 /SUBSYSTEM:CONSOLE /NODEFAULTLIB /ENTRY:_start"
 
@@ -52,11 +58,15 @@ link %LFLAGS% /OUT:"build\win_x86_64\test_win64_hal_fileio.exe" "build\win_x86_6
 echo === Linking test_win64_hal_process.exe ===
 link %LFLAGS% /OUT:"build\win_x86_64\test_win64_hal_process.exe" "build\win_x86_64\test_win64_hal_process.obj" "build\win_x86_64\bootstrap.obj" "build\win_x86_64\abi.obj" "build\win_x86_64\fileio.obj" "build\win_x86_64\process.obj" kernel32.lib || goto :fail
 
+echo === Linking test_win64_window.exe ===
+link %LFLAGS% /OUT:"build\win_x86_64\test_win64_window.exe" "build\win_x86_64\test_win64_window.obj" "build\win_x86_64\bootstrap.obj" "build\win_x86_64\abi.obj" "build\win_x86_64\syscall.obj" "build\win_x86_64\memory.obj" "build\win_x86_64\time.obj" "build\win_x86_64\threads.obj" "build\win_x86_64\fileio.obj" "build\win_x86_64\window.obj" "build\win_x86_64\core_input.obj" "build\win_x86_64\canvas_rasterizer.obj" "build\win_x86_64\canvas_simd.obj" kernel32.lib || goto :fail
+
 echo.
 echo OK: build\win_x86_64\test_win64_abi.exe
 echo OK: build\win_x86_64\test_win64_hal_core.exe
 echo OK: build\win_x86_64\test_win64_hal_fileio.exe
 echo OK: build\win_x86_64\test_win64_hal_process.exe
+echo OK: build\win_x86_64\test_win64_window.exe
 exit /b 0
 
 :fail

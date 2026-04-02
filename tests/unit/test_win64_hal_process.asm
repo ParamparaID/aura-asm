@@ -128,7 +128,7 @@ _start:
     movzx eax, byte [rdi]
     movzx ebx, byte [rsi]
     cmp eax, ebx
-    jne .fail_cm1
+    jne .fail_cm1_stk
     inc rdi
     inc rsi
     dec edx

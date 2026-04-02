@@ -22,6 +22,7 @@ section .bss
     canvas_used      resb MAX_CANVAS
 
 section .text
+default rel
 global canvas_init
 global canvas_destroy
 global canvas_clear
@@ -82,20 +83,22 @@ canvas_init:
     mov r10, rax                    ; buffer
 
     xor ecx, ecx
+    lea rbx, [rel canvas_used]
 .find_slot:
     cmp ecx, MAX_CANVAS
     jae .unmap_fail
-    movzx eax, byte [canvas_used + rcx]
+    movzx eax, byte [rbx + rcx]
     test eax, eax
     jz .slot_ok
     inc ecx
     jmp .find_slot
 
 .slot_ok:
-    mov byte [canvas_used + rcx], 1
+    mov byte [rbx + rcx], 1
     mov rax, rcx
     imul rax, CV_STRUCT_SIZE
-    lea rdi, [canvas_pool + rax]
+    lea rdi, [rel canvas_pool]
+    add rdi, rax
     mov [rdi + CV_BUFFER_OFF], r10
     mov dword [rdi + CV_WIDTH_OFF], r12d
     mov dword [rdi + CV_HEIGHT_OFF], r13d
@@ -137,7 +140,7 @@ canvas_destroy:
     mov rsi, [rbx + CV_SIZE_OFF]
     call hal_munmap
 
-    lea rdx, [canvas_pool]
+    lea rdx, [rel canvas_pool]
     mov rax, rbx
     sub rax, rdx
     xor edx, edx
@@ -145,7 +148,8 @@ canvas_destroy:
     div rcx
     cmp rax, MAX_CANVAS
     jae .ok
-    mov byte [canvas_used + rax], 0
+    lea r8, [rel canvas_used]
+    mov byte [r8 + rax], 0
 .ok:
     xor eax, eax
     pop rbx

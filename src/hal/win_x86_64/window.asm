@@ -21,6 +21,8 @@ extern win32_DispatchMessageA
 extern win32_PostQuitMessage
 extern win32_GetDC
 extern win32_ReleaseDC
+extern win32_BeginPaint
+extern win32_EndPaint
 extern win32_GetSystemMetrics
 extern win32_RegisterTouchWindow
 extern win32_RegisterHotKey
@@ -238,6 +240,8 @@ aura_wnd_proc:
     je .wm_ptr_move
     cmp edx, WM_SIZE
     je .wm_size
+    cmp edx, WM_PAINT
+    je .wm_paint
     jmp .def
 
 .wm_close:
@@ -477,6 +481,50 @@ aura_wnd_proc:
 .wm_size_done:
     add rsp, 224
     jmp .ret0
+
+.wm_paint:
+    ; BeginPaint + BitBlt DIB from mem DC + EndPaint (BGRA buffer → screen)
+    mov rax, [rel win32_BeginPaint]
+    test rax, rax
+    jz .wm_paint_def
+    sub rsp, 256
+    lea rdx, [rsp + 96]
+    mov rcx, rbx
+    call rax
+    test rax, rax
+    jz .wm_paint_bail
+    mov r14, rax
+    mov r15, [rel win_single_ctx]
+    test r15, r15
+    jz .wm_paint_end
+    mov r10, [rel win32_BitBlt]
+    test r10, r10
+    jz .wm_paint_end
+    mov eax, [r15 + W_HEIGHT_OFF]
+    mov dword [rsp + 32], eax
+    mov rax, [r15 + W_MEMDC_OFF]
+    mov [rsp + 40], rax
+    mov qword [rsp + 48], 0
+    mov qword [rsp + 56], 0
+    mov qword [rsp + 64], SRCCOPY
+    mov rcx, r14
+    xor edx, edx
+    xor r8d, r8d
+    mov r9d, [r15 + W_WIDTH_OFF]
+    call r10
+.wm_paint_end:
+    mov rax, [rel win32_EndPaint]
+    test rax, rax
+    jz .wm_paint_bail
+    mov rcx, rbx
+    lea rdx, [rsp + 96]
+    call rax
+.wm_paint_bail:
+    add rsp, 256
+    xor eax, eax
+    jmp .out
+.wm_paint_def:
+    jmp .def
 
 .def:
     ; DefWindowProcA(hWnd, msg, wParam, lParam)

@@ -76,6 +76,8 @@ section .data
     win32_LoadCursorA                dq 0
     win32_GetDC                      dq 0
     win32_ReleaseDC                  dq 0
+    win32_BeginPaint                 dq 0
+    win32_EndPaint                   dq 0
     win32_GetSystemMetrics           dq 0
     win32_RegisterTouchWindow        dq 0
     win32_GetPointerInfo             dq 0
@@ -173,6 +175,8 @@ section .data
     s_LoadCursorA                    db "LoadCursorA",0
     s_GetDC                          db "GetDC",0
     s_ReleaseDC                      db "ReleaseDC",0
+    s_BeginPaint                     db "BeginPaint",0
+    s_EndPaint                       db "EndPaint",0
     s_GetSystemMetrics               db "GetSystemMetrics",0
     s_RegisterTouchWindow            db "RegisterTouchWindow",0
     s_GetPointerInfo                 db "GetPointerInfo",0
@@ -275,6 +279,8 @@ global win32_PostQuitMessage
 global win32_LoadCursorA
 global win32_GetDC
 global win32_ReleaseDC
+global win32_BeginPaint
+global win32_EndPaint
 global win32_GetSystemMetrics
 global win32_RegisterTouchWindow
 global win32_GetPointerInfo
@@ -849,6 +855,14 @@ bootstrap_init:
     lea rsi, [rel s_ReleaseDC]
     call boot_getproc
     mov [rel win32_ReleaseDC], rax
+    mov rdi, [rel win_mod_user32]
+    lea rsi, [rel s_BeginPaint]
+    call boot_getproc
+    mov [rel win32_BeginPaint], rax
+    mov rdi, [rel win_mod_user32]
+    lea rsi, [rel s_EndPaint]
+    call boot_getproc
+    mov [rel win32_EndPaint], rax
     mov rdi, [rel win_mod_user32]
     lea rsi, [rel s_GetSystemMetrics]
     call boot_getproc

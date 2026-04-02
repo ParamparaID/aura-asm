@@ -158,6 +158,7 @@
 ; Win32 structure sizes used in asm
 %define WNDCLASSEXA_SIZE          80
 %define MSG_SIZE                  48
+%define PAINTSTRUCT_SIZE          72
 %define BITMAPINFOHEADER_SIZE     40
 
 ; Windows x64 ABI reminder:
