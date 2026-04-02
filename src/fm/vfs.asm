@@ -5,12 +5,6 @@ extern local_provider_get
 extern sftp_provider_get
 extern archive_provider_get
 extern plugin_api_bind_vfs_register
-%ifidn __OUTPUT_FORMAT__,win64
-extern win32_FindFirstFileW
-extern win32_FindNextFileW
-extern win32_FindClose
-extern win32_WideCharToMultiByte
-%endif
 
 %ifndef DT_DIR
 %define DT_DIR                  4
@@ -18,18 +12,13 @@ extern win32_WideCharToMultiByte
 %ifndef DT_REG
 %define DT_REG                  8
 %endif
-%define WIN_FINDDATA_SIZE       592
-%define WIN_FINDDATA_NAME_OFF   44
-%define WIN_FILE_ATTR_DIR       0x10
-%define WIN_FILE_ATTR_HIDDEN    0x02
-%define WIN_INVALID_HANDLE      -1
-%define WIN_CP_UTF8             65001
 
 section .bss
     vfs_providers            resq VFS_MAX_PROVIDERS
     vfs_provider_count       resd 1
 
 section .text
+default rel
 global vfs_init
 global vfs_register_provider
 global vfs_get_provider
@@ -57,7 +46,8 @@ vfs_path_len:
 
 vfs_init:
     xor eax, eax
-    mov dword [rel vfs_provider_count], eax
+    lea rcx, [rel vfs_provider_count]
+    mov [rcx], eax
     lea rdi, [rel vfs_register_provider]
     call plugin_api_bind_vfs_register
     call local_provider_get
@@ -83,12 +73,14 @@ vfs_init:
 
 ; vfs_register_provider(provider) -> eax 0 ok, -1 full
 vfs_register_provider:
-    mov ecx, [rel vfs_provider_count]
+    lea r9, [rel vfs_provider_count]
+    mov ecx, [r9]
     cmp ecx, VFS_MAX_PROVIDERS
     jae .full
-    mov [rel vfs_providers + rcx*8], rdi
+    lea r8, [rel vfs_providers]
+    mov [r8 + rcx*8], rdi
     inc ecx
-    mov [rel vfs_provider_count], ecx
+    mov [r9], ecx
     xor eax, eax
     ret
 .full:
@@ -100,6 +92,10 @@ vfs_get_provider:
     push rbx
     push r12
     push r13
+    push r14
+    push r15
+    lea r14, [rel vfs_providers]
+    lea r15, [rel vfs_provider_count]
     mov rbx, rdi
     mov r12d, esi
     xor r13d, r13d                    ; scheme len (0 => none)
@@ -182,9 +178,9 @@ vfs_get_provider:
 .search:
     xor ecx, ecx
 .loop:
-    cmp ecx, [rel vfs_provider_count]
+    cmp ecx, [r15]
     jae .fallback
-    mov rax, [rel vfs_providers + rcx*8]
+    mov rax, [r14 + rcx*8]
     inc ecx
     test rax, rax
     jz .loop
@@ -212,9 +208,9 @@ vfs_get_provider:
 .fallback:
     xor ecx, ecx
 .fb_loop:
-    cmp ecx, [rel vfs_provider_count]
+    cmp ecx, [r15]
     jae .none
-    mov rax, [rel vfs_providers + rcx*8]
+    mov rax, [r14 + rcx*8]
     inc ecx
     test rax, rax
     jz .fb_loop
@@ -224,6 +220,8 @@ vfs_get_provider:
 .none:
     xor eax, eax
 .out:
+    pop r15
+    pop r14
     pop r13
     pop r12
     pop rbx
@@ -257,217 +255,13 @@ vfs_open_dir:
     ret
 
 ; vfs_read_entries(path, path_len, entries_out, max_entries) -> eax count or -1
+; Win64: delegate to provider + hal_getdents64 (fileio.asm); avoids duplicating FindFirst here.
 vfs_read_entries:
-%ifidn __OUTPUT_FORMAT__,win64
-    ; Native Win32 directory enumeration.
-    ; args: rdi=path, esi=path_len, rdx=entries_out, ecx=max_entries
-    push rdi
-    push rsi
-    push rbx
-    push r12
-    push r13
-    push r14
-    push r15
-    ; locals:
-    ; [rsp + 0]    UTF-16 pattern buffer (520 WCHAR = 1040 bytes)
-    ; [rsp + 1040] WIN32_FIND_DATAW (592 bytes)
-    ; [rsp + 1632] find handle (qword)
-    sub rsp, 1664
-
-    mov rbx, rdi                        ; path ptr
-    mov r13d, esi                       ; path len
-    mov r12, rdx                        ; entries_out
-    mov r14d, ecx                       ; max_entries
-    xor r15d, r15d                      ; count
-
-    test r12, r12
-    jz .w_done
-    test r14d, r14d
-    jle .w_done
-
-    ; Build UTF-16 "<path>\\*" pattern into local buffer.
-    lea r10, [rsp]                      ; pattern ptr (WCHAR*)
-    xor ecx, ecx                        ; out wchar index
-    xor edx, edx                        ; in byte index
-    test r13d, r13d
-    jle .w_pat_default
-.w_pat_copy:
-    cmp edx, r13d
-    jae .w_pat_copied
-    cmp ecx, 516                        ; leave room for "\*"+NUL (wide)
-    jae .w_pat_copied
-    mov al, [rbx + rdx]
-    cmp al, '/'
-    jne .w_pat_store
-    mov al, 92
-.w_pat_store:
-    movzx eax, al
-    mov word [r10 + rcx*2], ax
-    inc ecx
-    inc edx
-    jmp .w_pat_copy
-.w_pat_copied:
-    test ecx, ecx
-    jnz .w_pat_append_star
-.w_pat_default:
-    mov word [r10], '.'
-    mov ecx, 1
-.w_pat_append_star:
-    mov eax, ecx
-    dec eax
-    js .w_pat_need_sep
-    cmp word [r10 + rax*2], 92
-    je .w_pat_have_sep
-.w_pat_need_sep:
-    cmp ecx, 517
-    jae .w_pat_have_sep
-    mov word [r10 + rcx*2], 92
-    inc ecx
-.w_pat_have_sep:
-    cmp ecx, 518
-    jae .w_pat_term
-    mov word [r10 + rcx*2], '*'
-    inc ecx
-.w_pat_term:
-    mov word [r10 + rcx*2], 0
-
-    ; FindFirstFileW(pattern, &finddata)
-    lea r11, [rsp + 1040]
-    mov rcx, r10
-    mov rdx, r11
-    mov rax, [rel win32_FindFirstFileW]
-    test rax, rax
-    jz .w_done
-    sub rsp, 32
-    call rax
-    add rsp, 32
-    mov [rsp + 1632], rax
-    cmp rax, WIN_INVALID_HANDLE
-    je .w_done
-
-.w_enum_cur:
-    lea r11, [rsp + 1040]
-    lea r8, [r11 + WIN_FINDDATA_NAME_OFF] ; cFileName
-    movzx eax, word [r8]
-    test eax, eax
-    jz .w_enum_next
-    cmp eax, '.'
-    jne .w_accept
-    cmp word [r8 + 2], 0
-    je .w_enum_next
-    cmp word [r8 + 2], '.'
-    jne .w_accept
-    cmp word [r8 + 4], 0
-    je .w_enum_next
-
-.w_accept:
-    cmp r15d, r14d
-    jae .w_close
-
-    mov eax, r15d
-    imul eax, DIR_ENTRY_SIZE
-    lea r9, [r12 + rax]
-    mov rbx, r9
-
-    ; Convert UTF-16 filename -> UTF-8 (max 255 bytes + NUL).
-    mov rax, [rel win32_WideCharToMultiByte]
-    test rax, rax
-    jz .w_enum_next
-    mov ecx, WIN_CP_UTF8
-    xor edx, edx
-    ; r8 already points to source UTF-16 name
-    mov r9d, -1
-    sub rsp, 64
-    lea rdi, [rbx + DE_NAME_OFF]
-    mov [rsp + 32], rdi
-    mov dword [rsp + 40], 256
-    mov qword [rsp + 48], 0
-    mov qword [rsp + 56], 0
-    call rax
-    add rsp, 64
-    mov r9, rbx
-    test eax, eax
-    jle .w_enum_next
-    dec eax
-    jns .w_name_len_ok
-    xor eax, eax
-.w_name_len_ok:
-    mov [r9 + DE_NAME_LEN_OFF], eax
-
-    ; Type from dwFileAttributes.
-    lea r11, [rsp + 1040]
-    mov eax, [r11 + 0]
-    test eax, WIN_FILE_ATTR_DIR
-    jz .w_type_reg
-    mov dword [r9 + DE_TYPE_OFF], DT_DIR
-    jmp .w_type_done
-.w_type_reg:
-    mov dword [r9 + DE_TYPE_OFF], DT_REG
-.w_type_done:
-
-    ; Size from nFileSizeHigh/Low.
-    mov eax, [r11 + 28]
-    mov edx, [r11 + 32]
-    shl rdx, 32
-    or rax, rdx
-    mov [r9 + DE_SIZE_OFF], rax
-
-    ; Hidden flag.
-    mov eax, [r11 + 0]
-    and eax, WIN_FILE_ATTR_HIDDEN
-    setnz al
-    movzx eax, al
-    mov [r9 + DE_HIDDEN_OFF], eax
-
-    ; Keep optional fields zero for now.
-    xor eax, eax
-    mov [r9 + DE_MTIME_OFF], rax
-    mov dword [r9 + DE_MODE_OFF], 0
-    mov dword [r9 + DE_UID_OFF], 0
-    mov dword [r9 + DE_GID_OFF], 0
-
-    inc r15d
-
-.w_enum_next:
-    mov rcx, [rsp + 1632]
-    lea rdx, [rsp + 1040]
-    mov rax, [rel win32_FindNextFileW]
-    test rax, rax
-    jz .w_close
-    sub rsp, 32
-    call rax
-    add rsp, 32
-    test eax, eax
-    jnz .w_enum_cur
-
-.w_close:
-    mov rcx, [rsp + 1632]
-    cmp rcx, WIN_INVALID_HANDLE
-    je .w_done
-    mov rax, [rel win32_FindClose]
-    test rax, rax
-    jz .w_done
-    sub rsp, 32
-    call rax
-    add rsp, 32
-
-.w_done:
-    mov eax, r15d
-    add rsp, 1664
-    pop r15
-    pop r14
-    pop r13
-    pop r12
-    pop rbx
-    pop rsi
-    pop rdi
-    ret
-%else
     jmp vfs_read_entries_full
-%endif
 
-; Legacy full implementation (kept below for Linux path)
+; Shared implementation (Linux getdents64; Windows via local provider -> hal_getdents64)
 vfs_read_entries_full:
+    cld
     push rbx
     push r12
     push r13

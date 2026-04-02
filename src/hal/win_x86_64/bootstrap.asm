@@ -18,6 +18,7 @@ section .data
     win32_GetLastError               dq 0
     win32_WriteFile                  dq 0
     win32_CloseHandle                dq 0
+    win32_CreateDirectoryA           dq 0
     win32_FindFirstFileA             dq 0
     win32_FindNextFileA              dq 0
     win32_FindFirstFileW             dq 0
@@ -117,6 +118,7 @@ section .data
     s_GetLastError                   db "GetLastError",0
     s_WriteFile                      db "WriteFile",0
     s_CloseHandle                    db "CloseHandle",0
+    s_CreateDirectoryA               db "CreateDirectoryA",0
     s_FindFirstFileA                 db "FindFirstFileA",0
     s_FindNextFileA                  db "FindNextFileA",0
     s_FindFirstFileW                 db "FindFirstFileW",0
@@ -223,6 +225,7 @@ global win32_ReadFile
 global win32_GetLastError
 global win32_WriteFile
 global win32_CloseHandle
+global win32_CreateDirectoryA
 global win32_FindFirstFileA
 global win32_FindNextFileA
 global win32_FindFirstFileW
@@ -667,6 +670,10 @@ bootstrap_init:
     lea rsi, [rel s_CloseHandle]
     call boot_getproc
     mov [rel win32_CloseHandle], rax
+    mov rdi, [rel win_mod_kernel32]
+    lea rsi, [rel s_CreateDirectoryA]
+    call boot_getproc
+    mov [rel win32_CreateDirectoryA], rax
     mov rdi, [rel win_mod_kernel32]
     lea rsi, [rel s_FindFirstFileA]
     call boot_getproc

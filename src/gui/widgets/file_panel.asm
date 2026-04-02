@@ -14,6 +14,7 @@ extern panel_mark_all
 extern panel_unmark_all
 
 %ifdef AURA_WIN64
+extern window_draw_text_overlay
 ; Win32 path: window.asm passes virtual-key codes in key events.
 %define KEY_UP                      0x26
 %define KEY_DOWN                    0x28
@@ -192,6 +193,38 @@ w_file_panel_render:
     mov ecx, [r12 + W_WIDTH_OFF]
     mov r8d, [r14 + FPD_ROW_H_OFF]
     call canvas_fill_rect
+
+%ifdef AURA_WIN64
+    cmp ebx, [r15 + P_ENTRY_COUNT_OFF]
+    jge .row_no_text
+    mov eax, ebx
+    imul eax, DIR_ENTRY_SIZE
+    lea r9, [r15 + P_ENTRIES_BUF_OFF + rax]
+    cmp dword [r9 + DE_NAME_LEN_OFF], 0
+    jle .row_no_text
+    mov ecx, [r9 + DE_NAME_LEN_OFF]
+    cmp ecx, 96
+    jle .row_len_ok
+    mov ecx, 96
+.row_len_ok:
+    lea rdx, [r9 + DE_NAME_OFF]
+    mov edi, [rsp + 0]
+    add edi, 8
+    mov esi, edx
+    add esi, 4
+    mov r8d, 0xFFE6EDF7
+    cmp dword [r9 + DE_TYPE_OFF], DT_DIR
+    jne .row_txt_go
+    mov r8d, 0xFF9BD0FF
+.row_txt_go:
+    mov eax, [r15 + P_SELECTED_IDX_OFF]
+    cmp eax, ebx
+    jne .row_call_to
+    mov r8d, 0xFFFFFFFF
+.row_call_to:
+    call window_draw_text_overlay
+.row_no_text:
+%endif
 
     inc ebx
     mov eax, [rsp + 12]

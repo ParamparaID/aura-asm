@@ -376,6 +376,7 @@ hal_stat:
     mov rdi, rbx
     mov ecx, 144
     xor eax, eax
+    cld
     rep stosb
     mov dword [rbx + 24], 0x81A4      ; S_IFREG | 0644
     mov dword [rbx + 28], 0
@@ -453,6 +454,7 @@ hal_statfs:
     mov rdi, rbx
     mov ecx, 128
     xor eax, eax
+    cld
     rep stosb
     mov qword [rbx + 8], 4096         ; f_bsize
     mov qword [rbx + 16], 1           ; f_blocks

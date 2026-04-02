@@ -381,6 +381,7 @@ hal_close:
     ret
 
 hal_getdents64:
+    cld
     push rbx
     push r12
     push r13

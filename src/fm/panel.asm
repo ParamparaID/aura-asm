@@ -13,6 +13,7 @@ section .bss
     panel_used                       resb PANEL_MAX_INSTANCES
 
 section .text
+default rel
 global panel_init
 global panel_load
 global panel_navigate
@@ -116,22 +117,28 @@ panel_mark_bit_clear:
     ret
 
 panel_alloc:
+    push rbx
     xor ecx, ecx
+    lea rbx, [rel panel_used]
 .loop:
     cmp ecx, PANEL_MAX_INSTANCES
     jae .fail
-    cmp byte [rel panel_used + rcx], 0
+    cmp byte [rbx + rcx], 0
     je .slot
     inc ecx
     jmp .loop
 .slot:
-    mov byte [rel panel_used + rcx], 1
+    mov byte [rbx + rcx], 1
     mov eax, ecx
     imul eax, PANEL_STRUCT_SIZE
-    lea rax, [rel panel_pool + rax]
+    mov r8d, eax
+    lea rax, [rel panel_pool]
+    add rax, r8
+    pop rbx
     ret
 .fail:
     xor eax, eax
+    pop rbx
     ret
 
 panel_join_path:
@@ -163,6 +170,10 @@ panel_join_path:
     jz .add_slash
     cmp byte [rbx + rax - 1], '/'
     je .copy_name
+%ifdef AURA_WIN64
+    cmp byte [rbx + rax - 1], 92
+    je .copy_name
+%endif
 .add_slash:
     mov byte [rbx + rax], '/'
     inc eax
@@ -381,6 +392,7 @@ panel_init:
     mov rdi, rax
     mov ecx, PANEL_STRUCT_SIZE
     xor eax, eax
+    cld
     rep stosb
     sub rdi, PANEL_STRUCT_SIZE
     ; rdi now panel*
@@ -407,12 +419,13 @@ panel_init:
     mov edx, VFS_MAX_PATH - 1
 .cp_ok:
     lea r8, [rdi + P_PATH_OFF]
-    mov rcx, rdx
+    mov r9d, edx
+    mov ecx, r9d
     mov rsi, rbx
     mov rdi, r8
     rep movsb
-    mov byte [r8 + rdx], 0
-    mov [r8 - P_PATH_OFF + P_PATH_LEN_OFF], edx
+    mov byte [r8 + r9], 0
+    mov [r8 - P_PATH_OFF + P_PATH_LEN_OFF], r9d
     mov rdi, r8
     sub rdi, P_PATH_OFF
 .load:
@@ -426,7 +439,14 @@ panel_init:
     mov [rdi + P_VFS_PROVIDER_OFF], rax
     push rdi
     call panel_load
+    test eax, eax
+    js .load_fail
     pop rax
+    pop rbx
+    ret
+.load_fail:
+    pop rdi
+    xor eax, eax
     pop rbx
     ret
 .fail:
@@ -436,6 +456,7 @@ panel_init:
 
 panel_load:
     ; (panel* rdi) -> eax count or -1
+    cld
     push rbx
     push r12
     push r13
@@ -445,7 +466,6 @@ panel_load:
     mov esi, [rbx + P_PATH_LEN_OFF]
     lea rdx, [rbx + P_ENTRIES_BUF_OFF]
 %ifidn __OUTPUT_FORMAT__,win64
-    ; Win anti-freeze: keep initial/load-time panel work bounded.
     mov ecx, 128
 %else
     mov ecx, VFS_MAX_DIR_ENTRIES
@@ -573,12 +593,13 @@ panel_navigate:
     call panel_join_path
     test eax, eax
     js .bad
+    mov r8d, eax
     lea rsi, [rbx + P_TMP_PATH_OFF]
     lea rdi, [rbx + P_PATH_OFF]
-    mov ecx, eax
+    mov ecx, r8d
     rep movsb
-    mov byte [rbx + P_PATH_OFF + rax], 0
-    mov [rbx + P_PATH_LEN_OFF], eax
+    mov byte [rbx + P_PATH_OFF + r8], 0
+    mov [rbx + P_PATH_LEN_OFF], r8d
     mov rdi, rbx
     call panel_load
     mov eax, 1
@@ -654,10 +675,11 @@ panel_go_path:
     mov edx, VFS_MAX_PATH - 1
 .ok:
     lea rdi, [rbx + P_PATH_OFF]
-    mov ecx, edx
+    mov r8d, edx
+    mov ecx, r8d
     rep movsb
-    mov byte [rbx + P_PATH_OFF + rdx], 0
-    mov [rbx + P_PATH_LEN_OFF], edx
+    mov byte [rbx + P_PATH_OFF + r8], 0
+    mov [rbx + P_PATH_LEN_OFF], r8d
 .ld:
     mov rdi, rbx
     call panel_load
@@ -783,6 +805,7 @@ panel_unmark_all:
     mov ecx, (VFS_MAX_DIR_ENTRIES / 8)
     xor eax, eax
     mov rdi, rsi
+    cld
     rep stosb
     sub rdi, (VFS_MAX_DIR_ENTRIES / 8)
     mov dword [rdi - P_MARK_BITS_OFF + P_MARKED_COUNT_OFF], 0

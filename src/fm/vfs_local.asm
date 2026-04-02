@@ -18,13 +18,13 @@ extern hal_chmod
 %define LOCAL_MAX_HANDLES          16
 %define LOCAL_DIR_BUF_SIZE         8192
 
-; LocalDirHandle
+; LocalDirHandle (Win64: directory HANDLE is 64-bit — store full qword at LD_FD_OFF)
 %define LD_IN_USE_OFF              0
-%define LD_FD_OFF                  4
-%define LD_BUF_POS_OFF             8
-%define LD_BUF_LEN_OFF             12
-%define LD_PATH_LEN_OFF            16
-%define LD_PATH_OFF                24
+%define LD_FD_OFF                  8
+%define LD_BUF_POS_OFF             16
+%define LD_BUF_LEN_OFF             20
+%define LD_PATH_LEN_OFF            24
+%define LD_PATH_OFF                32
 %define LD_BUF_OFF                 (LD_PATH_OFF + VFS_MAX_PATH)
 %define LD_STRUCT_SIZE             (LD_BUF_OFF + LOCAL_DIR_BUF_SIZE)
 
@@ -57,6 +57,7 @@ section .bss
     local_copy_buf               resb 65536
 
 section .text
+default rel
 global local_provider_get
 global local_open_dir
 global local_read_entry
@@ -133,12 +134,13 @@ local_build_child_path:
 
 local_find_handle_slot:
     xor ecx, ecx
+    lea r10, [rel local_handles]
 .loop:
     cmp ecx, LOCAL_MAX_HANDLES
     jae .none
     mov eax, ecx
     imul eax, LD_STRUCT_SIZE
-    lea rax, [rel local_handles + rax]
+    lea rax, [r10 + rax]
     cmp dword [rax + LD_IN_USE_OFF], 0
     je .found
     inc ecx
@@ -181,7 +183,7 @@ local_open_dir:
     call hal_open
     test rax, rax
     js .open_fail
-    mov [rbx + LD_FD_OFF], eax
+    mov [rbx + LD_FD_OFF], rax
     mov rax, rbx
     pop r13
     pop r12
@@ -211,7 +213,7 @@ local_close_dir:
     jae .out
     cmp dword [rbx + LD_IN_USE_OFF], 0
     je .out
-    movsx rdi, dword [rbx + LD_FD_OFF]
+    mov rdi, [rbx + LD_FD_OFF]
     call hal_close
     mov dword [rbx + LD_IN_USE_OFF], 0
 .out:
@@ -298,7 +300,7 @@ local_read_entry:
     mov eax, [rbx + LD_BUF_POS_OFF]
     cmp eax, [rbx + LD_BUF_LEN_OFF]
     jb .parse
-    movsx rdi, dword [rbx + LD_FD_OFF]
+    mov rdi, [rbx + LD_FD_OFF]
     lea rsi, [rbx + LD_BUF_OFF]
     mov edx, LOCAL_DIR_BUF_SIZE
     call hal_getdents64
@@ -331,6 +333,7 @@ local_read_entry:
     mov rdi, r12
     mov ecx, DIR_ENTRY_SIZE
     xor eax, eax
+    cld
     rep stosb
 
     ; copy name

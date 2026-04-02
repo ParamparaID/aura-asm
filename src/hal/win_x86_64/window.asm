@@ -48,7 +48,7 @@ section .data
     win_class_name               db "AuraShellClass",0
     win_class_registered         dd 0
     win_shell_replacement_mode   dd 0
-    win_text_experiment          dd 0
+    win_text_experiment          dd 1
     win_default_title            db "Aura Shell",0
 
 section .bss
@@ -68,7 +68,10 @@ section .bss
 %define W_SHOULD_CLOSE_OFF       40
 %define W_PAD_OFF                44
 %define W_CANVAS_OFF             48
-%define W_STRUCT_SIZE            (W_CANVAS_OFF + CV_STRUCT_SIZE)
+; GDI: stock bitmap (or prior selection) returned by first SelectObject(memDC, dib);
+; must be restored before DeleteObject(dib) / DeleteDC(memDC).
+%define W_OLD_BMP_OFF            (W_CANVAS_OFF + CV_STRUCT_SIZE)
+%define W_STRUCT_SIZE            (W_OLD_BMP_OFF + 8)
 
 ; InputEvent offsets/types mirror src/core/input.asm
 %define IE_TYPE_OFF              0
@@ -715,6 +718,7 @@ window_create_win32:
     mov rax, [rel win32_SelectObject]
     call rax
     add rsp, 40
+    mov [rbx + W_OLD_BMP_OFF], rax
 
     ; initialize canvas view (BGRA on Win32 DIB)
     mov [rbx + W_WIDTH_OFF], r12d
@@ -771,6 +775,17 @@ window_create_win32:
 
 .free_fail:
     ; cleanup partially-created Win32 resources and fail.
+    mov rcx, [rbx + W_MEMDC_OFF]
+    test rcx, rcx
+    jz .ff_skip_deselect
+    mov rdx, [rbx + W_OLD_BMP_OFF]
+    test rdx, rdx
+    jz .ff_skip_deselect
+    sub rsp, 40
+    mov rax, [rel win32_SelectObject]
+    call rax
+    add rsp, 40
+.ff_skip_deselect:
     mov rax, [rbx + W_HBITMAP_OFF]
     test rax, rax
     jz .ff_skip_obj
@@ -1088,6 +1103,11 @@ window_destroy:
     test rdi, rdi
     jz .fail
     mov rbx, rdi
+    mov rax, [rel win_single_ctx]
+    cmp rax, rbx
+    jne .ctx_ok
+    mov qword [rel win_single_ctx], 0
+.ctx_ok:
     mov rax, [rel win_cached_hdc]
     test rax, rax
     jz .skip_hdc_rel
@@ -1103,6 +1123,17 @@ window_destroy:
     mov [rel win_cached_hdc], rax
 .skip_hdc_rel:
 
+    mov rcx, [rbx + W_MEMDC_OFF]
+    test rcx, rcx
+    jz .skip_deselect
+    mov rdx, [rbx + W_OLD_BMP_OFF]
+    test rdx, rdx
+    jz .skip_deselect
+    sub rsp, 40
+    mov rax, [rel win32_SelectObject]
+    call rax
+    add rsp, 40
+.skip_deselect:
     mov rax, [rbx + W_HBITMAP_OFF]
     test rax, rax
     jz .skip_obj

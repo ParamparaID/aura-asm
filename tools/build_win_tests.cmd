@@ -43,6 +43,12 @@ set "FP=-f win64 -g -F cv8 -DAURA_WIN64"
 "%NASM%" -f win64 -g -F cv8 -o "build\win_x86_64\test_win64_hal_fileio.obj" "tests\unit\test_win64_hal_fileio.asm" || goto :fail
 "%NASM%" -f win64 -g -F cv8 -o "build\win_x86_64\test_win64_hal_process.obj" "tests\unit\test_win64_hal_process.asm" || goto :fail
 "%NASM%" -f win64 -g -F cv8 -o "build\win_x86_64\test_win64_window.obj"     "tests\unit\test_win64_window.asm"     || goto :fail
+"%NASM%" -f win64 -g -F cv8 -o "build\win_x86_64\vfs.obj"                    "src\fm\vfs.asm"                       || goto :fail
+"%NASM%" %FP% -o "build\win_x86_64\vfs_local.obj"                          "src\fm\vfs_local.asm"                 || goto :fail
+"%NASM%" %FP% -o "build\win_x86_64\panel.obj"                              "src\fm\panel.asm"                     || goto :fail
+"%NASM%" -f win64 -g -F cv8 -o "build\win_x86_64\plugin_bind_vfs_stub.obj" "tests\unit\plugin_bind_vfs_stub.asm" || goto :fail
+"%NASM%" -f win64 -g -F cv8 -o "build\win_x86_64\vfs_win64_remote_stubs.obj" "tests\unit\vfs_win64_remote_stubs.asm" || goto :fail
+"%NASM%" -f win64 -g -F cv8 -o "build\win_x86_64\test_win64_fm_ascii.obj"  "tests\unit\test_win64_fm_ascii.asm"   || goto :fail
 
 set "LFLAGS=/NOLOGO /MACHINE:X64 /SUBSYSTEM:CONSOLE /NODEFAULTLIB /ENTRY:_start"
 
@@ -61,12 +67,16 @@ link %LFLAGS% /OUT:"build\win_x86_64\test_win64_hal_process.exe" "build\win_x86_
 echo === Linking test_win64_window.exe ===
 link %LFLAGS% /OUT:"build\win_x86_64\test_win64_window.exe" "build\win_x86_64\test_win64_window.obj" "build\win_x86_64\bootstrap.obj" "build\win_x86_64\abi.obj" "build\win_x86_64\syscall.obj" "build\win_x86_64\memory.obj" "build\win_x86_64\time.obj" "build\win_x86_64\threads.obj" "build\win_x86_64\fileio.obj" "build\win_x86_64\window.obj" "build\win_x86_64\core_input.obj" "build\win_x86_64\canvas_rasterizer.obj" "build\win_x86_64\canvas_simd.obj" kernel32.lib || goto :fail
 
+echo === Linking test_win64_fm_ascii.exe ===
+link %LFLAGS% /STACK:0x2000000 /OUT:"build\win_x86_64\test_win64_fm_ascii.exe" "build\win_x86_64\test_win64_fm_ascii.obj" "build\win_x86_64\bootstrap.obj" "build\win_x86_64\abi.obj" "build\win_x86_64\syscall.obj" "build\win_x86_64\memory.obj" "build\win_x86_64\time.obj" "build\win_x86_64\threads.obj" "build\win_x86_64\fileio.obj" "build\win_x86_64\window.obj" "build\win_x86_64\core_input.obj" "build\win_x86_64\canvas_rasterizer.obj" "build\win_x86_64\canvas_simd.obj" "build\win_x86_64\vfs.obj" "build\win_x86_64\vfs_local.obj" "build\win_x86_64\panel.obj" "build\win_x86_64\plugin_bind_vfs_stub.obj" "build\win_x86_64\vfs_win64_remote_stubs.obj" kernel32.lib || goto :fail
+
 echo.
 echo OK: build\win_x86_64\test_win64_abi.exe
 echo OK: build\win_x86_64\test_win64_hal_core.exe
 echo OK: build\win_x86_64\test_win64_hal_fileio.exe
 echo OK: build\win_x86_64\test_win64_hal_process.exe
 echo OK: build\win_x86_64\test_win64_window.exe
+echo OK: build\win_x86_64\test_win64_fm_ascii.exe
 exit /b 0
 
 :fail
